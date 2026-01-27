@@ -1,125 +1,126 @@
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::{Arc, Mutex};
-use std::thread;
+use std::time::{Duration, Instant};
 
-// Main function
-pub fn generate_thumbnails(folder_path: &str, app_config_path: &str) -> HashMap<String, String> {
-    let folder_path = Path::new(folder_path);
-    let thumbnails_folder = Path::new(app_config_path).join("thumbnails");
+// DOCS:
+// By ChatGPT
 
-    create_thumbnails_folder(&thumbnails_folder);
-    let entries = collect_entries(folder_path);
+/// Generates a thumbnail for a given video file.
+///
+/// This function creates a thumbnail image from the specified video file using `ffmpeg`.
+/// If the thumbnail already exists in the target directory, it returns the existing path
+/// without re-generating the thumbnail.
+///
+/// # Arguments
+///
+/// * `video_path` - A `String` representing the full path to the video file.
+/// * `thumb_path` - A `String` representing the directory where the thumbnail will be saved.
+///
+/// # Returns
+///
+/// * `Ok(String)` - The path to the generated or existing thumbnail image.
+/// * `Err(String)` - An error message if thumbnail generation fails.
+///
+/// # Errors
+///
+/// This function returns an error in the following cases:
+/// - The thumbnails directory cannot be created.
+/// - Thumbnail generation with `ffmpeg` fails.
+///
+/// # Dependencies
+///
+/// This function relies on the `ffmpeg` command-line tool to generate thumbnails. Ensure
+/// `ffmpeg` is installed and accessible in the system's PATH.
+///
+/// # Examples
+///
+/// ```
+/// use my_crate::generate_thumb; // Replace `my_crate` with your crate name.
+///
+/// let video = "/path/to/video.mp4".to_string();
+/// let thumb_dir = "/path/to/thumbnails".to_string();
+///
+/// match generate_thumb(video, thumb_dir) {
+///     Ok(thumbnail_path) => println!("Thumbnail generated: {}", thumbnail_path),
+///     Err(err) => eprintln!("Error: {}", err),
+/// }
+/// ```
+#[tauri::command]
+pub async fn generate_thumb(video_path: String, thumb_path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let video_path = PathBuf::from(video_path);
+        let thumbnails_dir = PathBuf::from(thumb_path);
 
-    let thumbnails_map = Arc::new(Mutex::new(HashMap::new()));
-    let num_threads = 5;
-    let batch_size = (entries.lock().unwrap().len() + num_threads - 1) / num_threads;
+        let thumbnail_name = generate_thumbnail_name(&video_path);
+        let thumbnail_path = thumbnails_dir.join(&thumbnail_name);
 
-    let mut handles = vec![];
+        // Ensure the thumbnails directory exists
+        fs::create_dir_all(&thumbnails_dir)
+            .map_err(|e| format!("Failed to create thumbnails directory: {}", e))?;
 
-    for _ in 0..num_threads {
-        let thumbnails_map = Arc::clone(&thumbnails_map);
-        let thumbnails_folder = thumbnails_folder.clone();
-        let entries = Arc::clone(&entries);
-
-        let handle = thread::spawn(move || {
-            process_entries(&thumbnails_folder, entries, batch_size, thumbnails_map);
-        });
-
-        handles.push(handle);
-    }
-
-    for handle in handles {
-        handle.join().expect("Thread panicked");
-    }
-
-    Arc::try_unwrap(thumbnails_map)
-        .unwrap()
-        .into_inner()
-        .unwrap()
-}
-
-// Sub-function to create the thumbnails folder
-fn create_thumbnails_folder(thumbnails_folder: &Path) {
-    if !thumbnails_folder.exists() {
-        fs::create_dir(thumbnails_folder).expect("Failed to create thumbnails folder");
-    }
-}
-
-// Sub-function to collect directory entries
-fn collect_entries(folder_path: &Path) -> Arc<Mutex<Vec<PathBuf>>> {
-    let entries: Vec<_> = fs::read_dir(folder_path)
-        .expect("Failed to read directory")
-        .filter_map(|entry| entry.ok().map(|e| e.path())) // Only collect successful entries
-        .collect();
-    Arc::new(Mutex::new(entries))
-}
-
-// Sub-function to process entries and generate thumbnails
-fn process_entries(
-    thumbnails_folder: &Path,
-    entries: Arc<Mutex<Vec<PathBuf>>>,
-    batch_size: usize,
-    thumbnails_map: Arc<Mutex<HashMap<String, String>>>,
-) {
-    loop {
-        let chunk = {
-            let mut entries = entries.lock().unwrap();
-            if entries.is_empty() {
-                break;
-            }
-            let split_index = batch_size.min(entries.len());
-            let chunk = entries.drain(0..split_index).collect::<Vec<_>>();
-            chunk
-        };
-
-        for path in chunk {
-            if !is_video_file(&path) {
-                continue;
-            }
-
-            let thumbnail_name = generate_thumbnail_name(&path);
-            let thumbnail_path = thumbnails_folder.join(&thumbnail_name);
-
-            if thumbnail_path.exists() {
-                let mut map = thumbnails_map.lock().unwrap();
-                map.insert(thumbnail_name.clone(), path.to_string_lossy().to_string());
-                continue;
-            }
-
-            if generate_thumbnail(&path, &thumbnail_path) {
-                let mut map = thumbnails_map.lock().unwrap();
-                map.insert(thumbnail_name.clone(), path.to_string_lossy().to_string());
-            } else {
-                eprintln!("Failed to generate thumbnail for {:?}", path);
-            }
+        // Check if the thumbnail already exists
+        if thumbnail_path.exists() {
+            return Ok(thumbnail_path.to_string_lossy().to_string());
         }
-    }
+
+        // Generate the thumbnail using ffmpeg
+        if generate_thumbnail(&video_path, &thumbnail_path) {
+            Ok(thumbnail_path.to_string_lossy().to_string())
+        } else {
+            Err(format!("Failed to generate thumbnail for {:?}", video_path))
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
-// Sub-function to check if a file is a video
-fn is_video_file(path: &PathBuf) -> bool {
-    if let Some(ext) = path.extension() {
-        matches!(
-            ext.to_str().unwrap().to_lowercase().as_str(),
-            "mp4" | "mkv" | "avi" | "mov" | "wmv"
-        )
-    } else {
-        false
-    }
-}
-
-// Sub-function to generate a thumbnail name
+/// Generates a thumbnail file name based on the video file name.
+///
+/// # Arguments
+///
+/// * `path` - A reference to a `PathBuf` representing the video file path.
+///
+/// # Returns
+///
+/// A `String` containing the generated thumbnail file name (e.g., `video.png`).
+///
+/// # Examples
+///
+/// ```
+/// let path = PathBuf::from("/path/to/video.mp4");
+/// let thumb_name = generate_thumbnail_name(&path);
+/// assert_eq!(thumb_name, "video.png");
+/// ```
 fn generate_thumbnail_name(path: &PathBuf) -> String {
     path.file_stem().unwrap().to_string_lossy().to_string() + ".png"
 }
 
-// Sub-function to generate a thumbnail using ffmpeg
+/// Generates a thumbnail image for a video using `ffmpeg`.
+///
+/// # Arguments
+///
+/// * `video_path` - A reference to a `Path` representing the video file path.
+/// * `thumbnail_path` - A reference to a `Path` representing the thumbnail file path.
+///
+/// # Returns
+///
+/// `true` if the thumbnail generation succeeds, otherwise `false`.
+///
+/// # Dependencies
+///
+/// This function requires `ffmpeg` to be installed and accessible in the system's PATH.
+///
+/// # Examples
+///
+/// ```
+/// let video_path = Path::new("/path/to/video.mp4");
+/// let thumbnail_path = Path::new("/path/to/thumbnails/video.png");
+/// assert!(generate_thumbnail(video_path, thumbnail_path));
+/// ```
 fn generate_thumbnail(video_path: &Path, thumbnail_path: &Path) -> bool {
     let status = Command::new("ffmpeg")
-        .args(&[
+        .args([
             "-i",
             video_path.to_str().unwrap(),
             "-ss",
@@ -133,5 +134,25 @@ fn generate_thumbnail(video_path: &Path, thumbnail_path: &Path) -> bool {
         .status()
         .expect("Failed to execute ffmpeg");
 
-    status.success()
+    if !status.success() {
+        return false;
+    }
+
+    // Now poll until file is readable and has content
+    let timeout = Duration::from_secs(5); // safety net
+    let start = Instant::now();
+    let sleep_step = Duration::from_millis(30);
+
+    while start.elapsed() < timeout {
+        match fs::metadata(thumbnail_path) {
+            Ok(meta) if meta.len() > 0 => return true, // file exists + has size → good to go
+            _ => std::thread::sleep(sleep_step),
+        }
+    }
+
+    eprintln!(
+        "Warning: thumbnail {:?} not visible after timeout",
+        thumbnail_path
+    );
+    false // or return true if you want to be optimistic
 }
