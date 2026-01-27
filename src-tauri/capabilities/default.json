@@ -1,0 +1,34 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "default",
+	"description": "Capability for the main window",
+	"windows": ["main"],
+	"permissions": [
+		"core:default",
+		"opener:default",
+		{
+			"identifier": "fs:allow-config-write",
+			"allow": [{ "path": "$CONFIG/WallpaperPickerUI/config.json" }]
+		},
+		{
+			"identifier": "fs:allow-config-read",
+			"allow": [{ "path": "$CONFIG/WallpaperPickerUI/config.json" }]
+		},
+		{
+			"identifier": "fs:allow-data-read",
+			"allow": [{ "path": "$DATA/me.matuz.wallpaper-picker-ui/thumbnails" }]
+		},
+		{
+			"identifier": "fs:allow-data-write",
+			"allow": [{ "path": "$DATA/me.matuz.wallpaper-picker-ui/thumbnails" }]
+		},
+		{
+			"identifier": "fs:allow-mkdir",
+			"allow": [{ "path": "$DATA/me.matuz.wallpaper-picker-ui" }]
+		},
+		{
+			"identifier": "fs:allow-exists",
+			"allow": [{ "path": "$DATA/me.matuz.wallpaper-picker-ui" }]
+		}
+	]
+}

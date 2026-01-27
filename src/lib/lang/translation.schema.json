@@ -1,0 +1,30 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Wallpaper Picker Translation File",
+	"type": "object",
+	"required": ["code", "name", "translations"],
+	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "JSON schema reference"
+		},
+		"code": {
+			"type": "string",
+			"minLength": 2,
+			"description": "Language code (e.g. eng, pt-br, es)"
+		},
+		"name": {
+			"type": "string",
+			"description": "Human-readable language name"
+		},
+		"translations": {
+			"type": "object",
+			"minProperties": 1,
+			"additionalProperties": {
+				"type": "string"
+			},
+			"description": "Translation key-value pairs"
+		}
+	},
+	"additionalProperties": false
+}

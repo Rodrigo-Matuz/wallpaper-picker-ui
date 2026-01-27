@@ -1,0 +1,35 @@
+{
+  "extends": "./.svelte-kit/tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "bits-ui"
+    ],
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "$components/*": [
+        "src/lib/components/*"
+      ],
+      "$api/*": [
+        "src/lib/api/*"
+      ],
+      "$lang/*": [
+        "src/lib/lang/*"
+      ],
+      "$utils/*": [
+        "src/lib/utils/*"
+      ],
+      "$types/*": [
+        "src/types/*"
+      ]
+    }
+  }
+}
