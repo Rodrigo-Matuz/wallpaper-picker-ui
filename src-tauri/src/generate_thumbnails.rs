@@ -35,7 +35,10 @@ pub fn generate_thumbnails(folder_path: &str, app_config_path: &str) -> HashMap<
         handle.join().expect("Thread panicked");
     }
 
-    Arc::try_unwrap(thumbnails_map).unwrap().into_inner().unwrap()
+    Arc::try_unwrap(thumbnails_map)
+        .unwrap()
+        .into_inner()
+        .unwrap()
 }
 
 // Sub-function to create the thumbnails folder

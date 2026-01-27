@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    wallpaper_picker_lib::run()
+    wallpaper_picker_ui_lib::run()
 }

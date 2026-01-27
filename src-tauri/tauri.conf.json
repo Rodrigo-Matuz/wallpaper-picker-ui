@@ -1,33 +1,42 @@
 {
-	"productName": "wallpaper-picker",
-	"version": "1.0.0",
-	"identifier": "wallpaper-picker",
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "wallpaper-picker-ui",
+	"version": "3.0.0",
+	"identifier": "me.matuz.wallpaper-picker-ui",
 	"build": {
 		"beforeDevCommand": "bun run dev",
 		"devUrl": "http://localhost:1420",
 		"beforeBuildCommand": "bun run build",
-		"frontendDist": "../dist"
+		"frontendDist": "../build"
 	},
 	"app": {
 		"windows": [
 			{
-				"title": "wallpaper_picker",
+				"title": "wallpaper-picker-ui",
 				"width": 950,
 				"height": 600,
-				"fullscreen": false
+				"fullscreen": false,
+				"decorations": false
 			}
 		],
-		"security": { "capabilities": ["dev-capability"] }
+		"security": {
+			"csp": null
+		}
 	},
 	"bundle": {
-		"active": true,
-		"targets": "all",
-		"icon": [
-			"icons/32x32.png",
-			"icons/128x128.png",
-			"icons/128x128@2x.png",
-			"icons/icon.icns",
-			"icons/icon.ico"
-		]
+		"linux": {
+			"appimage": {
+				"bundleMediaFramework": false,
+				"files": {}
+			},
+			"deb": {
+				"files": {}
+			},
+			"rpm": {
+				"epoch": 0,
+				"files": {},
+				"release": "1"
+			}
+		}
 	}
 }
