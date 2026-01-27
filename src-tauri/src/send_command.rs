@@ -3,7 +3,7 @@ use std::thread;
 
 #[tauri::command]
 pub fn send_command(command: String, path: String) -> String {
-    let full_command = command.replace("$VP", &path);
+    let full_command = command.replace("$VP", &format!("\"{}\"", path));
 
     thread::spawn(move || {
         let output = Command::new("sh")
