@@ -4,7 +4,9 @@
 A simple, lightweight UI for browsing, selecting, and applying wallpapers — especially optimized for animated/live wallpapers via `mpvpaper`.  
 You can easily customize the command that gets executed when applying a wallpaper.
 
-Wallpaper Picker Video
+## Preview:
+[Wallpaper Picker UI Preview](https://github.com/user-attachments/assets/637bb921-d296-44b3-8c2b-b7e0927d057e)
+
 
 **Suggested default command (for mpvpaper):**
 ```bash
