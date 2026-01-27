@@ -6,6 +6,10 @@
 	"permissions": [
 		"core:default",
 		"opener:default",
+
+		"fs:allow-exists",
+		"fs:allow-mkdir",
+
 		{
 			"identifier": "fs:allow-config-write",
 			"allow": [{ "path": "$CONFIG/WallpaperPickerUI/config.json" }]
@@ -29,6 +33,13 @@
 		{
 			"identifier": "fs:allow-exists",
 			"allow": [{ "path": "$DATA/me.matuz.wallpaper-picker-ui" }]
+		},
+		{
+			"identifier": "fs:allow-read-file",
+			"allow": [
+				{ "path": "$DATA/me.matuz.wallpaper-picker-ui/thumbnails" },
+				{ "path": "$DATA/me.matuz.wallpaper-picker-ui/thumbnails/*" }
+			]
 		}
 	]
 }

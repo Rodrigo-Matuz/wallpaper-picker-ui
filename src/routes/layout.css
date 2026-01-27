@@ -122,3 +122,23 @@
     max-width: 1400px;
   }
 }
+
+
+::-webkit-scrollbar {
+	background: transparent;
+	width: 5px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+	border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+	background: oklch(0.5652 0.239 262.74);
+	border-radius: 15px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: oklch(0.63 0.22 292);
+}
