@@ -39,11 +39,19 @@
 {#if $totalVideos > 0 && $thumbnailsGenerated < $totalVideos}
     <!-- Show progress bar -->
     <div class="flex flex-col items-center mt-40 w-full">
-        <p class="mb-4">
-            {t("homeGeneratingThumbsText")}
+        <p class="mb-2">
+            {$t("homeGeneratingThumbsText")}
             {value} / {$totalVideos}
         </p>
-        <Progress {value} max={$totalVideos} class="bg-card w-[60%] h-2" />
+        <Progress
+            {value}
+            max={$totalVideos}
+            class="bg-card border w-[60%] h-2"
+        />
+        <!-- Micro hint text -->
+        <p class="mt-2 max-w-md text-muted-foreground text-xs text-center">
+            Already generated thumbnails? Turn off “New wallpapers” in settings.
+        </p>
     </div>
 {:else}
     <!-- Show thumbnails -->
@@ -60,7 +68,7 @@
                 <div class="relative">
                     <img src={blobUrl} alt={videoPath} />
                     <div
-                        class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100"
+                        class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100"
                     ></div>
                     <div
                         class="absolute inset-0 flex justify-center items-center opacity-0 group-hover:opacity-100"

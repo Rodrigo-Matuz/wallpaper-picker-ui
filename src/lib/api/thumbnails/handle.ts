@@ -14,83 +14,116 @@ export const thumbnails = writable<ThumbnailRecord>({});
 export const thumbnailsGenerated = writable(0);
 export const totalVideos = writable(0);
 
+let isProcessing = false;
+let pendingPromise: Promise<void> | null = null;
+
 /** DOCS:
  * Handles the generation, storage, and management of video thumbnails in the application's data directory.
- * Coordinates thumbnail generation, storage, and UI state updates.
+ * Coordinates thumbnail generation, blob loading, configuration updates, and UI state synchronization.
  *
- * This function coordinates the following:
- * - Fetches configuration data to check for new wallpapers and existing thumbnails.
- * - Generates thumbnails for a list of video files if new wallpapers are detected.
- * - Reads generated thumbnail files into blob URLs for usage in the UI.
- * - Updates the thumbnails store and the application's configuration file with sorted data.
- * - Updates Svelte stores used for thumbnail display and generation progress.
+ * This function is concurrency-safe:
+ * - If a thumbnail generation process is already running, subsequent calls will wait for the
+ *   current execution to finish instead of running in parallel.
+ *
+ * Main responsibilities:
+ * - Fetches configuration data to determine whether new wallpapers were added.
+ * - Optionally forces thumbnail regeneration regardless of config state.
+ * - Generates thumbnails for all detected video files when needed.
+ * - Updates progress-related Svelte stores during generation.
+ * - Sorts and persists the generated thumbnail mapping into the configuration file.
+ * - Converts thumbnail files into blob URLs for UI consumption.
+ * - Updates the thumbnails store used by the UI.
+ *
+ * Error handling:
+ * - Errors during generation, blob loading, or store updates are logged individually
+ *   without crashing the entire pipeline.
+ *
+ * @param forceRegenerate - When true, forces thumbnail regeneration even if no new wallpapers
+ * are detected (e.g. after deletions).
  *
  * @example
  * ```ts
- * // Generate and handle thumbnails
+ * // Normal execution (uses config state)
  * await handleThumbnails();
- * console.log("Thumbnails processed successfully.");
+ *
+ * // Force regeneration (ignores config state)
+ * await handleThumbnails(true);
  * ```
  */
-export async function handleThumbnails(): Promise<void> {
-	let { newWallpapers, thumbnailsHashMap } = await fetchConfig();
-	const blobUrlsHashMap: ThumbnailRecord = {};
-
-	if (newWallpapers) {
-		try {
-			const videosList = await fetchVideos();
-			totalVideos.set(videosList.length);
-
-			const newThumbnailsHashMap = await processVideoPaths(videosList);
-
-			totalVideos.set(0); // Reset progress
-
-			const sortedThumbnailsHashMap = sortJsonByKey(newThumbnailsHashMap);
-			await updateConfig({ thumbnailsHashMap: sortedThumbnailsHashMap });
-			thumbnailsHashMap = sortedThumbnailsHashMap;
-		} catch (error) {
-			await log({
-				level: "error",
-				callStack: new Error(),
-				message: {
-					context: "Failed to generate thumbnails",
-					error,
-				},
-			});
+export async function handleThumbnails(forceRegenerate = false): Promise<void> {
+	if (isProcessing) {
+			if (pendingPromise) await pendingPromise;
+			return;
 		}
-	} // if (newWallpapers)
 
-	try {
-		for (const [fileName, videoPath] of Object.entries(thumbnailsHashMap) as [
-			string,
-			string,
-		][]) {
-			try {
-				const blobUrl: string = await fileToBlobUrl(fileName);
-				blobUrlsHashMap[blobUrl] = videoPath;
-			} catch (error) {
+    isProcessing = true;
+    pendingPromise = (async () => {
+        try {
+            let { newWallpapers, thumbnailsHashMap } = await fetchConfig();
+
+            if (forceRegenerate) newWallpapers = true;
+
+            const blobUrlsHashMap: ThumbnailRecord = {};
+
+            if (newWallpapers) {
+                try {
+                    thumbnailsGenerated.set(0);
+                    const videosList = await fetchVideos();
+                    totalVideos.set(videosList.length);
+
+                    const newThumbnailsHashMap = await processVideoPaths(videosList);
+
+                    totalVideos.set(0);
+
+                    const sorted = sortJsonByKey(newThumbnailsHashMap);
+                    await updateConfig({ thumbnailsHashMap: sorted });
+                    thumbnailsHashMap = sorted;
+                } catch (error) {
+					await log({
+						level: "error",
+						callStack: new Error(),
+						message: {
+							context: "Failed to generate thumbnails",
+							error,
+						},
+					});
+				}
+            }
+
+            try {
+                for (const [fileName, videoPath] of Object.entries(thumbnailsHashMap) as [string, string][]) {
+                    try {
+                        const blobUrl = await fileToBlobUrl(fileName);
+                        blobUrlsHashMap[blobUrl] = videoPath;
+                    } catch (error) {
+						await log({
+							level: "error",
+							callStack: new Error(),
+							message: {
+								context: "Failed to convert thumbnail file to blob URL",
+								error,
+							},
+						});
+					}
+                }
+                thumbnails.set(blobUrlsHashMap);
+            } catch (error) {
 				await log({
 					level: "error",
 					callStack: new Error(),
 					message: {
-						context: "Failed to convert thumbnail file to blob URL",
+						context: "Failed to update thumbnails store",
 						error,
 					},
 				});
 			}
-		}
+        } finally {
+            isProcessing = false;
+            pendingPromise = null;
+        }
+    })();
 
-		thumbnails.set(blobUrlsHashMap);
-	} catch (error) {
-		await log({
-			level: "error",
-			callStack: new Error(),
-			message: {
-				context: "Failed to update thumbnails store",
-				error,
-			},
-		});
-	}
+    await pendingPromise;
 }
 
 /** DOCS:
@@ -111,11 +144,11 @@ export async function handleThumbnails(): Promise<void> {
  */
 async function fileToBlobUrl(
 	fileName: string,
-	// TODO: why not BaseDirectory.AppData instead of baseDir: directory? 
+	// TODO: why not BaseDirectory.AppData instead of baseDir: directory?
 	directory: BaseDirectory = BaseDirectory.AppData,
 ): Promise<string> {
 	const uint8Array: Uint8Array = await readFile(`${THUMBNAILS_DIR}/${fileName}`, {
-		// HERE! 
+		// HERE!
 		baseDir: directory,
 	});
 	const blob = new Blob([uint8Array], { type: "image/png" });
@@ -141,6 +174,7 @@ async function processVideoPaths(videosList: string[]): Promise<ThumbnailRecord>
 
 	for (const videoPath of videosList) {
 		const thumbPath = await generateThumb(videoPath);
+		await new Promise((r) => setTimeout(r, 150));
 		const fileName = await basename(thumbPath);
 		newThumbnailsHashMap[fileName] = videoPath;
 		thumbnailsGenerated.update((count) => count + 1);

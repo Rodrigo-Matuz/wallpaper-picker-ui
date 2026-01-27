@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::{Duration, Instant};
 
 // DOCS:
 // By ChatGPT
@@ -133,5 +134,25 @@ fn generate_thumbnail(video_path: &Path, thumbnail_path: &Path) -> bool {
         .status()
         .expect("Failed to execute ffmpeg");
 
-    status.success()
+    if !status.success() {
+        return false;
+    }
+
+    // Now poll until file is readable and has content
+    let timeout = Duration::from_secs(5); // safety net
+    let start = Instant::now();
+    let sleep_step = Duration::from_millis(30);
+
+    while start.elapsed() < timeout {
+        match fs::metadata(thumbnail_path) {
+            Ok(meta) if meta.len() > 0 => return true, // file exists + has size → good to go
+            _ => std::thread::sleep(sleep_step),
+        }
+    }
+
+    eprintln!(
+        "Warning: thumbnail {:?} not visible after timeout",
+        thumbnail_path
+    );
+    false // or return true if you want to be optimistic
 }
