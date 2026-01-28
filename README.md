@@ -12,7 +12,7 @@ The app lets you quickly preview wallpapers, generate thumbnails automatically, 
 
 ## Preview
 
-[Wallpaper Picker UI Preview](https://github.com/user-attachments/assets/637bb921-d296-44b3-8c2b-b7e0927d057e)
+![Wallpaper Picker UI Preview](https://github.com/user-attachments/assets/676d816d-287d-4c60-8d60-a6f7f9430464)
 
 ## Suggested Default Command (mpvpaper)
 ```bash
