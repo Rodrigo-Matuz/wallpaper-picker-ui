@@ -50,6 +50,7 @@
         />
         <!-- Micro hint text -->
         <p class="mt-2 max-w-md text-muted-foreground text-xs text-center">
+            {$t("homeGeneratingThumbsHint")}
             Already generated thumbnails? Turn off “New wallpapers” in settings.
         </p>
     </div>

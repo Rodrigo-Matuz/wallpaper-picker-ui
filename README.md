@@ -99,6 +99,8 @@ Go to the [Releases](https://github.com/Rodrigo-Matuz/wallpaper-picker/releases)
 </details>
 
 ## Contributing Translations
+<details>
+  <summary>Click to show instructions</summary>
 
 Wallpaper Picker supports multiple languages and makes it easy to add or improve translations.
 
@@ -149,6 +151,8 @@ Wallpaper Picker supports multiple languages and makes it easy to add or improve
 
 After adding or updating a translation, rebuild the app to see it in the language dropdown, or submit it as a [pull request](https://github.blog/developer-skills/github/beginners-guide-to-github-creating-a-pull-request/).
 Thanks for helping make Wallpaper Picker available in more languages.
+
+</details>
 
 ## TODO / Planned Features
 - More pre-made themes included by default

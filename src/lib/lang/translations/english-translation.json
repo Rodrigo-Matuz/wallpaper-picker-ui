@@ -1,10 +1,11 @@
 {
 	"$schema": "../translation.schema.json",
-	"code": "eng",
+	"code": "en",
 	"name": "English",
 	"translations": {
 		"homeSearchPlaceholder": "Search Wallpapers...",
 		"homeGeneratingThumbsText": "Generating thumbnails",
+		"homeGeneratingThumbsHint": "Already generated thumbnails? Turn off “New wallpapers” in settings.",
 		"homeThankYouFooter": "Thank you for using the app :3",
 		"aboutSearchPlaceholder": "About",
 		"aboutDevProfileLoading": "Loading...",
@@ -30,7 +31,7 @@
 		"settingsDeleteConfigButtonText": "DELETE",
 		"settingsDeleteConfigHintDescription": "This will delete the configuration file, usually located at <span class=\"text-primary\">\"/home/$USER/.config/wallpaper_picker\"</span>.<br><br>Use this to reset all settings to their default values.",
 		"settingsLanguageName": "Select Language",
-		"settingsLanguageShortDescription": "Change the application Language.",
+		"settingsLanguageShortDescription": "Change the application language.",
 		"settingsLanguagePlaceholder": "Search Language...",
 		"settingsLanguageHintDescription": "Select your preferred language from the list.<br><br>Don't see yours? Help translate it into your language! Visit the project on <span class=\"text-primary hover:text-secondary\"><a href=\"https://github.com/Rodrigo-Matuz/wallpaper_picker\" target=\"_blank\">GitHub</a></span>"
 	}
