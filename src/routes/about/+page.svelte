@@ -14,6 +14,8 @@
         SiKofi,
     } from "@icons-pack/svelte-simple-icons";
 
+    const version = __APP_VERSION__;
+
     const iconMap = {
         github: SiGithub,
         discord: SiDiscord,
@@ -30,17 +32,23 @@
 
 </script>
 
-<Navbar
-    leftIcon={House}
-    leftOnClick={() => goto("/")}
-    disableInput={true}
-    inputPlaceholder={$t("aboutSearchPlaceholder")}
-    rightIcon={Settings}
-    rightOnClick={() => goto("/settings")}
-/>
+<div class="flex flex-col min-h-screen">
 
-<Space larger={true} />
+    <Navbar
+        leftIcon={House}
+        leftOnClick={() => goto("/")}
+        disableInput={true}
+        inputPlaceholder={$t("aboutSearchPlaceholder")}
+        rightIcon={Settings}
+        rightOnClick={() => goto("/settings")}
+    />
 
-<DevProfile links={matuzLinks} githubUrl={matuz.githubUrl} />
+    <div class="flex flex-col justify-center items-center py-8 grow">
+        <Space larger={true} />
+        <DevProfile links={matuzLinks} githubUrl={matuz.githubUrl} />
+    </div>
 
-<Space larger={true} />
+    <footer class="mt-auto py-3 border-t text-muted-foreground text-center">
+        {$t("aboutAppVersion")} {version}
+    </footer>
+</div>

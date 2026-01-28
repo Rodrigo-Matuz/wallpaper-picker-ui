@@ -32,8 +32,9 @@
 
 {#if !loading}
     <div class="flex flex-col min-h-screen">
-        <div class="grow">
+        <div class="mb-5 grow">
             <Navbar
+                leftIcon={FolderSearch2}
                 leftOnClick={async () => {
                     const folderPath = await selectFolder();
                     if (folderPath) {
@@ -50,7 +51,7 @@
             <Display {searchQuery} />
         </div>
         <footer
-            class="my-2 text-muted-foreground text-center pointer-events-none select-none"
+            class="bg-card mt-auto py-3 border-t text-muted-foreground text-center pointer-events-none select-none"
         >
             {$t("homeThankYouFooter")}
         </footer>

@@ -10,6 +10,7 @@
 		"aboutSearchPlaceholder": "About",
 		"aboutDevProfileLoading": "Loading...",
 		"aboutDevProfileProfileInfo": "Loading profile information...",
+		"aboutAppVersion": "App version:",
 		"settingsSearchPlaceholder": "Settings",
 		"settingsCommandName": "Command",
 		"settingsCommandShortDescription": "Command to change wallpaper",
