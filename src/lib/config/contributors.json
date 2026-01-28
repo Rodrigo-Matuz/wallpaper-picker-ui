@@ -1,0 +1,26 @@
+{
+	"contributors": [
+		{
+			"id": "matuz",
+			"name": "Matuz",
+			"githubUrl": "https://github.com/Rodrigo-Matuz",
+			"links": [
+				{
+					"id": "github",
+					"url": "https://github.com/Rodrigo-Matuz",
+					"icon": "github"
+				},
+				{
+					"id": "discord",
+					"url": "https://discordapp.com/users/584503954969198612",
+					"icon": "discord"
+				},
+				{
+					"id": "gmail",
+					"url": "mailto:matuzuera@gmail.com",
+					"icon": "gmail"
+				}
+			]
+		}
+	]
+}

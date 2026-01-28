@@ -5,30 +5,29 @@
     import Space from "$components/space";
     import { t } from "$lang/index";
     import { House, Settings } from "@lucide/svelte";
+    import contributorsConfig from "$config/contributors.json";
+
     import {
         SiDiscord,
         SiGithub,
         SiGmail,
+        SiKofi,
     } from "@icons-pack/svelte-simple-icons";
 
-    // TODO: move this somewhere else
-    const matuzLinks = [
-        {
-            id: "1",
-            url: "https://github.com/Rodrigo-Matuz",
-            icon: SiGithub,
-        },
-        {
-            id: "2",
-            url: "https://discordapp.com/users/584503954969198612",
-            icon: SiDiscord,
-        },
-        {
-            id: "3",
-            url: "mailto:matuzuera@gmail.com",
-            icon: SiGmail,
-        },
-    ];
+    const iconMap = {
+        github: SiGithub,
+        discord: SiDiscord,
+        gmail: SiGmail,
+        kofi: SiKofi,
+    } as const;
+
+    const matuz = contributorsConfig.contributors.find((c) => c.id === "matuz");
+
+    const matuzLinks = matuz.links.map((link) => ({
+        ...link,
+        icon: iconMap[link.icon],
+    }));
+
 </script>
 
 <Navbar
@@ -39,8 +38,9 @@
     rightIcon={Settings}
     rightOnClick={() => goto("/settings")}
 />
+
 <Space larger={true} />
 
-<DevProfile links={matuzLinks} githubUrl="https://github.com/Rodrigo-Matuz" />
+<DevProfile links={matuzLinks} githubUrl={matuz.githubUrl} />
 
 <Space larger={true} />

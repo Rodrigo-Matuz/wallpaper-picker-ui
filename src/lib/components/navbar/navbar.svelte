@@ -22,7 +22,7 @@
 >
     {#if leftIcon}
         <Button onclick={leftOnClick} size="sm" class="w-12">
-            <svelte:component this={leftIcon} size={40} />
+            <svelte:component this={leftIcon} class="size-6" />
         </Button>
     {/if}
 
@@ -40,7 +40,7 @@
 
     {#if rightIcon}
         <Button onclick={rightOnClick} size="sm" class="w-12">
-            <svelte:component this={rightIcon} size={40} />
+            <svelte:component this={rightIcon} class="size-6" />
         </Button>
     {/if}
 </nav>

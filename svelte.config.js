@@ -13,6 +13,7 @@ const config = {
 			$api: "src/lib/api",
 			$lang: "src/lib/lang",
 			$utils: "src/lib/utils",
+			$config: "src/lib/config",
 			$types: "src/types",
 		},
 	},
