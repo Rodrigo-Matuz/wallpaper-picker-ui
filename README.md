@@ -18,7 +18,7 @@ The app lets you quickly preview wallpapers, generate thumbnails automatically, 
 ```bash
 killall mpvpaper ; mpvpaper -o "loop no-audio" "*" "$VP"
 ```
-More script examples and advanced setups will be available in the **Wiki**.
+More script examples and advanced setups are available in the [wiki](https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/wiki).
 
 ## Dependencies
 - **FFmpeg** — required for generating video thumbnails
