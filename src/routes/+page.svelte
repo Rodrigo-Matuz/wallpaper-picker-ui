@@ -7,6 +7,7 @@
     import { setLanguage, t, currentLanguage } from "$lang/index";
     import { FolderSearch2, Settings } from "@lucide/svelte";
     import { onMount } from "svelte";
+    import { handleThumbnails } from "$api/thumbnails/handle";
 
     let searchQuery = "";
     let loading = true;
@@ -33,8 +34,12 @@
     <div class="flex flex-col min-h-screen">
         <div class="grow">
             <Navbar
-                leftIcon={FolderSearch2}
-                leftOnClick={() => selectFolder()}
+                leftOnClick={async () => {
+                    const folderPath = await selectFolder();
+                    if (folderPath) {
+                        await handleThumbnails(true);
+                    }
+                }}
                 disableInput={false}
                 autoFocusInput={true}
                 inputPlaceholder={$t("homeSearchPlaceholder")}
