@@ -49,6 +49,60 @@ This application is built with **[Tauri](https://tauri.app/)** — a secure and 
   - Français
   - Español
 
+## Permissions & Security
+
+This application is built with **Tauri 2** and follows a strict **capability-based permission model**.
+It only requests the **minimum privileges required** to function.
+
+All permissions are explicitly scoped and can be inspected in:
+
+```
+src-tauri/capabilities/permissions.json
+```
+
+### What the app is allowed to do
+
+* **Read and write its own configuration file**
+
+  * Linux: `~/.config/WallpaperPickerUI/config.json`
+
+* **Create, read, write, list and check existence of files** inside its own data directory:
+
+  * Thumbnails cache:
+    `~/.local/share/me.matuz.wallpaper-picker-ui/thumbnails`
+
+* **Create its own application data folder** if it does not exist
+
+* Use Tauri’s built-in features:
+
+  * Open external links (`opener`)
+  * Check for application updates (`updater`)
+  * Restart itself during updates
+  * Core window management and event handling
+
+### What the app is NOT allowed to do
+
+* Read or write files **outside** its own config and data directories
+* Access your home folders such as Documents, Pictures, Downloads, Desktop, or mounted drives
+* Access USB devices, network shares, or system-wide files
+* Access the clipboard, camera, microphone, location, or sensors
+* Execute arbitrary system commands
+* Read or interact with data from other applications
+
+In short, the app can **only access its own configuration and thumbnail cache** — nothing else on your system.
+
+>### ⚠️ Custom script warning
+>
+>If you configure a custom wallpaper script, the application will:
+>
+>* Execute **exactly the command you define**
+>* Pass the selected wallpaper path as the **first argument** (`$VP`)
+>
+>The script runs with **your user permissions**, not sandboxed by the app.
+>
+>You are fully responsible for what the script does.
+>Only use scripts you trust and understand.
+
 ## Installation
 
 ### From Releases
