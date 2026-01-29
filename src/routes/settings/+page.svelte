@@ -13,6 +13,7 @@
     import Space from "$components/space";
     import { t } from "$lang/index";
     import { Smile, Undo2 } from "@lucide/svelte";
+    import UpdateHeader from "$components/update";
 </script>
 
 <Navbar
@@ -25,7 +26,9 @@
     rightOnClick={() => goto("/")}
 />
 
-<Space larger={true} />
+<UpdateHeader />
+
+<Space /><Space />
 
 <SettingsInput
     name={$t("settingsCommandName")}

@@ -8,6 +8,9 @@
     import { FolderSearch2, Settings } from "@lucide/svelte";
     import { onMount } from "svelte";
     import { handleThumbnails } from "$api/thumbnails/handle";
+    import { checkForUpdates, getUpdateState } from "$utils/updating";
+    import { toast } from "svelte-sonner";
+    import { Toaster } from "$components/ui/sonner";
 
     let searchQuery = "";
     let loading = true;
@@ -17,6 +20,18 @@
             const config = await fetchConfig();
             setLanguage(config.language);
             $currentLanguage = config.language;
+
+            await checkForUpdates();
+
+            const { state } = getUpdateState();
+            if (state === "available") {
+                toast.info("New update available at settings page", {
+                    action: {
+                        label: "OK",
+                        onClick: () => {},
+                    },
+                });
+            }
         } catch (error) {
             console.error("Failed to load config", error);
         } finally {
@@ -30,6 +45,7 @@
     };
 </script>
 
+<Toaster />
 {#if !loading}
     <div class="flex flex-col min-h-screen">
         <div class="mb-5 grow">
@@ -48,6 +64,7 @@
                 rightIcon={Settings}
                 rightOnClick={() => goto("/settings")}
             />
+
             <Display {searchQuery} />
         </div>
         <footer
