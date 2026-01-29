@@ -13,7 +13,7 @@
     import Space from "$components/space";
     import { t } from "$lang/index";
     import { Smile, Undo2 } from "@lucide/svelte";
-    import UpdateHeader from "$components/update";
+    // import UpdateHeader from "$components/update";
 </script>
 
 <Navbar
@@ -26,7 +26,7 @@
     rightOnClick={() => goto("/")}
 />
 
-<UpdateHeader />
+<!-- <UpdateHeader /> -->
 
 <Space /><Space />
 

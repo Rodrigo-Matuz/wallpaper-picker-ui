@@ -27,10 +27,6 @@
 		"icon": ["../static/icon-256.png"],
 		"createUpdaterArtifacts": true,
 		"linux": {
-			"appimage": {
-				"bundleMediaFramework": false,
-				"files": {}
-			},
 			"deb": {
 				"files": {}
 			},
