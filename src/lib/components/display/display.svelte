@@ -1,39 +1,38 @@
 <script lang="ts">
-    import { sendCommand } from "$api/system/execCommand";
-    import { CirclePlay } from "@lucide/svelte";
-    import { onMount } from "svelte";
-    import {
-        handleThumbnails,
-        thumbnails,
-        totalVideos,
-        thumbnailsGenerated,
-    } from "$api/thumbnails/handle";
-    import { Progress } from "$components/ui/progress";
-    import { t } from "$lang/index";
+import { CirclePlay } from "@lucide/svelte";
+import { onMount } from "svelte";
+import { sendCommand } from "$api/system/execCommand";
+import {
+	handleThumbnails,
+	thumbnails,
+	thumbnailsGenerated,
+	totalVideos,
+} from "$api/thumbnails/handle";
+import { Progress } from "$components/ui/progress";
+import { t } from "$lang/index";
 
-    export let searchQuery: string = "";
+export let searchQuery: string = "";
 
-    let value = 0;
+let value = 0;
 
-    onMount(() => {
-        const unsubscribe = thumbnailsGenerated.subscribe((count) => {
-            value = count;
-        });
+onMount(() => {
+	const unsubscribe = thumbnailsGenerated.subscribe((count) => {
+		value = count;
+	});
 
-        handleThumbnails();
+	handleThumbnails();
 
-        return () => unsubscribe();
-    });
+	return () => unsubscribe();
+});
 
-    $: normalizedSearchQuery = searchQuery.replace(/[_\s]+/g, "").toLowerCase();
+$: normalizedSearchQuery = searchQuery.replace(/[_\s]+/g, "").toLowerCase();
 
-    $: filteredThumbnails = Object.entries($thumbnails).filter(
-        ([, videoPath]) =>
-            videoPath
-                .replace(/[_\s]+/g, "")
-                .toLowerCase()
-                .includes(normalizedSearchQuery),
-    );
+$: filteredThumbnails = Object.entries($thumbnails).filter(([, videoPath]) =>
+	videoPath
+		.replace(/[_\s]+/g, "")
+		.toLowerCase()
+		.includes(normalizedSearchQuery),
+);
 </script>
 
 {#if $totalVideos > 0 && $thumbnailsGenerated < $totalVideos}

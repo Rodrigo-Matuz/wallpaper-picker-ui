@@ -7,6 +7,7 @@
 		"core:default",
 		"opener:default",
 		"updater:default",
+		"dialog:default",
 		"process:allow-restart",
 		"fs:allow-exists",
 		"fs:allow-mkdir",

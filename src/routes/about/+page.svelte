@@ -1,37 +1,29 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import DevProfile from "$components/devProfile";
-    import Navbar from "$components/navbar";
-    import Space from "$components/space";
-    import { t } from "$lang/index";
-    import { House, Settings } from "@lucide/svelte";
-    import contributorsConfig from "$config/contributors.json";
+import { SiDiscord, SiGithub, SiGmail, SiKofi } from "@icons-pack/svelte-simple-icons";
+import { Globe, House, Settings } from "@lucide/svelte";
+import { goto } from "$app/navigation";
+import DevProfile from "$components/devProfile";
+import Navbar from "$components/navbar";
+import Space from "$components/space";
+import contributorsConfig from "$config/contributors.json";
+import { t } from "$lang/index";
 
-    import {
-        SiDiscord,
-        SiGithub,
-        SiGmail,
-        SiKofi,
-    } from "@icons-pack/svelte-simple-icons";
-    import { Globe } from "@lucide/svelte";
+const version = __APP_VERSION__;
 
-    const version = __APP_VERSION__;
+const iconMap = {
+	website: Globe,
+	github: SiGithub,
+	discord: SiDiscord,
+	gmail: SiGmail,
+	kofi: SiKofi,
+} as const;
 
-    const iconMap = {
-        website: Globe,
-        github: SiGithub,
-        discord: SiDiscord,
-        gmail: SiGmail,
-        kofi: SiKofi,
-    } as const;
+const matuz = contributorsConfig.contributors.find((c) => c.id === "matuz")!;
 
-    const matuz = contributorsConfig.contributors.find((c) => c.id === "matuz")!;
-
-    const matuzLinks = matuz.links.map((link) => ({
-        ...link,
-        icon: iconMap[link.icon as keyof typeof iconMap],
-    }));
-
+const matuzLinks = matuz.links.map((link) => ({
+	...link,
+	icon: iconMap[link.icon as keyof typeof iconMap],
+}));
 </script>
 
 <div class="flex flex-col min-h-screen">

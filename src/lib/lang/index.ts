@@ -1,4 +1,4 @@
-import { get, writable, derived } from "svelte/store";
+import { derived, get, writable } from "svelte/store";
 import { updateConfig } from "$api/config/update";
 
 /** DOCS:
@@ -21,10 +21,9 @@ type TranslationFile = {
  * Uses Vite's `import.meta.glob` with eager loading so all translations
  * are available at application startup.
  */
-const translationModules = import.meta.glob<TranslationFile>(
-	"./translations/*.json",
-	{ eager: true }
-);
+const translationModules = import.meta.glob<TranslationFile>("./translations/*.json", {
+	eager: true,
+});
 
 /** DOCS:
  * In-memory registry of all available languages.
@@ -42,7 +41,7 @@ const languages: Record<string, { name: string; data: Record<string, string> }> 
 for (const mod of Object.values(translationModules)) {
 	languages[mod.code] = {
 		name: mod.name,
-		data: mod.translations
+		data: mod.translations,
 	};
 }
 

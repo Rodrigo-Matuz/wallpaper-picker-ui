@@ -1,33 +1,31 @@
 <script lang="ts">
-    import { Avatar, AvatarFallback, AvatarImage } from "$components/ui/avatar";
-    import type { GitHubProfile } from "$types/devProfileTypes";
-    import {
-        Card,
-        CardContent,
-        CardDescription,
-        CardFooter,
-        CardHeader,
-        CardTitle,
-    } from "$components/ui/card";
-    import { onMount } from "svelte";
-    import { t } from "$lang/index";
+import { onMount } from "svelte";
+import { Avatar, AvatarFallback, AvatarImage } from "$components/ui/avatar";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "$components/ui/card";
+import { t } from "$lang/index";
+import type { GitHubProfile } from "$types/devProfileTypes";
 
-    export let links: { id: string; url: string; icon: any }[] = [];
-    export let githubUrl: string;
-    let profileData: GitHubProfile | null = null;
+export let links: { id: string; url: string; icon: any }[] = [];
+export let githubUrl: string;
+let profileData: GitHubProfile | null = null;
 
-    onMount(async () => {
-        const username = githubUrl.split("/").pop();
+onMount(async () => {
+	const username = githubUrl.split("/").pop();
 
-        try {
-            const response = await fetch(
-                `https://api.github.com/users/${username}`,
-            );
-            profileData = await response.json();
-        } catch (error) {
-            console.error("Error fetching GitHub data:", error);
-        }
-    });
+	try {
+		const response = await fetch(`https://api.github.com/users/${username}`);
+		profileData = await response.json();
+	} catch (error) {
+		console.error("Error fetching GitHub data:", error);
+	}
+});
 </script>
 
 <Card class="flex-row p-4">

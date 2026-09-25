@@ -23,20 +23,20 @@ import { log } from "./logger";
  * ```
  */
 export async function ensureDir(dirName: string, baseDir: BaseDirectory): Promise<void> {
-    try {
-        const dirExists = await exists(dirName, { baseDir });
+	try {
+		const dirExists = await exists(dirName, { baseDir });
 
-        if (!dirExists) {
-            await mkdir(dirName, { baseDir });
-        }
-    } catch (error) {
-        await log({
-            level: "error",
-            callStack: error instanceof Error ? error : new Error(),
-            message: {
-                context: `Failed to ensure '${dirName}' directory`,
-                error,
-            },
-        });
-    }
+		if (!dirExists) {
+			await mkdir(dirName, { baseDir });
+		}
+	} catch (error) {
+		await log({
+			level: "error",
+			callStack: error instanceof Error ? error : new Error(),
+			message: {
+				context: `Failed to ensure '${dirName}' directory`,
+				error,
+			},
+		});
+	}
 }

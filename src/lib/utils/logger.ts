@@ -72,9 +72,7 @@ export async function log({ level = "info", message, callStack }: LoggerInterArg
 
 	const messageStr = normalizeLogMessage(message);
 
-	const finalMessage = logLocation
-		? `${logLocation}: ${messageStr}`
-		: messageStr;
+	const finalMessage = logLocation ? `${logLocation}: ${messageStr}` : messageStr;
 
 	await invoke("log_message", {
 		level,
@@ -154,9 +152,7 @@ function normalizeLogMessage(message: unknown): string {
  * @param value - Value to check.
  * @returns `true` if the value matches the structured log message shape.
  */
-function isStructuredLogMessage(
-	value: unknown,
-): value is StructuredLogMessage {
+function isStructuredLogMessage(value: unknown): value is StructuredLogMessage {
 	return (
 		typeof value === "object" &&
 		value !== null &&

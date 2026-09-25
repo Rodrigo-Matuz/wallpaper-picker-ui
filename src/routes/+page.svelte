@@ -1,48 +1,49 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { fetchConfig } from "$api/config/read";
-    import { selectFolder } from "$api/system/selectFolder";
-    import Display from "$components/display";
-    import Navbar from "$components/navbar";
-    import { setLanguage, t, currentLanguage } from "$lang/index";
-    import { FolderSearch2, Settings } from "@lucide/svelte";
-    import { onMount } from "svelte";
-    import { handleThumbnails } from "$api/thumbnails/handle";
-    // import { checkForUpdates, getUpdateState } from "$utils/updating";
-    // import { toast } from "svelte-sonner";
-    // import { Toaster } from "$components/ui/sonner";
+import { FolderSearch2, Settings } from "@lucide/svelte";
+import { onMount } from "svelte";
+import { fetchConfig } from "$api/config/read";
+import { selectFolder } from "$api/system/selectFolder";
+import { handleThumbnails } from "$api/thumbnails/handle";
+import { goto } from "$app/navigation";
+import Display from "$components/display";
+import Navbar from "$components/navbar";
+import { currentLanguage, setLanguage, t } from "$lang/index";
 
-    let searchQuery = "";
-    let loading = true;
+// import { checkForUpdates, getUpdateState } from "$utils/updating";
+// import { toast } from "svelte-sonner";
+// import { Toaster } from "$components/ui/sonner";
 
-    onMount(async () => {
-        try {
-            const config = await fetchConfig();
-            setLanguage(config.language);
-            $currentLanguage = config.language;
+let searchQuery = "";
+let loading = true;
 
-            // Removed for now
-            // await checkForUpdates();
-            // const { state } = getUpdateState();
-            // if (state === "available") {
-            //     toast.info("New update available at settings page", {
-            //         action: {
-            //             label: "OK",
-            //             onClick: () => {},
-            //         },
-            //     });
-            // }
-        } catch (error) {
-            console.error("Failed to load config", error);
-        } finally {
-            loading = false;
-        }
-    });
+onMount(async () => {
+	try {
+		const config = await fetchConfig();
+		setLanguage(config.language);
+		$currentLanguage = config.language;
 
-    const handleInputChange = (event: InputEvent) => {
-        const target = event.target as HTMLInputElement;
-        searchQuery = target.value.toLowerCase();
-    };
+		// Removed for now
+		// await checkForUpdates();
+		// const { state } = getUpdateState();
+		// if (state === "available") {
+		//     toast.info("New update available at settings page", {
+		//         action: {
+		//             label: "OK",
+		//             onClick: () => {},
+		//         },
+		//     });
+		// }
+	} catch (error) {
+		console.error("Failed to load config", error);
+	} finally {
+		loading = false;
+	}
+});
+
+const handleInputChange = (event: InputEvent) => {
+	const target = event.target as HTMLInputElement;
+	searchQuery = target.value.toLowerCase();
+};
 </script>
 
 <!-- <Toaster /> -->

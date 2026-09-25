@@ -1,30 +1,30 @@
 <script lang="ts">
-    import { Card, CardTitle } from "$components/ui/card";
-    import {
-        Dialog,
-        DialogContent,
-        DialogDescription,
-        DialogHeader,
-        DialogTitle,
-        DialogTrigger,
-    } from "$components/ui/dialog";
-    import { Info } from "@lucide/svelte";
-    import { Switch } from "$components/ui/switch";
-    import { onMount } from "svelte";
+import { Info } from "@lucide/svelte";
+import { onMount } from "svelte";
+import { Card, CardTitle } from "$components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "$components/ui/dialog";
+import { Switch } from "$components/ui/switch";
 
-    export let name: string = "SettingsName";
-    export let shortDescription: string = "Short Description";
-    export let hintDescription: string = "Hint Description";
-    export let fetchValue: () => Promise<boolean>;
-    export let onToggle: (checked: boolean) => Promise<void>;
+export let name: string = "SettingsName";
+export let shortDescription: string = "Short Description";
+export let hintDescription: string = "Hint Description";
+export let fetchValue: () => Promise<boolean>;
+export let onToggle: (checked: boolean) => Promise<void>;
 
-    let switchValue = true;
+let switchValue = true;
 
-    const loadConfig = async () => {
-        switchValue = await fetchValue();
-    };
+const loadConfig = async () => {
+	switchValue = await fetchValue();
+};
 
-    onMount(loadConfig);
+onMount(loadConfig);
 </script>
 
 <Card>

@@ -1,5 +1,5 @@
 <script lang="ts">
-    export let larger: boolean = false;
+export let larger: boolean = false;
 </script>
 
 <div

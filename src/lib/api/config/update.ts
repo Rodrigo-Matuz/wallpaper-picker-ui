@@ -30,57 +30,56 @@ let writeQueue: Promise<void> = Promise.resolve();
  * ```
  */
 export async function updateConfig(newConfig: Partial<ConfigInterArgs>): Promise<void> {
-    await ensureDir(CONFIG_ROOT_DIR, BaseDirectory.Config);
-    await ensureConfig();
+	await ensureDir(CONFIG_ROOT_DIR, BaseDirectory.Config);
+	await ensureConfig();
 
-    const run = writeQueue.then(() => performUpdate(newConfig));
-    writeQueue = run.catch(() => {});
-    return run;
+	const run = writeQueue.then(() => performUpdate(newConfig));
+	writeQueue = run.catch(() => {});
+	return run;
 }
 
 async function performUpdate(newConfig: Partial<ConfigInterArgs>): Promise<void> {
-    try {
-        const currentConfig = await fetchConfig();
+	try {
+		const currentConfig = await fetchConfig();
 
-        const updatedConfig: ConfigInterArgs = {
-            ...currentConfig,
-            ...newConfig,
-            thumbnailsHashMap: newConfig.thumbnailsHashMap || currentConfig.thumbnailsHashMap,
-        };
+		const updatedConfig: ConfigInterArgs = {
+			...currentConfig,
+			...newConfig,
+		};
 
-        const data = new TextEncoder().encode(JSON.stringify(updatedConfig, null, 4));
+		const data = new TextEncoder().encode(JSON.stringify(updatedConfig, null, 4));
 
-        try {
-            await writeFile(CONFIG_FILE_PATH, data, {
-                baseDir: BaseDirectory.Config,
-            });
+		try {
+			await writeFile(CONFIG_FILE_PATH, data, {
+				baseDir: BaseDirectory.Config,
+			});
 
-            // Keep the in-memory cache in sync with what was just written.
-            setConfigCache(updatedConfig);
+			// Keep the in-memory cache in sync with what was just written.
+			setConfigCache(updatedConfig);
 
-            await log({
-                level: "positive",
-                callStack: new Error(),
-                message: "Configuration updated successfully",
-            });
-        } catch (error) {
-            await log({
-                level: "error",
-                callStack: error instanceof Error ? error : new Error("Unknown error"),
-                message: {
-                    context: "Failed to write configuration file",
-                    error,
-                },
-            });
-        }
-    } catch (error) {
-        await log({
-            level: "error",
-            callStack: error instanceof Error ? error : new Error("Unknown error"),
-            message: {
-                context: "Failed to read configuration file",
-                error,
-            },
-        });
-    }
+			await log({
+				level: "positive",
+				callStack: new Error(),
+				message: "Configuration updated successfully",
+			});
+		} catch (error) {
+			await log({
+				level: "error",
+				callStack: error instanceof Error ? error : new Error("Unknown error"),
+				message: {
+					context: "Failed to write configuration file",
+					error,
+				},
+			});
+		}
+	} catch (error) {
+		await log({
+			level: "error",
+			callStack: error instanceof Error ? error : new Error("Unknown error"),
+			message: {
+				context: "Failed to read configuration file",
+				error,
+			},
+		});
+	}
 }

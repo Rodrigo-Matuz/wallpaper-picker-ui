@@ -1,7 +1,7 @@
 import { BaseDirectory, remove } from "@tauri-apps/plugin-fs";
 import { clearConfigCache } from "$api/config/read";
 import { log } from "$utils/logger";
-import { CONFIG_FILE_PATH} from "$utils/paths"
+import { CONFIG_FILE_PATH } from "$utils/paths";
 
 /** DOCS:
  * Deletes the configuration file from the application config directory.
@@ -19,7 +19,6 @@ import { CONFIG_FILE_PATH} from "$utils/paths"
  */
 export const clearConfig = async (): Promise<void> => {
 	try {
-
 		await remove(CONFIG_FILE_PATH, { baseDir: BaseDirectory.Config });
 
 		// Drop the in-memory cache so the next fetch re-creates the file.

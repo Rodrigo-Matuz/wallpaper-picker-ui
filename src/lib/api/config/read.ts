@@ -1,6 +1,6 @@
 import { BaseDirectory, readTextFile, writeFile } from "@tauri-apps/plugin-fs";
-import { ensureConfig } from "$api/config/ensure";
 import { defaultConfig } from "$api/config/defaults";
+import { ensureConfig } from "$api/config/ensure";
 import type { ConfigInterArgs } from "$types/configTypes";
 import { log } from "$utils/logger";
 import { CONFIG_FILE_PATH } from "$utils/paths";

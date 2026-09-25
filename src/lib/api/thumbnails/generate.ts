@@ -14,7 +14,7 @@ import { THUMBNAILS_DIR } from "$utils/paths";
  * @param videoPath - The absolute path to the video file for which the thumbnail is to be generated.
  *
  * @returns Resolves with the path to the generated thumbnail upon success.
- * 
+ *
  * Errors during thumbnail generation are caught and logged.
  *
  * @example
@@ -28,9 +28,9 @@ export async function generateThumb(videoPath: string): Promise<string> {
 
 	try {
 		const thumbPath = `${await appDataDir()}/${THUMBNAILS_DIR}`;
-		return await invoke<string>("generate_thumb", { 
+		return await invoke<string>("generate_thumb", {
 			videoPath,
-			thumbPath
+			thumbPath,
 		});
 	} catch (error) {
 		await log({
@@ -44,5 +44,4 @@ export async function generateThumb(videoPath: string): Promise<string> {
 		// TODO: Improve returning in case of failure aside from the logs
 		return "";
 	}
-
 }

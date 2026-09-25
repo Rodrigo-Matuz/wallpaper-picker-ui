@@ -1,19 +1,19 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { clearConfig } from "$api/config/clear";
-    import { clearThumbnails } from "$api/thumbnails/clear";
-    import { toggleDarkMode } from "$utils/darkMode";
-    import { fetchConfig } from "$api/config/read";
-    import { updateConfig } from "$api/config/update";
-    import Navbar from "$components/navbar";
-    import SettingsButton from "$components/settings/Button";
-    import SettingsInput from "$components/settings/Input";
-    import SettingsSelector from "$components/settings/Selector";
-    import SettingsSwitch from "$components/settings/Switch";
-    import Space from "$components/space";
-    import { t } from "$lang/index";
-    import { Smile, Undo2 } from "@lucide/svelte";
-    // import UpdateHeader from "$components/update";
+import { Smile, Undo2 } from "@lucide/svelte";
+import { clearConfig } from "$api/config/clear";
+import { fetchConfig } from "$api/config/read";
+import { updateConfig } from "$api/config/update";
+import { clearThumbnails } from "$api/thumbnails/clear";
+import { goto } from "$app/navigation";
+import Navbar from "$components/navbar";
+import SettingsButton from "$components/settings/Button";
+import SettingsInput from "$components/settings/Input";
+import SettingsSelector from "$components/settings/Selector";
+import SettingsSwitch from "$components/settings/Switch";
+import Space from "$components/space";
+import { t } from "$lang/index";
+import { toggleDarkMode } from "$utils/darkMode";
+// import UpdateHeader from "$components/update";
 </script>
 
 <Navbar

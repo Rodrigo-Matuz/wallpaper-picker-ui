@@ -12,11 +12,6 @@
  * // { apple: 3, orange: 2, zebra: 5 }
  * ```
  */
-export function sortJsonByKey<T>(
-    json: Readonly<Record<string, T>>
-): Record<string, T> {
-    return Object.fromEntries(
-        Object.entries(json).sort(([a], [b]) => a.localeCompare(b))
-    );
+export function sortJsonByKey<T>(json: Readonly<Record<string, T>>): Record<string, T> {
+	return Object.fromEntries(Object.entries(json).sort(([a], [b]) => a.localeCompare(b)));
 }
-

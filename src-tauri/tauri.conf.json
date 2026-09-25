@@ -24,10 +24,7 @@
 		}
 	},
 	"bundle": {
-		"icon": [
-			"icons/icon.ico",
-			"../static/icon-256.png"
-		],
+		"icon": ["icons/icon.ico", "../static/icon-256.png"],
 		"createUpdaterArtifacts": true,
 		"linux": {
 			"deb": {

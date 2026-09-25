@@ -1,20 +1,20 @@
 <script>
-    import { Button } from "$components/ui/button";
-    import { Info } from "@lucide/svelte";
+import { Info } from "@lucide/svelte";
+import { Button } from "$components/ui/button";
 
-    export let leftIcon = Info;
-    export let leftOnClick = () => {};
+export let leftIcon = Info;
+export let leftOnClick = () => {};
 
-    export let inputPlaceholder = "Search...";
-    export let showInput = true;
-    export let autoFocusInput = false;
-    export let disableInput = true;
+export let inputPlaceholder = "Search...";
+export let showInput = true;
+export let autoFocusInput = false;
+export let disableInput = true;
 
-    // TODO: Ugly
-    export let onInputChange = (/** @type {any} */ _event) => {};
+// TODO: Ugly
+export let onInputChange = (/** @type {any} */ _event) => {};
 
-    export let rightIcon = Info;
-    export let rightOnClick = () => {};
+export let rightIcon = Info;
+export let rightOnClick = () => {};
 </script>
 
 <nav

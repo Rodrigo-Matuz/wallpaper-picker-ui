@@ -1,50 +1,50 @@
 <script lang="ts">
-    import { Card, CardTitle } from "$components/ui/card";
-    import {
-        Dialog,
-        DialogContent,
-        DialogDescription,
-        DialogHeader,
-        DialogTitle,
-        DialogTrigger,
-    } from "$components/ui/dialog";
-    import { Info } from "@lucide/svelte";
-    import { Input } from "$components/ui/input";
-    import { Button } from "$components/ui/button";
-    import { fetchConfig } from "$api/config/read";
-    import { updateConfig } from "$api/config/update";
-    import { log } from "$utils/logger";
-    import { t } from "$lang/index";
+import { Info } from "@lucide/svelte";
+import { fetchConfig } from "$api/config/read";
+import { updateConfig } from "$api/config/update";
+import { Button } from "$components/ui/button";
+import { Card, CardTitle } from "$components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "$components/ui/dialog";
+import { Input } from "$components/ui/input";
+import { t } from "$lang/index";
+import { log } from "$utils/logger";
 
-    export let name: string = "SettingsName";
-    export let shortDescription: string = "Short Description";
-    export let hintDescription: string = "Hint Description";
-    export let inputPlaceholder: string = "Placeholder";
+export let name: string = "SettingsName";
+export let shortDescription: string = "Short Description";
+export let hintDescription: string = "Hint Description";
+export let inputPlaceholder: string = "Placeholder";
 
-    let inputValue = "";
-    let mustSave = "primary";
+let inputValue = "";
+let mustSave = "primary";
 
-    const loadConfig = async () => {
-        inputValue = (await fetchConfig()).command;
-    };
+const loadConfig = async () => {
+	inputValue = (await fetchConfig()).command;
+};
 
-    loadConfig();
+loadConfig();
 
-    function handleInputChange() {
-        mustSave = "destructive";
-    }
-    async function handleSave() {
-        mustSave = "primary";
-        try {
-            await updateConfig({ command: inputValue });
-        } catch (error) {
-            await log({
-                level: "error",
-                callStack: new Error(),
-                message: `Failed to save command: ${error}`,
-            });
-        }
-    }
+function handleInputChange() {
+	mustSave = "destructive";
+}
+async function handleSave() {
+	mustSave = "primary";
+	try {
+		await updateConfig({ command: inputValue });
+	} catch (error) {
+		await log({
+			level: "error",
+			callStack: new Error(),
+			message: `Failed to save command: ${error}`,
+		});
+	}
+}
 </script>
 
 <Card

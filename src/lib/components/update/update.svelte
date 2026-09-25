@@ -1,49 +1,40 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import {
-        checkForUpdates,
-        getUpdateState,
-        installUpdate,
-    } from "$utils/updating";
-    import { toast } from "svelte-sonner";
+import { onMount } from "svelte";
+import { toast } from "svelte-sonner";
+import { checkForUpdates, getUpdateState, installUpdate } from "$utils/updating";
 
-    let available = false;
-    let version: string | undefined;
-    let loading = false;
+let available = false;
+let version: string | undefined;
+let loading = false;
 
-    onMount(async () => {
-        const initial = getUpdateState();
+onMount(async () => {
+	const initial = getUpdateState();
 
-        if (initial.state === "idle") {
-            await checkForUpdates();
-        }
+	if (initial.state === "idle") {
+		await checkForUpdates();
+	}
 
-        const status = getUpdateState();
-        available = status.state === "available";
-        version = status.update?.version;
+	const status = getUpdateState();
+	available = status.state === "available";
+	version = status.update?.version;
 
-        if (status.state === "error") {
-            toast.error(
-                "Failed to check for updates: " +
-                    (status.error?.message ?? "Unknown error"),
-            );
-        }
-    });
+	if (status.state === "error") {
+		toast.error("Failed to check for updates: " + (status.error?.message ?? "Unknown error"));
+	}
+});
 
-    async function handleUpdateClick() {
-        if (loading) return;
-        loading = true;
+async function handleUpdateClick() {
+	if (loading) return;
+	loading = true;
 
-        try {
-            await installUpdate();
-        } catch {
-            const { error } = getUpdateState();
-            toast.error(
-                "Update failed: " + (error?.message ?? "Unknown error"),
-            );
-            loading = false;
-        }
-    }
+	try {
+		await installUpdate();
+	} catch {
+		const { error } = getUpdateState();
+		toast.error("Update failed: " + (error?.message ?? "Unknown error"));
+		loading = false;
+	}
+}
 </script>
 
 {#if available}

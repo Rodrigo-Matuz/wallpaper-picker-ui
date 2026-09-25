@@ -1,21 +1,21 @@
 <script lang="ts">
-    import { Card, CardTitle } from "$components/ui/card";
-    import {
-        Dialog,
-        DialogContent,
-        DialogDescription,
-        DialogHeader,
-        DialogTitle,
-        DialogTrigger,
-    } from "$components/ui/dialog";
-    import { Info } from "@lucide/svelte";
-    import { Button } from "$components/ui/button";
+import { Info } from "@lucide/svelte";
+import { Button } from "$components/ui/button";
+import { Card, CardTitle } from "$components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "$components/ui/dialog";
 
-    export let name: string = "SettingsName";
-    export let shortDescription: string = "Short Description";
-    export let buttonName: string = "BUTTON";
-    export let hintDescription: string = "Hint Description";
-    export let buttonOnClick: () => {};
+export let name: string = "SettingsName";
+export let shortDescription: string = "Short Description";
+export let buttonName: string = "BUTTON";
+export let hintDescription: string = "Hint Description";
+export let buttonOnClick: () => {};
 </script>
 
 <Card

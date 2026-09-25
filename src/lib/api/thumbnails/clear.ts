@@ -1,15 +1,16 @@
 import { BaseDirectory, remove } from "@tauri-apps/plugin-fs";
-import { updateConfig } from "$api/config/update";
+import { writeThumbnailMap } from "$api/thumbnails/map";
 import { log } from "$utils/logger";
+import { THUMBNAILS_DIR } from "$utils/paths";
 
 /** DOCS:
  * Deletes all generated thumbnails from the application's data directory.
  *
- * Removes the "thumbnails" directory and its contents under the `AppData` base directory.
- * If the operation succeeds, the thumbnails configuration is cleared and a success
- * message is logged. Errors encountered during deletion are caught and logged.
+ * Removes the "thumbnails" directory and its contents under the `AppData`
+ * base directory (including `map.json`), then recreates an empty thumbnail
+ * map so the app stays in a consistent state. Success and errors are logged.
  *
- * @returns Resolves once the deletion attempt and configuration update are complete.
+ * @returns Resolves once the deletion attempt and map reset are complete.
  *
  * @example
  * ```ts
@@ -18,20 +19,20 @@ import { log } from "$utils/logger";
  */
 export const clearThumbnails = async (): Promise<void> => {
 	try {
-		const thumbnailsPath = "thumbnails";
-		await remove(thumbnailsPath, {
+		await remove(THUMBNAILS_DIR, {
 			baseDir: BaseDirectory.AppData,
 			recursive: true,
 		});
 
-		await updateConfig({ thumbnailsHashMap: {} });
+		// The directory (and map.json) was just removed — recreate an empty map.
+		await writeThumbnailMap({});
 
 		await log({
 			level: "positive",
 			callStack: new Error(),
 			message: {
 				context: "All thumbnails deleted successfully",
-			}			
+			},
 		});
 	} catch (error) {
 		await log({

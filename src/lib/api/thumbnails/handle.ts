@@ -1,11 +1,18 @@
-import { basename, appDataDir } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
+import { appDataDir, basename } from "@tauri-apps/api/path";
 import { BaseDirectory, readFile } from "@tauri-apps/plugin-fs";
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
+import { toast } from "svelte-sonner";
 import { fetchConfig } from "$api/config/read";
 import { updateConfig } from "$api/config/update";
 import { fetchVideos } from "$api/system/fetchVideos";
 import { generateThumb } from "$api/thumbnails/generate";
+import {
+	migrateThumbnailMapFromConfig,
+	readThumbnailMap,
+	writeThumbnailMap,
+} from "$api/thumbnails/map";
+import { t } from "$lang/index";
 import type { ThumbnailRecord } from "$types/configTypes";
 import { log } from "$utils/logger";
 import { THUMBNAILS_DIR } from "$utils/paths";
@@ -14,6 +21,9 @@ import { sortJsonByKey } from "$utils/sortJson";
 export const thumbnails = writable<ThumbnailRecord>({});
 export const thumbnailsGenerated = writable(0);
 export const totalVideos = writable(0);
+
+/** How many thumbnails generate concurrently. */
+const GENERATION_CONCURRENCY = 4;
 
 let isProcessing = false;
 let pendingPromise: Promise<void> | null = null;
@@ -34,20 +44,20 @@ let activeBlobUrls: ThumbnailRecord = {};
 
 /** DOCS:
  * Handles the generation, storage, and management of video thumbnails in the application's data directory.
- * Coordinates thumbnail generation, blob loading, configuration updates, and UI state synchronization.
+ * Coordinates thumbnail generation, blob loading, map persistence, and UI state synchronization.
  *
  * This function is concurrency-safe:
  * - If a thumbnail generation process is already running, subsequent calls will wait for the
  *   current execution to finish instead of running in parallel.
  *
  * Main responsibilities:
- * - Fetches configuration data to determine whether new wallpapers were added.
- * - Optionally forces thumbnail regeneration regardless of config state.
- * - Force-regenerates and cleans up when the persisted thumbnail version is
- *   older than {@link CURRENT_THUMBNAIL_VERSION} (naming-scheme migration).
- * - Generates thumbnails for all detected video files when needed.
- * - Updates progress-related Svelte stores during generation.
- * - Sorts and persists the generated thumbnail mapping into the configuration file.
+ * - Loads the thumbnail map from `thumbnails/map.json` (migrating it from
+ *   config.json on first run — see {@link migrateThumbnailMapFromConfig}).
+ * - Determines whether regeneration is needed (config `newWallpapers` flag,
+ *   forced regeneration, or an outdated `thumbnailVersion`).
+ * - Generates thumbnails concurrently ({@link GENERATION_CONCURRENCY} at a time)
+ *   and updates progress-related Svelte stores during generation.
+ * - Persists the sorted thumbnail map to its own file.
  * - Prunes mapping entries whose video file no longer exists (deleted/renamed videos).
  * - Cleans up orphaned thumbnail files not referenced by the mapping.
  * - Converts thumbnail files into blob URLs for UI consumption (revoking stale ones).
@@ -55,7 +65,7 @@ let activeBlobUrls: ThumbnailRecord = {};
  *
  * Error handling:
  * - Errors during generation, blob loading, or store updates are logged individually
- *   without crashing the entire pipeline.
+ *   without crashing the entire pipeline; user-actionable failures surface as toasts.
  *
  * @param forceRegenerate - When true, forces thumbnail regeneration even if no new wallpapers
  * are detected (e.g. after deletions).
@@ -71,36 +81,43 @@ let activeBlobUrls: ThumbnailRecord = {};
  */
 export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 	if (isProcessing) {
-			if (pendingPromise) await pendingPromise;
-			return;
-		}
+		if (pendingPromise) await pendingPromise;
+		return;
+	}
 
-    isProcessing = true;
-    pendingPromise = (async () => {
-        try {
-            let { newWallpapers, thumbnailsHashMap, thumbnailVersion } = await fetchConfig();
+	isProcessing = true;
+	pendingPromise = (async () => {
+		try {
+			let thumbnailsHashMap = await readThumbnailMap();
 
-            const needsMigration = (thumbnailVersion ?? 0) !== CURRENT_THUMBNAIL_VERSION;
-            if (forceRegenerate || needsMigration) newWallpapers = true;
+			if (Object.keys(thumbnailsHashMap).length === 0) {
+				thumbnailsHashMap = await migrateThumbnailMapFromConfig();
+			}
 
-            const blobUrlsHashMap: ThumbnailRecord = {};
-            if (newWallpapers) {
-                try {
-                    thumbnailsGenerated.set(0);
-                    const videosList = await fetchVideos();
-                    totalVideos.set(videosList.length);
+			const { newWallpapers, thumbnailVersion } = await fetchConfig();
+			const needsMigration = (thumbnailVersion ?? 0) !== CURRENT_THUMBNAIL_VERSION;
+			const regenerate = forceRegenerate || needsMigration || newWallpapers;
 
-                    const newThumbnailsHashMap = await processVideoPaths(videosList);
+			if (regenerate) {
+				try {
+					thumbnailsGenerated.set(0);
+					const videosList = await fetchVideos();
+					totalVideos.set(videosList.length);
 
-                    totalVideos.set(0);
+					const { map: newThumbnailsHashMap, failures } =
+						await processVideoPaths(videosList);
 
-                    const sorted = sortJsonByKey(newThumbnailsHashMap);
-                    await updateConfig({
-                        thumbnailsHashMap: sorted,
-                        thumbnailVersion: CURRENT_THUMBNAIL_VERSION,
-                    });
-                    thumbnailsHashMap = sorted;
-                } catch (error) {
+					totalVideos.set(0);
+
+					if (failures > 0) {
+						toast.warning(get(t)("toastThumbnailsFailed"));
+					}
+
+					const sorted = sortJsonByKey(newThumbnailsHashMap);
+					await writeThumbnailMap(sorted);
+					await updateConfig({ thumbnailVersion: CURRENT_THUMBNAIL_VERSION });
+					thumbnailsHashMap = sorted;
+				} catch (error) {
 					await log({
 						level: "error",
 						callStack: new Error(),
@@ -110,33 +127,37 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 						},
 					});
 				}
-            } else {
-                thumbnailsHashMap = await pruneMissingVideos(thumbnailsHashMap);
-            }
+			} else {
+				thumbnailsHashMap = await pruneMissingVideos(thumbnailsHashMap);
+			}
 
-            // Remove orphaned thumbnail files (deleted videos, old naming scheme).
-            try {
-                await invoke("cleanup_thumbnails", {
-                    thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
-                    keepFiles: Object.keys(thumbnailsHashMap),
-                });
-            } catch (error) {
-                await log({
-                    level: "warn",
-                    callStack: new Error(),
-                    message: {
-                        context: "Failed to clean up orphaned thumbnail files",
-                        error,
-                    },
-                });
-            }
+			// Remove orphaned thumbnail files (deleted videos, old naming scheme).
+			try {
+				await invoke("cleanup_thumbnails", {
+					thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
+					keepFiles: Object.keys(thumbnailsHashMap),
+				});
+			} catch (error) {
+				await log({
+					level: "warn",
+					callStack: new Error(),
+					message: {
+						context: "Failed to clean up orphaned thumbnail files",
+						error,
+					},
+				});
+			}
 
-            try {
-                for (const [fileName, videoPath] of Object.entries(thumbnailsHashMap) as [string, string][]) {
-                    try {
-                        const blobUrl = await fileToBlobUrl(fileName);
-                        blobUrlsHashMap[blobUrl] = videoPath;
-                    } catch (error) {
+			try {
+				const blobUrlsHashMap: ThumbnailRecord = {};
+				for (const [fileName, videoPath] of Object.entries(thumbnailsHashMap) as [
+					string,
+					string,
+				][]) {
+					try {
+						const blobUrl = await fileToBlobUrl(fileName);
+						blobUrlsHashMap[blobUrl] = videoPath;
+					} catch (error) {
 						await log({
 							level: "error",
 							callStack: new Error(),
@@ -146,18 +167,18 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 							},
 						});
 					}
-                }
+				}
 
-                // Revoke blob URLs that are no longer referenced by the new store.
-                for (const oldUrl of Object.keys(activeBlobUrls)) {
-                    if (!blobUrlsHashMap[oldUrl]) {
-                        URL.revokeObjectURL(oldUrl);
-                    }
-                }
-                activeBlobUrls = blobUrlsHashMap;
+				// Revoke blob URLs that are no longer referenced by the new store.
+				for (const oldUrl of Object.keys(activeBlobUrls)) {
+					if (!blobUrlsHashMap[oldUrl]) {
+						URL.revokeObjectURL(oldUrl);
+					}
+				}
+				activeBlobUrls = blobUrlsHashMap;
 
-                thumbnails.set(blobUrlsHashMap);
-            } catch (error) {
+				thumbnails.set(blobUrlsHashMap);
+			} catch (error) {
 				await log({
 					level: "error",
 					callStack: new Error(),
@@ -167,13 +188,13 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 					},
 				});
 			}
-        } finally {
-            isProcessing = false;
-            pendingPromise = null;
-        }
-    })();
+		} finally {
+			isProcessing = false;
+			pendingPromise = null;
+		}
+	})();
 
-    await pendingPromise;
+	await pendingPromise;
 }
 
 /** DOCS:
@@ -181,7 +202,7 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
  *
  * Existence is checked in Rust (`validate_video_paths`) because wallpaper
  * paths live outside the app's fs capabilities. Pruned mappings are
- * persisted back to the configuration file.
+ * persisted back to the map file.
  *
  * @param map - Current thumbnail filename → video path mapping.
  *
@@ -194,35 +215,35 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
  * ```
  */
 async function pruneMissingVideos(map: ThumbnailRecord): Promise<ThumbnailRecord> {
-    const entries = Object.entries(map) as [string, string][];
+	const entries = Object.entries(map) as [string, string][];
 
-    if (entries.length === 0) return map;
+	if (entries.length === 0) return map;
 
-    try {
-        const existing = new Set(
-            await invoke<string[]>("validate_video_paths", {
-                paths: entries.map(([, videoPath]) => videoPath),
-            }),
-        );
+	try {
+		const existing = new Set(
+			await invoke<string[]>("validate_video_paths", {
+				paths: entries.map(([, videoPath]) => videoPath),
+			}),
+		);
 
-        if (existing.size === entries.length) return map;
+		if (existing.size === entries.length) return map;
 
-        const sorted = sortJsonByKey(
-            Object.fromEntries(entries.filter(([, videoPath]) => existing.has(videoPath))),
-        );
-        await updateConfig({ thumbnailsHashMap: sorted });
-        return sorted;
-    } catch (error) {
-        await log({
-            level: "error",
-            callStack: new Error(),
-            message: {
-                context: "Failed to validate video paths for thumbnails",
-                error,
-            },
-        });
-        return map;
-    }
+		const sorted = sortJsonByKey(
+			Object.fromEntries(entries.filter(([, videoPath]) => existing.has(videoPath))),
+		);
+		await writeThumbnailMap(sorted);
+		return sorted;
+	} catch (error) {
+		await log({
+			level: "error",
+			callStack: new Error(),
+			message: {
+				context: "Failed to validate video paths for thumbnails",
+				error,
+			},
+		});
+		return map;
+	}
 }
 
 /** DOCS:
@@ -255,28 +276,50 @@ async function fileToBlobUrl(
 }
 
 /** DOCS:
- * Processes a list of video paths to generate thumbnails and maps the resulting file names to their respective video paths.
+ * Processes a list of video paths to generate thumbnails and maps the resulting
+ * file names to their respective video paths.
+ *
+ * Generates thumbnails concurrently (see {@link GENERATION_CONCURRENCY}) with a
+ * worker-pool pattern: each worker pulls the next video index until the list is
+ * exhausted. Failed generations are counted and reported, not fatal.
  *
  * @param videosList - An array of absolute paths to video files.
  *
- * @returns Resolves with a record mapping thumbnail file names to video paths.
+ * @returns Resolves with the thumbnail filename → video path map and the
+ *          number of videos whose thumbnail generation failed.
  *
  * @example
  * ```ts
- * const videoPaths = ["/path/to/video1.mp4", "/path/to/video2.mp4"];
- * const thumbnailsMap = await processVideoPaths(videoPaths);
- * console.log(thumbnailsMap);
+ * const { map, failures } = await processVideoPaths(videoPaths);
  * ```
  */
-async function processVideoPaths(videosList: string[]): Promise<ThumbnailRecord> {
+async function processVideoPaths(
+	videosList: string[],
+): Promise<{ map: ThumbnailRecord; failures: number }> {
 	const newThumbnailsHashMap: ThumbnailRecord = {};
+	let failures = 0;
+	let index = 0;
 
-	for (const videoPath of videosList) {
-		const thumbPath = await generateThumb(videoPath);
-		await new Promise((r) => setTimeout(r, 150));
-		const fileName = await basename(thumbPath);
-		newThumbnailsHashMap[fileName] = videoPath;
-		thumbnailsGenerated.update((count) => count + 1);
-	}
-	return newThumbnailsHashMap;
+	const worker = async () => {
+		while (index < videosList.length) {
+			const videoPath = videosList[index++];
+			try {
+				const thumbPath = await generateThumb(videoPath);
+				const fileName = thumbPath ? await basename(thumbPath) : "";
+				if (fileName) {
+					newThumbnailsHashMap[fileName] = videoPath;
+				} else {
+					failures++;
+				}
+			} catch {
+				failures++;
+			}
+			thumbnailsGenerated.update((count) => count + 1);
+		}
+	};
+
+	const workerCount = Math.max(1, Math.min(GENERATION_CONCURRENCY, videosList.length));
+	await Promise.all(Array.from({ length: workerCount }, worker));
+
+	return { map: newThumbnailsHashMap, failures };
 }

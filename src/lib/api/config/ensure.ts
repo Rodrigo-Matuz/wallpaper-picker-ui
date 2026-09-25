@@ -1,9 +1,8 @@
 import { BaseDirectory, exists, writeFile } from "@tauri-apps/plugin-fs";
 import { defaultConfig } from "$api/config/defaults";
-import type { ConfigInterArgs } from "$types/configTypes";
 import { ensureDir } from "$utils/ensureDirs";
 import { log } from "$utils/logger";
-import { CONFIG_FILE_PATH } from "$utils/paths"
+import { CONFIG_FILE_PATH } from "$utils/paths";
 
 /** DOCS:
  * Ensures that the configuration file exists.
@@ -46,14 +45,11 @@ export async function ensureConfig(): Promise<void> {
 	if (configExists) return;
 
 	try {
-		const data = new TextEncoder().encode(
-			JSON.stringify(defaultConfig, null, 4),
-		);
+		const data = new TextEncoder().encode(JSON.stringify(defaultConfig, null, 4));
 
 		await writeFile(CONFIG_FILE_PATH, data, {
 			baseDir: BaseDirectory.Config,
 		});
-
 	} catch (error) {
 		await log({
 			level: "error",
