@@ -24,16 +24,26 @@
 		}
 	},
 	"bundle": {
+		"active": true,
+		"targets": ["deb", "rpm", "appimage"],
 		"icon": ["icons/icon.ico", "../static/icon-256.png"],
 		"createUpdaterArtifacts": true,
 		"linux": {
 			"deb": {
-				"files": {}
+				"depends": []
 			},
 			"rpm": {
 				"epoch": 0,
-				"files": {},
-				"release": "1"
+				"release": "1",
+				"depends": []
+			},
+			"appimage": {
+				"bundleMediaFramework": false
+			}
+		},
+		"windows": {
+			"nsis": {
+				"installMode": "currentUser"
 			}
 		}
 	},
