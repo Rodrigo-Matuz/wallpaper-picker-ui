@@ -125,40 +125,75 @@ Go to the [Releases](https://github.com/Rodrigo-Matuz/wallpaper-picker/releases)
 
 1. **Clone the Project:**
 
-    ```bash
-    git clone https://github.com/Rodrigo-Matuz/wallpaper-picker-ui
-    ```
+   ```bash
+   git clone https://github.com/Rodrigo-Matuz/wallpaper-picker-ui
+   ```
 
 2. **Navigate to the Project Directory:**
 
-    ```bash
-    cd wallpaper-picker-ui
-    ```
+   ```bash
+   cd wallpaper-picker-ui
+   ```
 
 3. **Install Dependencies:**
    The project uses Bun for package management. Install dependencies with:
 
-    ```bash
-    bun install
-    ```
+   ```bash
+   bun install
+   ```
 
 4. **Build the Project:**
 
-    ```bash
-    bun run tauri build
-    ```
+   ```bash
+   bun run tauri build --no-bundle
+   ```
+
+   This builds the binary but skips the installer bundles (which require a
+   code-signing key — see below). To produce installers, the release workflow
+   (`.github/workflows/release.yml`) runs `tauri build` with the signing key set
+   as a GitHub Actions secret.
 
 5. **Locate the Binary:**
    After building, find the binary in the release directory:
 
-    ```bash
-    cd src-tauri/target/release
-    ```
+   ```bash
+   cd src-tauri/target/release
+   ```
 
-   The binary will be in this directory. `.deb` and `.rpm` packages can be found in the `bundle/` directory. You can move the binary to a directory in your `PATH`, such as `/usr/bin/`.
+   The binary will be in this directory. On Linux, `.deb`, `.rpm`, and
+   `.AppImage` packages are produced in `src-tauri/target/release/bundle/`
+   when the release workflow runs. On Windows, the `.exe` installer (NSIS) is
+   produced there when the release workflow succeeds.
 
+   You can move the binary to a directory in your `PATH`, such as `/usr/bin/`.
 
 </details>
+
+## Releases
+
+Releases are produced automatically by the GitHub Actions release workflow
+when a version tag (e.g. `v3.4.0`) is pushed to `main`. The workflow:
+
+- Builds the app on Linux (Ubuntu) and Windows
+- Produces signed installers: `.deb` / `.rpm` / `.AppImage` on Linux, NSIS
+  `.exe` on Windows
+- Signs the updater artifacts (`latest.json`) with the app's minisign key
+- Opens a **draft release** for review and publishing
+
+To trigger a new release:
+
+```bash
+git tag v3.4.0
+git push origin v3.4.0
+```
+
+The signing key is configured in `src-tauri/tauri.conf.json` (public key) and
+stored as the `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+secrets in the repository (Settings → Secrets and variables → Actions).
+
+> **Note:** Plain `bun run tauri build` fails at the signing step unless
+> `TAURI_SIGNING_PRIVATE_KEY` is set. Use `--no-bundle` for a local binary
+> without installers, or run the release workflow.
 
 ## Contributing Translations
 <details>
