@@ -11,29 +11,28 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        # ── Bun (project's package manager + script runner) ─────────────────
         bun = pkgs.bun;
-
-        # ── Rust toolchain (system Rust, no rustup needed) ─────────────────
         rustPlatform = pkgs.rustPlatform;
 
-        # ── Linux system deps for Tauri 2 ──────────────────────────────────
-        # Tauri 2's WebView on Linux needs WebKitGTK 4.1 + ancillary libs.
         linux-deps = with pkgs; [
-          webkit2gtk-4.1      # WebView backend
-          libappindicator3    # tray icons (some DEs)
-          librsvg             # SVG icon rendering
-          openssl             # TLS (updater, network)
-          pkg-config          # used by cargo to find system libs
-          clang               # native bindings / node-rs may need a C compiler
+          webkit2gtk-4.1
+          libappindicator3
+          librsvg
+          openssl
+          pkg-config
+          clang
           libclang
-          icu69               # full ICU for emoji / i18n
+          icu69
           icu-data-en
         ];
 
         host-deps = if pkgs.stdenv.isLinux then linux-deps else [];
 
         # ── Dev shell (`nix develop`) ───────────────────────────────────────
+        # Developers only.  End users who just want the app use `nix build`
+        # or install via NixOS / Home Manager — they never enter this shell.
+        # The shellHook is intentionally minimal: set up PATH + writable homes
+        # + SSL certs, print a one-line hint.  No fancy banner.
         devShell = pkgs.mkShell {
           name = "wallpaper-picker-ui-dev";
           buildInputs = host-deps ++ [
@@ -44,48 +43,28 @@
             pkgs.openssl.dev
           ];
 
-          # Tauri's Rust crates look for OpenSSL via these vars
-          OPENSSL_DIR = "${pkgs.openssl.dev}";
-          OPENSSL_LIB_DIR = "${pkgs.openssl.outPath}/lib";
+          OPENSSL_DIR         = "${pkgs.openssl.dev}";
+          OPENSSL_LIB_DIR     = "${pkgs.openssl.outPath}/lib";
           OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
 
-          # Writable paths (Nix store is read-only)
           BUN_INSTALL = "$PWD/.bun";
           CARGO_HOME  = "$PWD/.cargo";
           RUSTUP_HOME = "$PWD/.rustup";
 
-          # SSL certs for HTTPS (updater, API calls)
           SSL_CERT_DIR = "${(pkgs.certificate-transparency or pkgs.cacert or pkgs.curl).outPath}/etc/ssl/certs";
 
           shellHook = ''
             export PATH="$BUN_INSTALL/bin:$CARGO_HOME/bin:$PATH"
-
-            echo "╔══════════════════════════════════════╗"
-            echo "║  wallpaper-picker-ui dev shell       ║"
-            echo "╚══════════════════════════════════════╝"
-            echo ""
-            echo "  bun  → $(bun --version 2>/dev/null || echo '(not found)')"
-            echo "  rust → $(rustc --version 2>/dev/null || echo '(not found)')"
-            echo ""
-            echo "  Commands:"
-            echo "    bun run dev          — start Vite dev server"
-            echo "    bun run build        — build frontend (SvelteKit static output)"
-            echo "    bun run tauri build  — build full Tauri app + bundles"
-            echo "    bun run check        — svelte-check type checking"
-            echo "    bun run lint         — Biome lint / format"
-            echo "    bun test             — run unit tests"
-            echo "    bun run version 3.4.1  — bump version in all 3 files"
-            echo ""
+            echo "wallpaper-picker-ui dev shell — bun $(bun --version 2>/dev/null || echo ?) / rust $(rustc --version 2>/dev/null || echo ?)"
+            echo "  bun run dev | build | tauri build | check | lint | test | version <ver>"
           '';
         };
 
         # ── Default package (`nix build`) ───────────────────────────────────
-        # Builds the complete Tauri app and produces Linux bundles (deb/rpm/
-        # appimage) under ./result.
         app = pkgs.stdenvNoCC.mkDerivation {
           name = "wallpaper-picker-ui";
           src = ./.;
-          vendorHash = null; # Nix will tell you the real hash on first build
+          vendorHash = null;
 
           buildInputs = host-deps ++ [
             bun
@@ -99,38 +78,25 @@
           OPENSSL_LIB_DIR     = "${pkgs.openssl.outPath}/lib";
           OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
 
-          # Writable homes for package managers (Nix store is read-only)
           BUN_INSTALL = "$TMPDIR/bun-home";
           CARGO_HOME  = "$TMPDIR/cargo";
           RUSTUP_HOME = "$TMPDIR/rustup";
 
           buildPhase = ''
             runHook preBuild
-
             export PATH="$BUN_INSTALL/bin:$CARGO_HOME/bin:$PATH"
-
-            # Install JS dependencies (frozen lockfile → reproducible)
             bun install --frozen-lockfile
-
-            # Build the SvelteKit static output (consumed as Tauri's frontendDist)
             bun run build
-
-            # Build the full Tauri app — produces binaries + Linux bundles
             bun run tauri build --no-warn
-
             runHook postBuild
           '';
 
           installPhase = ''
             runHook preInstall
             mkdir -p "$out"
-
-            # Tauri places bundles under src-tauri/target/release/bundle/
             if [ -d "src-tauri/target/release/bundle" ]; then
               cp -r src-tauri/target/release/bundle/* "$out/"
             fi
-
-            # Also expose the bare platform binary
             if [ -f "src-tauri/target/release/wallpaper-picker-ui" ]; then
               mkdir -p "$out/bin"
               cp "src-tauri/target/release/wallpaper-picker-ui" "$out/bin/"
@@ -139,50 +105,128 @@
               mkdir -p "$out/bin"
               cp "src-tauri/target/release/wallpaper-picker-ui.exe" "$out/bin/"
             fi
-
             runHook postInstall
           '';
 
           dontStrip = true;
         };
+
+        # ── Home Manager module ─────────────────────────────────────────────
+        # Lets the user declare their preferred app settings in HM config.
+        # HM writes ~/.config/WallpaperPickerUI/config.json as the declarative
+        # source of truth for these preferences.  The app reads this file on
+        # startup and can update it via updateConfig() at runtime — but since
+        # most fields are static (command, wallpapersPath, darkMode, language),
+        # conflicts between HM and in-app changes are rare.
+        #
+        # thumbnailsHashMap is legacy (migrated to thumbnails/map.json) — HM
+        # does not manage it.  thumbnailVersion is included so the app starts
+        # with a known version; the app bumps it when the naming scheme changes.
+        homeManagerModules.default = { config, pkgs, lib, ... }:
+          {
+            options.programs.wallpaper-picker-ui = {
+              enable = lib.mkOption {
+                type = lib.types.bool;
+                default = false;
+                description = "Manage wallpaper-picker-ui user configuration via Home Manager.";
+              };
+
+              package = lib.mkOption {
+                type = lib.types.package;
+                default = self.packages.${pkgs.system}.default;
+                description = "The wallpaper-picker-ui package to install.";
+              };
+
+              command = lib.mkOption {
+                type = lib.types.str;
+                default = "";
+                description = "Wallpaper command run by the app (e.g. /usr/bin/wallpaper \\$VP). Empty = no command configured.";
+              };
+
+              wallpapersPath = lib.mkOption {
+                type = lib.types.nullOr lib.types.str;
+                default = null;
+                description = "Folder to scan for wallpapers. Null = app prompts on first run.";
+              };
+
+              debugMode = lib.mkOption {
+                type = lib.types.bool;
+                default = false;
+                description = "Enable debug logging.";
+              };
+
+              newWallpapers = lib.mkOption {
+                type = lib.types.bool;
+                default = true;
+                description = "Automatically search for new wallpapers at startup.";
+              };
+
+              darkMode = lib.mkOption {
+                type = lib.types.bool;
+                default = true;
+                description = "Start the app in dark mode.";
+              };
+
+              language = lib.mkOption {
+                type = lib.types.enumeration [ "eng" "pt-br" "de" "fr" "es" ];
+                default = "eng";
+                description = "Application UI language.";
+              };
+            };
+
+            config = lib.mkIf config.programs.wallpaper-picker-ui.enable {
+              # Write ~/.config/WallpaperPickerUI/config.json from the HM options.
+              # home.file creates parent directories automatically.
+              home.file.".config/WallpaperPickerUI/config.json" = {
+                text = builtins.toJSON {
+                  command = config.programs.wallpaper-picker-ui.command;
+                  wallpapersPath =
+                    config.programs.wallpaper-picker-ui.wallpapersPath
+                    or "";
+                  debugMode = config.programs.wallpaper-picker-ui.debugMode;
+                  newWallpapers = config.programs.wallpaper-picker-ui.newWallpapers;
+                  darkMode = config.programs.wallpaper-picker-ui.darkMode;
+                  language = config.programs.wallpaper-picker-ui.language;
+                  thumbnailVersion = 1;
+                };
+              };
+
+              home.packages = [ config.programs.wallpaper-picker-ui.package ];
+            };
+          };
       in {
-        # ── Top-level flake attributes ──────────────────────────────────────
         packages = {
-          default = app;        # `nix build` → Linux bundles in ./result
-          app = app;            # explicit alias
+          default = app;
+          app = app;
         };
 
         devShells = {
-          default = devShell;   # `nix develop`
+          default = devShell;
         };
 
-        # ── NixOS module ────────────────────────────────────────────────────
-        # Drop into your NixOS config:  { programs.wallpaper-picker-ui.enable = true; }
-        # The module references self.packages.${system}.default (the flake's
-        # own app package), not pkgs.wallpaper-picker-ui.
+        homeManagerModules = {
+          default = homeManagerModules.default;
+        };
+
         nixosModules.default = ({ config, pkgs, ... }:
           let
             wallpaper-picker-ui = self.packages.${pkgs.system}.default;
           in
           {
             options.programs.wallpaper-picker-ui = {
-              enable = pkgs.lib.mkOption {
-                type = pkgs.lib.types.bool;
+              enable = lib.mkOption {
+                type = lib.types.bool;
                 default = false;
                 description = "Install wallpaper-picker-ui system-wide.";
               };
             };
 
-            config = pkgs.lib.mkIf config.programs.wallpaper-picker-ui.enable {
+            config = lib.mkIf config.programs.wallpaper-picker-ui.enable {
               environment.systemPackages = [ wallpaper-picker-ui ];
             };
           }
         );
 
-        # ── Legacy / flake-index compatibility ──────────────────────────────
-        # Some tools expect a `packages.${system}.default`; we already
-        # provide that above.  This overlay lets other flakes consume
-        # this flake's package via `inputs.wallpaper-picker-ui.packages.${system}.default`.
         overlays = [
           (self: super: {
             wallpaper-picker-ui = self.packages.${system}.default or null;
