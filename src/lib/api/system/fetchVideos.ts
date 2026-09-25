@@ -26,7 +26,8 @@ export async function fetchVideos(): Promise<string[]> {
 	const configFile = await fetchConfig();
 	const wallpapersPathLocal = configFile.wallpapersPath;
 
-	// TODO: Implement logic if no wallpapers path on config folder
+	// No wallpapers path configured: scanning an empty path would return
+	// nothing (or walk an invalid directory) — bail out early instead.
 	if (!wallpapersPathLocal) {
 		await log({
 			level: "warn",
@@ -35,6 +36,8 @@ export async function fetchVideos(): Promise<string[]> {
 				context: "Wallpapers path is not set in config",
 			},
 		});
+
+		return [];
 	}
 
 	const listOfVideos: string[] = await invoke("get_videos_list", {

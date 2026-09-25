@@ -1,19 +1,9 @@
 import { BaseDirectory, exists, writeFile } from "@tauri-apps/plugin-fs";
+import { defaultConfig } from "$api/config/defaults";
 import type { ConfigInterArgs } from "$types/configTypes";
 import { ensureDir } from "$utils/ensureDirs";
 import { log } from "$utils/logger";
 import { CONFIG_FILE_PATH } from "$utils/paths"
-
-// TODO: Separate thumbnailsHashMap in it's own file
-const defaultConfig: ConfigInterArgs = {
-	command: "",
-	wallpapersPath: "",
-	debugMode: false,
-	newWallpapers: true,
-	darkMode: true,
-	language: "eng",
-	thumbnailsHashMap: {},
-};
 
 /** DOCS:
  * Ensures that the configuration file exists.

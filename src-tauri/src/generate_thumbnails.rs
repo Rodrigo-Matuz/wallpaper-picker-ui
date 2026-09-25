@@ -3,14 +3,31 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-// DOCS:
-// By ChatGPT
+const THUMBNAIL_WIDTH: u32 = 222;
+const THUMBNAIL_HEIGHT: u32 = 124;
+
+/// FNV-1a 64-bit hash.
+///
+/// Deliberately hand-rolled instead of `std::hash::DefaultHasher`:
+/// FNV-1a output is stable across compiler versions and program runs,
+/// so persisted thumbnail file names never change for the same input.
+fn fnv1a_hash(data: &str) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in data.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
 
 /// Generates a thumbnail for a given video file.
 ///
 /// This function creates a thumbnail image from the specified video file using `ffmpeg`.
-/// If the thumbnail already exists in the target directory, it returns the existing path
-/// without re-generating the thumbnail.
+/// If the thumbnail already exists in the target directory (and is a non-empty file),
+/// it returns the existing path without re-generating the thumbnail.
+///
+/// Thumbnail file names are derived from the full video path (file stem + path hash)
+/// so that two videos with the same file name in different folders never collide.
 ///
 /// # Arguments
 ///
@@ -26,43 +43,36 @@ use std::time::{Duration, Instant};
 ///
 /// This function returns an error in the following cases:
 /// - The thumbnails directory cannot be created.
+/// - `ffmpeg` is not available on the system PATH.
+/// - The video path is not valid UTF-8.
 /// - Thumbnail generation with `ffmpeg` fails.
-///
-/// # Dependencies
-///
-/// This function relies on the `ffmpeg` command-line tool to generate thumbnails. Ensure
-/// `ffmpeg` is installed and accessible in the system's PATH.
-///
-/// # Examples
-///
-/// ```
-/// use my_crate::generate_thumb; // Replace `my_crate` with your crate name.
-///
-/// let video = "/path/to/video.mp4".to_string();
-/// let thumb_dir = "/path/to/thumbnails".to_string();
-///
-/// match generate_thumb(video, thumb_dir) {
-///     Ok(thumbnail_path) => println!("Thumbnail generated: {}", thumbnail_path),
-///     Err(err) => eprintln!("Error: {}", err),
-/// }
-/// ```
 #[tauri::command]
 pub async fn generate_thumb(video_path: String, thumb_path: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let video_path = PathBuf::from(video_path);
-        let thumbnails_dir = PathBuf::from(thumb_path);
-
-        let thumbnail_name = generate_thumbnail_name(&video_path);
-        let thumbnail_path = thumbnails_dir.join(&thumbnail_name);
+        let video_path = PathBuf::from(&video_path);
+        let thumbnails_dir = PathBuf::from(&thumb_path);
 
         // Ensure the thumbnails directory exists
         fs::create_dir_all(&thumbnails_dir)
             .map_err(|e| format!("Failed to create thumbnails directory: {}", e))?;
 
-        // Check if the thumbnail already exists
-        if thumbnail_path.exists() {
+        // Fail with a clear message instead of panicking per video when ffmpeg is missing
+        if !ffmpeg_available() {
+            return Err(
+                "ffmpeg was not found on PATH. Install ffmpeg to generate thumbnails.".to_string(),
+            );
+        }
+
+        let thumbnail_name = generate_thumbnail_name(&video_path)?;
+        let thumbnail_path = thumbnails_dir.join(&thumbnail_name);
+
+        // Skip only when a valid (existing and non-empty) thumbnail is present
+        if is_valid_thumbnail(&thumbnail_path) {
             return Ok(thumbnail_path.to_string_lossy().to_string());
         }
+
+        // Remove leftovers from previous failed generations so ffmpeg can write the file
+        let _ = fs::remove_file(&thumbnail_path);
 
         // Generate the thumbnail using ffmpeg
         if generate_thumbnail(&video_path, &thumbnail_path) {
@@ -75,28 +85,50 @@ pub async fn generate_thumb(video_path: String, thumb_path: String) -> Result<St
     .map_err(|e| e.to_string())?
 }
 
-/// Generates a thumbnail file name based on the video file name.
+/// Generates a thumbnail file name based on the video file path.
+///
+/// The full path is hashed (FNV-1a) into the name so two videos with the same
+/// file name in different folders can never overwrite each other's thumbnail.
 ///
 /// # Arguments
 ///
-/// * `path` - A reference to a `PathBuf` representing the video file path.
+/// * `path` - A reference to a `Path` representing the video file path.
 ///
 /// # Returns
 ///
-/// A `String` containing the generated thumbnail file name (e.g., `video.png`).
-///
-/// # Examples
-///
-/// ```
-/// let path = PathBuf::from("/path/to/video.mp4");
-/// let thumb_name = generate_thumbnail_name(&path);
-/// assert_eq!(thumb_name, "video.png");
-/// ```
-fn generate_thumbnail_name(path: &PathBuf) -> String {
-    path.file_stem().unwrap().to_string_lossy().to_string() + ".png"
+/// * `Ok(String)` - The generated thumbnail file name (e.g., `video-3f9a2c….png`).
+/// * `Err(String)` - If the path or its file stem is not valid UTF-8.
+fn generate_thumbnail_name(path: &Path) -> Result<String, String> {
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| "Video path contains invalid UTF-8".to_string())?;
+
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("Cannot determine a file stem for {:?}", path))?;
+
+    Ok(format!("{}-{:016x}.png", stem, fnv1a_hash(path_str)))
+}
+
+/// A thumbnail is valid when the file exists and is non-empty.
+fn is_valid_thumbnail(path: &Path) -> bool {
+    matches!(fs::metadata(path), Ok(meta) if meta.len() > 0)
+}
+
+/// Cheap sanity check that ffmpeg can be executed.
+fn ffmpeg_available() -> bool {
+    Command::new("ffmpeg")
+        .arg("-version")
+        .output()
+        .is_ok()
 }
 
 /// Generates a thumbnail image for a video using `ffmpeg`.
+///
+/// Seeks 1s into the video (fast seek, `-ss` before `-i`) and falls back to the
+/// first frame for videos shorter than the seek position. Scales to the target
+/// size while preserving the aspect ratio (letterboxed, not distorted).
 ///
 /// # Arguments
 ///
@@ -106,53 +138,108 @@ fn generate_thumbnail_name(path: &PathBuf) -> String {
 /// # Returns
 ///
 /// `true` if the thumbnail generation succeeds, otherwise `false`.
-///
-/// # Dependencies
-///
-/// This function requires `ffmpeg` to be installed and accessible in the system's PATH.
-///
-/// # Examples
-///
-/// ```
-/// let video_path = Path::new("/path/to/video.mp4");
-/// let thumbnail_path = Path::new("/path/to/thumbnails/video.png");
-/// assert!(generate_thumbnail(video_path, thumbnail_path));
-/// ```
 fn generate_thumbnail(video_path: &Path, thumbnail_path: &Path) -> bool {
-    let status = Command::new("ffmpeg")
-        .args([
-            "-i",
-            video_path.to_str().unwrap(),
-            "-ss",
-            "00:00:01.000",
-            "-vframes",
-            "1",
-            "-s",
-            "222x124",
-            thumbnail_path.to_str().unwrap(),
-        ])
-        .status()
-        .expect("Failed to execute ffmpeg");
-
-    if !status.success() {
+    let Some(video) = video_path.to_str() else {
         return false;
+    };
+    let Some(output) = thumbnail_path.to_str() else {
+        return false;
+    };
+
+    let vf = format!(
+        "scale={}:{}:force_original_aspect_ratio=decrease,pad={}:{}:(ow-iw)/2:(oh-ih)/2:color=black",
+        THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT
+    );
+
+    for seek in ["00:00:01.000", "0"] {
+        let status = Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-ss",
+                seek,
+                "-i",
+                video,
+                "-vframes",
+                "1",
+                "-vf",
+                &vf,
+                output,
+            ])
+            .status();
+
+        match status {
+            Ok(status) if status.success() => return wait_for_thumbnail(thumbnail_path),
+            _ => continue,
+        }
     }
 
-    // Now poll until file is readable and has content
+    eprintln!(
+        "Warning: failed to generate thumbnail {:?}",
+        thumbnail_path
+    );
+    false
+}
+
+/// Polls until the thumbnail file exists and has content (with a safety timeout).
+fn wait_for_thumbnail(thumbnail_path: &Path) -> bool {
     let timeout = Duration::from_secs(5); // safety net
     let start = Instant::now();
     let sleep_step = Duration::from_millis(30);
 
     while start.elapsed() < timeout {
-        match fs::metadata(thumbnail_path) {
-            Ok(meta) if meta.len() > 0 => return true, // file exists + has size → good to go
-            _ => std::thread::sleep(sleep_step),
+        if is_valid_thumbnail(thumbnail_path) {
+            return true;
         }
+        std::thread::sleep(sleep_step);
     }
 
     eprintln!(
         "Warning: thumbnail {:?} not visible after timeout",
         thumbnail_path
     );
-    false // or return true if you want to be optimistic
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_input_hash_matches_fnv1a_offset_basis() {
+        assert_eq!(fnv1a_hash(""), 0xcbf2_9ce4_8422_2325);
+    }
+
+    #[test]
+    fn hash_is_deterministic() {
+        assert_eq!(fnv1a_hash("/videos/sunset.mp4"), fnv1a_hash("/videos/sunset.mp4"));
+        assert_ne!(fnv1a_hash("/a/sunset.mp4"), fnv1a_hash("/b/sunset.mp4"));
+    }
+
+    #[test]
+    fn thumbnail_name_contains_stem_and_16_hex_chars() {
+        let name = generate_thumbnail_name(&PathBuf::from("/videos/sunset.mp4")).unwrap();
+        assert!(name.starts_with("sunset-"));
+        let hex = name.trim_start_matches("sunset-").trim_end_matches(".png");
+        assert_eq!(hex.len(), 16);
+        assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn same_stem_in_different_folders_never_collides() {
+        let a = generate_thumbnail_name(&PathBuf::from("/a/sunset.mp4")).unwrap();
+        let b = generate_thumbnail_name(&PathBuf::from("/b/sunset.mp4")).unwrap();
+        assert_ne!(a, b);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn non_utf8_path_is_an_error_not_a_panic() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+        let path = PathBuf::from(OsStr::from_bytes(b"/videos/\xff\xfe.mp4"));
+        assert!(generate_thumbnail_name(&path).is_err());
+    }
 }

@@ -1,14 +1,18 @@
+mod cleanup_thumbnails;
 mod generate_thumbnails;
 mod get_videos_list;
 mod log_message;
 mod select_folder;
 mod send_command;
+mod validate_video_paths;
 
+pub use cleanup_thumbnails::cleanup_thumbnails;
 pub use generate_thumbnails::generate_thumb;
 pub use get_videos_list::get_videos_list;
 pub use log_message::log_message;
 pub use select_folder::select_folder;
 pub use send_command::send_command;
+pub use validate_video_paths::validate_video_paths;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -22,7 +26,9 @@ pub fn run() {
             get_videos_list,
             select_folder,
             send_command,
-            generate_thumb
+            generate_thumb,
+            validate_video_paths,
+            cleanup_thumbnails
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

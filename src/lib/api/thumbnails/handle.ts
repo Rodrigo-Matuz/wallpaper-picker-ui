@@ -1,4 +1,5 @@
-import { basename } from "@tauri-apps/api/path";
+import { basename, appDataDir } from "@tauri-apps/api/path";
+import { invoke } from "@tauri-apps/api/core";
 import { BaseDirectory, readFile } from "@tauri-apps/plugin-fs";
 import { writable } from "svelte/store";
 import { fetchConfig } from "$api/config/read";
@@ -17,6 +18,20 @@ export const totalVideos = writable(0);
 let isProcessing = false;
 let pendingPromise: Promise<void> | null = null;
 
+/**
+ * Version of the thumbnail naming scheme (must match the Rust side).
+ * Bump when the naming changes: existing configs with an older/missing
+ * version are force-regenerated and orphaned thumbnail files are cleaned up.
+ */
+const CURRENT_THUMBNAIL_VERSION = 1;
+
+/**
+ * Blob URLs currently handed to the UI (blobUrl → videoPath).
+ * Kept so stale URLs can be revoked when the store is replaced;
+ * without this, every rescan leaks blob URLs until the app closes.
+ */
+let activeBlobUrls: ThumbnailRecord = {};
+
 /** DOCS:
  * Handles the generation, storage, and management of video thumbnails in the application's data directory.
  * Coordinates thumbnail generation, blob loading, configuration updates, and UI state synchronization.
@@ -28,10 +43,14 @@ let pendingPromise: Promise<void> | null = null;
  * Main responsibilities:
  * - Fetches configuration data to determine whether new wallpapers were added.
  * - Optionally forces thumbnail regeneration regardless of config state.
+ * - Force-regenerates and cleans up when the persisted thumbnail version is
+ *   older than {@link CURRENT_THUMBNAIL_VERSION} (naming-scheme migration).
  * - Generates thumbnails for all detected video files when needed.
  * - Updates progress-related Svelte stores during generation.
  * - Sorts and persists the generated thumbnail mapping into the configuration file.
- * - Converts thumbnail files into blob URLs for UI consumption.
+ * - Prunes mapping entries whose video file no longer exists (deleted/renamed videos).
+ * - Cleans up orphaned thumbnail files not referenced by the mapping.
+ * - Converts thumbnail files into blob URLs for UI consumption (revoking stale ones).
  * - Updates the thumbnails store used by the UI.
  *
  * Error handling:
@@ -59,12 +78,12 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
     isProcessing = true;
     pendingPromise = (async () => {
         try {
-            let { newWallpapers, thumbnailsHashMap } = await fetchConfig();
+            let { newWallpapers, thumbnailsHashMap, thumbnailVersion } = await fetchConfig();
 
-            if (forceRegenerate) newWallpapers = true;
+            const needsMigration = (thumbnailVersion ?? 0) !== CURRENT_THUMBNAIL_VERSION;
+            if (forceRegenerate || needsMigration) newWallpapers = true;
 
             const blobUrlsHashMap: ThumbnailRecord = {};
-
             if (newWallpapers) {
                 try {
                     thumbnailsGenerated.set(0);
@@ -76,7 +95,10 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
                     totalVideos.set(0);
 
                     const sorted = sortJsonByKey(newThumbnailsHashMap);
-                    await updateConfig({ thumbnailsHashMap: sorted });
+                    await updateConfig({
+                        thumbnailsHashMap: sorted,
+                        thumbnailVersion: CURRENT_THUMBNAIL_VERSION,
+                    });
                     thumbnailsHashMap = sorted;
                 } catch (error) {
 					await log({
@@ -88,6 +110,25 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 						},
 					});
 				}
+            } else {
+                thumbnailsHashMap = await pruneMissingVideos(thumbnailsHashMap);
+            }
+
+            // Remove orphaned thumbnail files (deleted videos, old naming scheme).
+            try {
+                await invoke("cleanup_thumbnails", {
+                    thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
+                    keepFiles: Object.keys(thumbnailsHashMap),
+                });
+            } catch (error) {
+                await log({
+                    level: "warn",
+                    callStack: new Error(),
+                    message: {
+                        context: "Failed to clean up orphaned thumbnail files",
+                        error,
+                    },
+                });
             }
 
             try {
@@ -106,6 +147,15 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 						});
 					}
                 }
+
+                // Revoke blob URLs that are no longer referenced by the new store.
+                for (const oldUrl of Object.keys(activeBlobUrls)) {
+                    if (!blobUrlsHashMap[oldUrl]) {
+                        URL.revokeObjectURL(oldUrl);
+                    }
+                }
+                activeBlobUrls = blobUrlsHashMap;
+
                 thumbnails.set(blobUrlsHashMap);
             } catch (error) {
 				await log({
@@ -124,6 +174,55 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
     })();
 
     await pendingPromise;
+}
+
+/** DOCS:
+ * Removes mapping entries whose video file no longer exists on disk.
+ *
+ * Existence is checked in Rust (`validate_video_paths`) because wallpaper
+ * paths live outside the app's fs capabilities. Pruned mappings are
+ * persisted back to the configuration file.
+ *
+ * @param map - Current thumbnail filename → video path mapping.
+ *
+ * @returns The pruned mapping (sorted, persisted) or the original mapping
+ *          if validation failed or nothing changed.
+ *
+ * @example
+ * ```ts
+ * thumbnailsHashMap = await pruneMissingVideos(thumbnailsHashMap);
+ * ```
+ */
+async function pruneMissingVideos(map: ThumbnailRecord): Promise<ThumbnailRecord> {
+    const entries = Object.entries(map) as [string, string][];
+
+    if (entries.length === 0) return map;
+
+    try {
+        const existing = new Set(
+            await invoke<string[]>("validate_video_paths", {
+                paths: entries.map(([, videoPath]) => videoPath),
+            }),
+        );
+
+        if (existing.size === entries.length) return map;
+
+        const sorted = sortJsonByKey(
+            Object.fromEntries(entries.filter(([, videoPath]) => existing.has(videoPath))),
+        );
+        await updateConfig({ thumbnailsHashMap: sorted });
+        return sorted;
+    } catch (error) {
+        await log({
+            level: "error",
+            callStack: new Error(),
+            message: {
+                context: "Failed to validate video paths for thumbnails",
+                error,
+            },
+        });
+        return map;
+    }
 }
 
 /** DOCS:
