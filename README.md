@@ -5,189 +5,49 @@
 [![Downloads](https://img.shields.io/github/downloads/Rodrigo-Matuz/wallpaper-picker-ui/total)](https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases)
 [![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5f5f.svg)](https://ko-fi.com/matuz)
 
-
 A simple, lightweight desktop UI for browsing, selecting, and applying wallpapers — with a strong focus on animated/live wallpapers using `mpvpaper`.
 
-The app lets you quickly preview wallpapers, generate thumbnails automatically, and customize the command executed when applying a wallpaper, making it flexible for different setups and scripts.
+Wallpaper Picker UI lets you quickly preview wallpapers, automatically generate thumbnails, and customize the command used to apply a wallpaper.
 
 ## Preview
 
 ![Wallpaper Picker UI Preview](https://github.com/user-attachments/assets/7af456ba-116f-4141-b67b-48ebf16dc9c6)
 
-## Suggested Default Command (mpvpaper)
-> Linux / mpvpaper syntax — on Windows, set your own command in Settings.
-
-```bash
-killall mpvpaper ; mpvpaper -o "loop no-audio" "*" "$VP"
-```
-More script examples and advanced setups are available in the [wiki](https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/wiki).
-
-## Dependencies
-- **FFmpeg** — required for generating video thumbnails
-- **mpvpaper** — recommended for animated/live wallpapers
-  ([GhostNaN/mpvpaper](https://github.com/GhostNaN/mpvpaper))
-- **webkit2gtk-4.1** — required for Tauri’s webview on Linux
-
-### Windows
-- **WebView2** — preinstalled on Windows 10/11
-- **FFmpeg** — must be available on `PATH`
-- Folder selection uses the native OS dialog (no extra dependencies)
-- Configure a Windows-appropriate wallpaper command in Settings — the
-  suggested default command below is Linux syntax
-
-## Technologies
-This application is built with **[Tauri](https://tauri.app/)** — a secure and lightweight framework for desktop applications.
-- **Backend**: Rust
-  High performance, memory safety, and native system integration
-- **Frontend**: Svelte + TypeScript
-  Reactive UI with strong type safety and a modern developer experience
-
 ## Features
-- Grid-based wallpaper browser with clean thumbnail previews (generated via FFmpeg)
-- Supports animated/live wallpapers
-- Customizable apply command (works with `mpvpaper`, but any script or tool can be used)
-- **Theme support**
-  - Comes with a pre-made theme
-  - Supports custom themes
-  - Manual **dark / light mode** toggle
-- **Multi-language support**, including:
-  - English
-  - Português (Brasil)
-  - Deutsch
-  - Français
-  - Español
 
-## Permissions & Security
+* Grid-based wallpaper browser with clean thumbnail previews
+* Automatic video thumbnails generated with FFmpeg
+* Animated/live wallpaper support
+* Customizable wallpaper apply command
 
-This application is built with **Tauri 2** and follows a strict **capability-based permission model**.
-It only requests the **minimum privileges required** to function.
+  * Works with `mpvpaper`, but can use any script or tool
+* Theme support
 
-All permissions are explicitly scoped and can be inspected in:
+  * Includes a pre-made theme
+  * Supports custom themes
+  * Manual dark/light mode toggle
+* Multi-language support:
 
-```
-src-tauri/capabilities/permissions.json
-```
-
-### What the app is allowed to do
-
-* **Read and write its own configuration file**
-
-  * Linux: `~/.config/WallpaperPickerUI/config.json`
-
-* **Create, read, write, list and check existence of files** inside its own data directory:
-
-  * Thumbnails cache:
-    `~/.local/share/dev.matuz.wallpaper-picker-ui/thumbnails`
-
-* **Create its own application data folder** if it does not exist
-
-* Use Tauri’s built-in features:
-
-  * Open external links (`opener`)
-  * Check for application updates (`updater`)
-  * Restart itself during updates
-  * Core window management and event handling
-
-### What the app is NOT allowed to do
-
-* Read or write files **outside** its own config and data directories
-* Access your home folders such as Documents, Pictures, Downloads, Desktop, or mounted drives
-* Access USB devices, network shares, or system-wide files
-* Access the clipboard, camera, microphone, location, or sensors
-* Execute arbitrary system commands
-* Read or interact with data from other applications
-
-In short, the app can **only access its own configuration and thumbnail cache** — nothing else on your system.
-
->### ⚠️ Custom script warning
->
->If you configure a custom wallpaper script, the application will:
->
->* Execute **exactly the command you define**
->* Pass the selected wallpaper path as the **first argument** (`$VP`)
->
->The script runs with **your user permissions**, not sandboxed by the app.
->
->You are fully responsible for what the script does.
->Only use scripts you trust and understand.
+  * English
+  * Português (Brasil)
+  * Deutsch
+  * Français
+  * Español
 
 ## Installation
 
 ### From Releases
 
-The easiest option:
-Go to the [Releases](https://github.com/Rodrigo-Matuz/wallpaper-picker/releases) page and download the pre-built binary for your system.
+The easiest option is to download a pre-built binary for your system from the [Releases](https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases) page.
 
-### Build from Source
+### NixOS / Home Manager
+
+The project also provides a Nix flake with a buildable package and Home Manager module.
 
 <details>
-  <summary>Click to show instructions</summary>
+<summary>Show Nix installation</summary>
 
-1. **Clone the Project:**
-
-   ```bash
-   git clone https://github.com/Rodrigo-Matuz/wallpaper-picker-ui
-   ```
-
-2. **Navigate to the Project Directory:**
-
-   ```bash
-   cd wallpaper-picker-ui
-   ```
-
-3. **Install Dependencies:**
-   The project uses Bun for package management. Install dependencies with:
-
-   ```bash
-   bun install
-   ```
-
-4. **Build the Project:**
-
-   ```bash
-   bun run tauri build --no-bundle
-   ```
-
-   This builds the binary but skips the installer bundles (which require a
-   code-signing key — see below). To produce installers, the release workflow
-   (`.github/workflows/release.yml`) runs `tauri build` with the signing key set
-   as a GitHub Actions secret.
-
-5. **Locate the Binary:**
-   After building, find the binary in the release directory:
-
-   ```bash
-   cd src-tauri/target/release
-   ```
-
-   The binary will be in this directory. On Linux, `.deb`, `.rpm`, and
-   `.AppImage` packages are produced in `src-tauri/target/release/bundle/`
-   when the release workflow runs. On Windows, the `.exe` installer (NSIS) is
-   produced there when the release workflow succeeds.
-
-   You can move the binary to a directory in your `PATH`, such as `/usr/bin/`.
-
-</details>
-
-### Installing with Nix / Home Manager
-
-The project ships a [flake.nix](flake.nix) that provides a dev shell, a
-buildable package, and a Home Manager module for declarative configuration.
-
-#### Dev shell (for hacking on the project)
-
-```bash
-nix develop
-```
-
-This drops you into a shell with Bun, Rust, and all Tauri Linux system
-dependencies.  Run `bun run tauri build` to build, `bun run check` to type-
-check, etc.  The shell is for developers only — end users who just want the
-app do not need it.
-
-#### End-user install
-
-**Option A — NixOS (system-wide)**
+#### NixOS
 
 Add the flake to your system configuration:
 
@@ -204,10 +64,9 @@ Add the flake to your system configuration:
 }
 ```
 
-**Option B — Home Manager (user environment)**
+#### Home Manager
 
-Add the flake to your Home Manager configuration and declare your preferred
-settings:
+Add the flake to your Home Manager configuration:
 
 ```nix
 # home.nix (or your HM modules)
@@ -244,99 +103,241 @@ settings:
 }
 ```
 
-On `home-manager switch`, Home Manager writes
-`~/.config/WallpaperPickerUI/config.json` with your settings.  The app reads
-this file on startup.  You can still change settings at runtime from the app's
-Settings screen — those changes are written back to the same file by the app
-via its `updateConfig()` function.  The `command`, `wallpapersPath`, `darkMode`,
-and `language` fields are static preferences, so conflicts between HM and
-in-app edits are rare.
+After `home-manager switch`, Home Manager writes:
 
-> **Note:** `home-manager switch` rewrites `config.json` to match your HM
-> declaration.  If you make frequent in-app setting changes, run `home-manager
-> switch` only when you've updated your HM declaration — or accept that HM
-> will reset the file to your declared state.
+```text
+~/.config/WallpaperPickerUI/config.json
+```
 
-#### Building the package manually
+The app reads this file on startup. Settings can still be changed at runtime from the app's Settings screen, and those changes are written back to the same file through `updateConfig()`.
+
+The `command`, `wallpapersPath`, `darkMode`, and `language` fields are static preferences, so conflicts between Home Manager and in-app edits are rare.
+
+> **Note:** `home-manager switch` rewrites `config.json` to match your Home Manager declaration. If you frequently change settings in the app, run `home-manager switch` only after updating your declaration, or accept that Home Manager will reset the file to its declared state.
+
+#### Nix development shell
+
+For development, the flake provides a shell containing Bun, Rust, and the required Tauri Linux dependencies:
+
+```bash
+nix develop
+```
+
+The shell is intended for development. End users who only want to run the application do not need it.
+
+#### Build the Nix package manually
 
 ```bash
 nix build .#wallpaper-picker-ui
+
 # result/ contains the Linux bundles (.deb, .rpm, .AppImage) and the binary
 ```
 
-`nix build` runs the full Tauri build (frontend + Rust) and produces Linux
-bundles under `./result`.  The signing key (`TAURI_SIGNING_PRIVATE_KEY`) must
-be available for installer bundles; use `nix build` inside a `nix develop`
-shell or pass the key via `--impure` / a wrapper.
+`nix build` runs the full Tauri build and produces Linux bundles under `./result`.
 
-### Updating the version
+The signing key (`TAURI_SIGNING_PRIVATE_KEY`) must be available when building installer bundles. Use `nix build` inside a `nix develop` shell or pass the key through `--impure` / a wrapper.
 
-The project keeps version in sync across three files via a script:
+</details>
 
-```bash
-bun run version 3.4.1
-```
+### Build from Source
 
-This updates `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`
-together.  Commit the result and push — the release workflow triggers automatically
-when a `v*` tag is pushed.
-
-## Releases
-
-Releases are produced automatically by the GitHub Actions release workflow
-when a version tag (e.g. `v3.4.0`) is pushed to `main`. The workflow:
-
-- Builds the app on Linux (Ubuntu) and Windows
-- Produces signed installers: `.deb` / `.rpm` / `.AppImage` on Linux, NSIS
-  `.exe` on Windows
-- Signs the updater artifacts (`latest.json`) with the app's minisign key
-- Opens a **draft release** for review and publishing
-
-To trigger a new release:
-
-```bash
-git tag v3.4.0
-git push origin v3.4.0
-```
-
-The signing key is configured in `src-tauri/tauri.conf.json` (public key) and
-stored as the `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-secrets in the repository (Settings → Secrets and variables → Actions).
-
-> **Note:** Plain `bun run tauri build` fails at the signing step unless
-> `TAURI_SIGNING_PRIVATE_KEY` is set. Use `--no-bundle` for a local binary
-> without installers, or run the release workflow.
-
-## Contributing Translations
 <details>
-  <summary>Click to show instructions</summary>
+<summary>Show build instructions</summary>
 
-Wallpaper Picker supports multiple languages and makes it easy to add or improve translations.
+#### 1. Clone the project
 
-### How to contribute
+```bash
+git clone https://github.com/Rodrigo-Matuz/wallpaper-picker-ui
+```
 
-1. Go to `/src/lib/lang`
-2. Inside you’ll find:
-   * `translation.schema.json` — JSON Schema used to validate translation files
-   * `translations/` — folder containing existing language files
-     (e.g. `english-translation.json`, `portuguese-brasil-translation.json`)
-3. To add a new language or improve an existing one:
-   * Copy an existing file
-   * Rename it to your language (e.g. `italian-translation.json`)
-   * Translate the values **without changing the keys**
+#### 2. Enter the project directory
+
+```bash
+cd wallpaper-picker-ui
+```
+
+#### 3. Install dependencies
+
+The project uses Bun for package management:
+
+```bash
+bun install
+```
+
+#### 4. Build the project
+
+```bash
+bun run tauri build --no-bundle
+```
+
+This builds the application binary without generating installer bundles. Installer bundles require a code-signing key.
+
+The release workflow (`.github/workflows/release.yml`) runs `tauri build` with the signing key configured as a GitHub Actions secret.
+
+#### 5. Locate the binary
+
+After building, the binary is located under:
+
+```text
+src-tauri/target/release
+```
+
+When the release workflow runs, Linux bundles (`.deb`, `.rpm`, and `.AppImage`) and the Windows NSIS `.exe` installer are produced under:
+
+```text
+src-tauri/target/release/bundle/
+```
+
+The binary can be moved to a directory in your `PATH`, such as `/usr/bin/` on Linux.
+
+</details>
+
+## Configuration
+
+### Wallpaper command
+
+Wallpaper Picker UI lets you define the command used to apply a selected wallpaper.
+
+The suggested default is designed for Linux with `mpvpaper`:
+
+```bash
+killall mpvpaper ; mpvpaper -o "loop no-audio" "*" "$VP"
+```
+
+`$VP` is replaced with the selected wallpaper path.
+
+On Windows, configure a Windows-appropriate command in Settings instead.
+
+More script examples and advanced setups are available in the [wiki](https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/wiki).
+
+### Dependencies
+
+#### Linux
+
+* **FFmpeg** — required for generating video thumbnails
+* **mpvpaper** — recommended for animated/live wallpapers
+* **webkit2gtk-4.1** — required for Tauri's Linux webview
+
+[GhostNaN/mpvpaper](https://github.com/GhostNaN/mpvpaper)
+
+#### Windows
+
+* **WebView2** — preinstalled on Windows 10/11
+* **FFmpeg** — must be available on `PATH`
+* Folder selection uses the native OS dialog, so no additional dependency is required
+
+> **Windows note:** The suggested wallpaper command above uses Linux syntax. Configure your own command in Settings.
+
+## Security & Permissions
+
+Wallpaper Picker UI uses **Tauri 2's capability-based permission model** and requests only the privileges required by the application.
+
+Permissions are explicitly scoped and can be inspected in:
+
+```text
+src-tauri/capabilities/permissions.json
+```
+
+### Custom scripts
+
+> ⚠️ **Custom script warning**
+>
+> If you configure a custom wallpaper script, the application executes **exactly the command you define** and passes the selected wallpaper path as its **first argument** (`$VP`).
+>
+> The script runs with **your user permissions** and is not sandboxed by the application.
+>
+> Only use scripts you trust and understand. You are responsible for what your configured script does.
+
+<details>
+<summary>View detailed permissions</summary>
+
+### What the app can access
+
+* **Its own configuration file**
+
+  * Linux: `~/.config/WallpaperPickerUI/config.json`
+* **Its own application data directory**
+
+  * Create, read, write, list, and check files
+  * Thumbnail cache:
+    `~/.local/share/dev.matuz.wallpaper-picker-ui/thumbnails`
+* **Application data directory creation** when it does not already exist
+* Tauri built-in functionality:
+
+  * Open external links (`opener`)
+  * Check for application updates (`updater`)
+  * Restart itself during updates
+  * Core window management and event handling
+
+### What the app cannot access
+
+* Files outside its own configuration and data directories
+* Home folders such as Documents, Pictures, Downloads, or Desktop
+* Mounted drives
+* USB devices
+* Network shares
+* System-wide files
+* Clipboard
+* Camera
+* Microphone
+* Location
+* Sensors
+* Arbitrary system commands
+* Data from other applications
+
+In short, the application is limited to its own configuration and thumbnail cache.
+
+</details>
+
+## Contributing
+
+### Translations
+
+Wallpaper Picker UI supports multiple languages and makes it easy to add or improve translations.
+
+<details>
+<summary>Show translation instructions</summary>
+
+#### 1. Open the translation directory
+
+```text
+src/lib/lang
+```
+
+Inside you'll find:
+
+* `translation.schema.json` — JSON Schema used to validate translation files
+* `translations/` — directory containing existing language files
+
+Examples include:
+
+```text
+english-translation.json
+portuguese-brasil-translation.json
+```
+
+#### 2. Add or update a translation
+
+1. Copy an existing translation file.
+2. Rename it to match your language, for example:
+   `italian-translation.json`
+3. Translate the values **without changing the keys**.
 4. Update the top-level fields:
+
 ```json
 {
   "code": "it",
   "name": "Italiano",
-  "translations": { }
+  "translations": {}
 }
 ```
-* `code`: ISO 639-1 code (or 639-2/3 if needed), optionally with region
-  Examples: `pt-br`, `zh-tw`
-* `name`: Human-readable name in English (used in the language selector)
 
-### Schema Overview
+* `code` — ISO 639-1 code, or ISO 639-2/3 when needed; optionally include a region such as `pt-br` or `zh-tw`.
+* `name` — human-readable language name in English, used in the language selector.
+
+#### Schema
+
+Translation files follow this schema:
 
 ```json
 {
@@ -345,44 +346,126 @@ Wallpaper Picker supports multiple languages and makes it easy to add or improve
   "type": "object",
   "required": ["code", "name", "translations"],
   "properties": {
-    "$schema": { "type": "string" },
-    "code": { "type": "string", "minLength": 2 },
-    "name": { "type": "string" },
+    "$schema": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string",
+      "minLength": 2
+    },
+    "name": {
+      "type": "string"
+    },
     "translations": {
       "type": "object",
       "minProperties": 1,
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": {
+        "type": "string"
+      }
     }
   },
   "additionalProperties": false
 }
 ```
 
-After adding or updating a translation, rebuild the app to see it in the language dropdown, or submit it as a [pull request](https://github.blog/developer-skills/github/beginners-guide-to-github-creating-a-pull-request/).
-Thanks for helping make Wallpaper Picker available in more languages.
+After adding or updating a translation, rebuild the application to see it in the language dropdown, or submit it as a [pull request](https://github.blog/developer-skills/github/beginners-guide-to-github-creating-a-pull-request/).
+
+Thanks for helping make Wallpaper Picker available in more languages!
 
 </details>
 
-## TODO / Planned Features
-- More pre-made themes included by default
-- More responsive to different window sizes
-- Built-in default scripts/templates for single-monitor and dual-monitor setups
-- Option to select which monitor to apply the wallpaper to (multi-monitor support)
-- Settings to increase thumbnail size and adjust the number of columns in the grid
+## Development
 
-**Contributions welcome — especially for new themes, monitor handling, and translations!**
+<details>
+<summary>Show development details</summary>
 
-## Support the Project
+### Technologies
 
-If you like **Wallpaper Picker UI** and want to support its development, you can make a donation.
+Wallpaper Picker UI is built with **[Tauri](https://tauri.app/)**, a secure and lightweight framework for desktop applications.
 
-Donations help motivate continued development, bug fixes, and new features.
+* **Backend:** Rust
 
-### Support the Project
+  * High performance, memory safety, and native system integration
+* **Frontend:** Svelte + TypeScript
+
+  * Reactive UI with strong type safety and a modern development experience
+
+### Updating the version
+
+The project keeps its version synchronized across three files with a script:
+
+```bash
+bun run version 3.4.1
+```
+
+This updates:
+
+* `package.json`
+* `src-tauri/tauri.conf.json`
+* `src-tauri/Cargo.toml`
+
+Commit the changes and push them. The release workflow triggers automatically when a `v*` tag is pushed.
+
+### Releases
+
+Releases are produced automatically by the GitHub Actions release workflow when a version tag such as `v3.4.0` is pushed to `main`.
+
+The workflow:
+
+* Builds the application on Linux (Ubuntu) and Windows
+* Produces signed installers:
+
+  * `.deb`
+  * `.rpm`
+  * `.AppImage`
+  * NSIS `.exe`
+* Signs updater artifacts (`latest.json`) with the application's minisign key
+* Opens a **draft release** for review and publishing
+
+To trigger a release:
+
+```bash
+git tag v3.4.0
+git push origin v3.4.0
+```
+
+The public signing key is configured in `src-tauri/tauri.conf.json`.
+
+The private signing key and password are stored as:
+
+```text
+TAURI_SIGNING_PRIVATE_KEY
+TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+```
+
+These are configured as GitHub Actions secrets under:
+
+```text
+Settings → Secrets and variables → Actions
+```
+
+> **Note:** Plain `bun run tauri build` fails at the signing step unless `TAURI_SIGNING_PRIVATE_KEY` is set.
+>
+> Use `--no-bundle` for a local binary without installers, or use the release workflow.
+
+</details>
+
+## Roadmap
+
+Planned features include:
+
+* More pre-made themes included by default
+* Better responsiveness across different window sizes
+* Built-in script/templates for single-monitor and dual-monitor setups
+* Selecting which monitor receives the wallpaper
+* Thumbnail size and grid-column controls
+
+**Contributions are welcome**, especially for new themes, monitor handling, and translations!
+
+## Support
 
 If you enjoy **Wallpaper Picker UI** and want to support its development, you can donate via Ko-fi.
 
 [![Support on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/matuz)
 
-Any amount is appreciated. Thank you for your support!
-
+Any amount is appreciated. Thank you for supporting the project!
