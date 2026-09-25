@@ -48,6 +48,9 @@ lerna-debug.log*
 *.local
 docs/
 
+# Tauri updater signing keys (NEVER commit the private key)
+.tauri-keys/
+
 # =====================
 # Editor & IDE configs
 # =====================

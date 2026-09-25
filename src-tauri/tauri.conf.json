@@ -39,7 +39,7 @@
 	},
 	"plugins": {
 		"updater": {
-			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMxQzlGOTJFMTdGNDZGOTAKUldTUWIvUVhMdm5KTVpRNW5PdE5jeDV6VFB4SDdiSDh3Uzl3bW9aNUNLd1Z4bENibUljMWYwV1cK",
+			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRCNjlEM0I3QzhBMzdFMTAKUldRUWZxUEl0OU5wUzhuVHdRL2dSRXdFQkRycWZkN2YxMUI4NEZFUnJTdE5QUVQ4dW9Sa2FDNjQK",
 			"endpoints": [
 				"https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/latest/download/latest.json"
 			]
