@@ -77,7 +77,7 @@ async function handleSave() {
                 <Button
                     class="align-self-end mt-3 bg-{mustSave}"
                     onclick={handleSave}
-                    size="sm">{$t("settingsCommandButtonText")}</Button
+                    size="sm">{$t("settings.command.button.text")}</Button
                 >
             </div>
             <DialogContent class="bg-card">

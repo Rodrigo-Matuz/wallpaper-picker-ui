@@ -1,6 +1,6 @@
 [package]
 name = "wallpaper-picker-ui"
-version = "3.3.0"
+version = "3.4.0"
 description = "A simple UI for selecting and applying wallpapers with a customizable command."
 authors = ["Rodrigo Matuz <rodrigosantoslima1311@gmail.com>"]
 repository = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui"

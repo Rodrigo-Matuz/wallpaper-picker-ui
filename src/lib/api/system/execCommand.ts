@@ -27,7 +27,7 @@ export async function sendCommand(videoPath: string): Promise<void> {
 		const userCommand = (await fetchConfig()).command;
 
 		if (!userCommand || !userCommand.trim()) {
-			toast.warning(get(t)("toastNoCommand"));
+			toast.warning(get(t)("toast.command.none"));
 			await log({
 				level: "warn",
 				callStack: new Error(),
@@ -49,7 +49,7 @@ export async function sendCommand(videoPath: string): Promise<void> {
 			},
 		});
 	} catch (error) {
-		toast.error(get(t)("toastCommandFailed"));
+		toast.error(get(t)("toast.command.failed"));
 
 		await log({
 			level: "error",

@@ -10,6 +10,7 @@ import {
 } from "$api/thumbnails/handle";
 import { Progress } from "$components/ui/progress";
 import { t } from "$lang/index";
+import { normalizeForSearch } from "$utils/search";
 
 export let searchQuery: string = "";
 
@@ -25,13 +26,10 @@ onMount(() => {
 	return () => unsubscribe();
 });
 
-$: normalizedSearchQuery = searchQuery.replace(/[_\s]+/g, "").toLowerCase();
+$: normalizedSearchQuery = normalizeForSearch(searchQuery);
 
 $: filteredThumbnails = Object.entries($thumbnails).filter(([, videoPath]) =>
-	videoPath
-		.replace(/[_\s]+/g, "")
-		.toLowerCase()
-		.includes(normalizedSearchQuery),
+	normalizeForSearch(videoPath).includes(normalizedSearchQuery),
 );
 </script>
 
@@ -39,7 +37,7 @@ $: filteredThumbnails = Object.entries($thumbnails).filter(([, videoPath]) =>
     <!-- Show progress bar -->
     <div class="flex flex-col items-center mt-40 w-full">
         <p class="mb-2">
-            {$t("homeGeneratingThumbsText")}
+            {$t("home.thumbs.generating.text")}
             {value} / {$totalVideos}
         </p>
         <Progress
@@ -49,7 +47,7 @@ $: filteredThumbnails = Object.entries($thumbnails).filter(([, videoPath]) =>
         />
         <!-- Micro hint text -->
         <p class="mt-2 max-w-md text-muted-foreground text-xs text-center">
-            {$t("homeGeneratingThumbsHint")}
+            {$t("home.thumbs.generating.hint")}
         </p>
     </div>
 {:else}

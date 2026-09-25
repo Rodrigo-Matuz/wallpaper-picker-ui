@@ -1,4 +1,4 @@
-import { derived, get, writable } from "svelte/store";
+import { derived, writable } from "svelte/store";
 import { updateConfig } from "$api/config/update";
 
 /** DOCS:
@@ -97,7 +97,7 @@ export function setLanguage(lang: string) {
  *   import { t } from "$lang";
  * </script>
  *
- * <h1>{$t("settingsLanguageName")}</h1>
+ * <h1>{$t("settings.language.name")}</h1>
  * ```
  */
 export const t = derived(currentLanguage, ($lang) => {

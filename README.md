@@ -15,6 +15,8 @@ The app lets you quickly preview wallpapers, generate thumbnails automatically, 
 ![Wallpaper Picker UI Preview](https://github.com/user-attachments/assets/7af456ba-116f-4141-b67b-48ebf16dc9c6)
 
 ## Suggested Default Command (mpvpaper)
+> Linux / mpvpaper syntax — on Windows, set your own command in Settings.
+
 ```bash
 killall mpvpaper ; mpvpaper -o "loop no-audio" "*" "$VP"
 ```
@@ -25,7 +27,13 @@ More script examples and advanced setups are available in the [wiki](https://git
 - **mpvpaper** — recommended for animated/live wallpapers
   ([GhostNaN/mpvpaper](https://github.com/GhostNaN/mpvpaper))
 - **webkit2gtk-4.1** — required for Tauri’s webview on Linux
-- **Zenity** — used for the folder selection dialog
+
+### Windows
+- **WebView2** — preinstalled on Windows 10/11
+- **FFmpeg** — must be available on `PATH`
+- Folder selection uses the native OS dialog (no extra dependencies)
+- Configure a Windows-appropriate wallpaper command in Settings — the
+  suggested default command below is Linux syntax
 
 ## Technologies
 This application is built with **[Tauri](https://tauri.app/)** — a secure and lightweight framework for desktop applications.

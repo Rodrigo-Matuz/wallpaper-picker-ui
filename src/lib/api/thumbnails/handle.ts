@@ -110,7 +110,7 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 					totalVideos.set(0);
 
 					if (failures > 0) {
-						toast.warning(get(t)("toastThumbnailsFailed"));
+						toast.warning(get(t)("toast.thumbnails.failed"));
 					}
 
 					const sorted = sortJsonByKey(newThumbnailsHashMap);
@@ -304,8 +304,8 @@ async function processVideoPaths(
 		while (index < videosList.length) {
 			const videoPath = videosList[index++];
 			try {
-				const thumbPath = await generateThumb(videoPath);
-				const fileName = thumbPath ? await basename(thumbPath) : "";
+				const result = await generateThumb(videoPath);
+				const fileName = result.ok ? await basename(result.value) : "";
 				if (fileName) {
 					newThumbnailsHashMap[fileName] = videoPath;
 				} else {

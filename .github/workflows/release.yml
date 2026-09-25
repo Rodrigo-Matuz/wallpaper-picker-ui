@@ -1,0 +1,51 @@
+# Release workflow: triggered by pushing a version tag (e.g. `git tag v3.4.0 && git push origin v3.4.0`).
+#
+# Requirements on the repository side (Settings → Secrets and variables → Actions):
+# - TAURI_SIGNING_PRIVATE_KEY: minisign private key for the updater
+#   (`bunx @tauri-apps/cli signer generate -w ~/.tauri/wallpaper-picker-ui.key`)
+# - TAURI_SIGNING_PRIVATE_KEY_PASSWORD: the password chosen when generating it
+#
+# The build creates a draft GitHub release with installers (deb/rpm/AppImage on
+# Linux, NSIS + MSI on Windows) and updater artifacts; review and publish it.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "Wallpaper Picker UI v__VERSION__"
+          releaseBody: "See the assets to download and install this version."
+          releaseDraft: true
+          prerelease: false

@@ -23,7 +23,12 @@
 			"additionalProperties": {
 				"type": "string"
 			},
-			"description": "Translation key-value pairs"
+			"description": "Translation key-value pairs",
+			"propertyNames": {
+				"type": "string",
+				"pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-zA-Z0-9]+)+$",
+				"description": "Dot-notation key: lowercase page/group segments, e.g. settings.language.hint.description"
+			}
 		}
 	},
 	"additionalProperties": false

@@ -24,7 +24,7 @@ export async function selectFolder(): Promise<string> {
 	try {
 		const selected = await open({
 			directory: true,
-			title: get(t)("homeFolderDialogTitle"),
+			title: get(t)("home.folder.dialog.title"),
 		});
 
 		const folderPath = typeof selected === "string" ? selected : "";

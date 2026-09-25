@@ -21,7 +21,7 @@ import { toggleDarkMode } from "$utils/darkMode";
     leftOnClick={() => goto("/about")}
     disableInput={true}
     autoFocusInput={false}
-    inputPlaceholder={$t("settingsSearchPlaceholder")}
+    inputPlaceholder={$t("settings.search.placeholder")}
     rightIcon={Undo2}
     rightOnClick={() => goto("/")}
 />
@@ -31,59 +31,59 @@ import { toggleDarkMode } from "$utils/darkMode";
 <Space /><Space />
 
 <SettingsInput
-    name={$t("settingsCommandName")}
-    shortDescription={$t("settingsCommandShortDescription")}
-    inputPlaceholder={$t("settingsCommandInputPlaceholder")}
-    hintDescription={$t("settingsCommandHintDescription")}
+    name={$t("settings.command.name")}
+    shortDescription={$t("settings.command.short.description")}
+    inputPlaceholder={$t("settings.command.input.placeholder")}
+    hintDescription={$t("settings.command.hint.description")}
 />
 
 <Space />
 
 <SettingsSwitch
-    name={$t("settingsDarkModeName")}
-    shortDescription={$t("settingsDarkModeShortDescription")}
+    name={$t("settings.darkMode.name")}
+    shortDescription={$t("settings.darkMode.short.description")}
     fetchValue={async () => (await fetchConfig()).darkMode}
     onToggle={async () => await toggleDarkMode()}
-    hintDescription={$t("settingsDarkModeHintDescription")}
+    hintDescription={$t("settings.darkMode.hint.description")}
 />
 
 <Space />
 
 <SettingsSwitch
-    name={$t("settingsNewWallpapersName")}
-    shortDescription={$t("settingsNewWallpapersShortDescription")}
+    name={$t("settings.newWallpapers.name")}
+    shortDescription={$t("settings.newWallpapers.short.description")}
     fetchValue={async () => (await fetchConfig()).newWallpapers}
     onToggle={async (checked) => await updateConfig({ newWallpapers: checked })}
-    hintDescription={$t("settingsNewWallpapersHintDescription")}
+    hintDescription={$t("settings.newWallpapers.hint.description")}
 />
 
 <Space />
 
 <SettingsSelector
-    name={$t("settingsLanguageName")}
-    shortDescription={$t("settingsLanguageShortDescription")}
-    selectorPlaceholder={$t("settingsLanguagePlaceholder")}
-    hintDescription={$t("settingsLanguageHintDescription")}
+    name={$t("settings.language.name")}
+    shortDescription={$t("settings.language.short.description")}
+    selectorPlaceholder={$t("settings.language.placeholder")}
+    hintDescription={$t("settings.language.hint.description")}
 />
 
 <Space />
 
 <SettingsButton
-    name={$t("settingsClearThumbnailsName")}
-    shortDescription={$t("settingsClearThumbnailsShortDescription")}
-    buttonName={$t("settingsClearThumbnailsButtonText")}
+    name={$t("settings.clearThumbnails.name")}
+    shortDescription={$t("settings.clearThumbnails.short.description")}
+    buttonName={$t("settings.clearThumbnails.button.text")}
     buttonOnClick={clearThumbnails}
-    hintDescription={$t("settingsClearThumbnailsHintDescription")}
+    hintDescription={$t("settings.clearThumbnails.hint.description")}
 />
 
 <Space />
 
 <SettingsButton
-    name={$t("settingsDeleteConfigName")}
-    shortDescription={$t("settingsDeleteConfigShortDescription")}
-    buttonName={$t("settingsDeleteConfigButtonText")}
+    name={$t("settings.deleteConfig.name")}
+    shortDescription={$t("settings.deleteConfig.short.description")}
+    buttonName={$t("settings.deleteConfig.button.text")}
     buttonOnClick={clearConfig}
-    hintDescription={$t("settingsDeleteConfigHintDescription")}
+    hintDescription={$t("settings.deleteConfig.hint.description")}
 />
 
 <Space larger={true} />

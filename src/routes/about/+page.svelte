@@ -32,7 +32,7 @@ const matuzLinks = matuz.links.map((link) => ({
         leftIcon={House}
         leftOnClick={() => goto("/")}
         disableInput={true}
-        inputPlaceholder={$t("aboutSearchPlaceholder")}
+        inputPlaceholder={$t("about.search.placeholder")}
         rightIcon={Settings}
         rightOnClick={() => goto("/settings")}
     />
@@ -43,6 +43,6 @@ const matuzLinks = matuz.links.map((link) => ({
     </div>
 
     <footer class="mt-auto py-3 border-t text-muted-foreground text-center">
-        {$t("aboutAppVersion")} {version}
+        {$t("about.app.version")} {version}
     </footer>
 </div>

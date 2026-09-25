@@ -60,7 +60,7 @@ const handleInputChange = (event: InputEvent) => {
                 }}
                 disableInput={false}
                 autoFocusInput={true}
-                inputPlaceholder={$t("homeSearchPlaceholder")}
+                inputPlaceholder={$t("home.search.placeholder")}
                 onInputChange={handleInputChange}
                 rightIcon={Settings}
                 rightOnClick={() => goto("/settings")}
@@ -71,7 +71,7 @@ const handleInputChange = (event: InputEvent) => {
         <footer
             class="bg-card mt-auto py-3 border-t text-muted-foreground text-center pointer-events-none select-none"
         >
-            {$t("homeThankYouFooter")}
+            {$t("home.thank.you.footer")}
         </footer>
     </div>
 {/if}

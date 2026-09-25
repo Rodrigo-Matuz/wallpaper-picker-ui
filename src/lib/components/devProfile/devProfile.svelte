@@ -34,21 +34,21 @@ onMount(async () => {
             <CardTitle class="text-primary text-3xl"
                 >{profileData
                     ? profileData.name
-                    : $t("aboutDevProfileLoading")}</CardTitle
+                    : $t("about.profile.loading")}</CardTitle
             >
             <CardDescription
                 class="justify-self ml-3 text-1xl underline underline-offset-3"
             >
                 @{profileData
                     ? profileData.login
-                    : $t("aboutDevProfileLoading")}</CardDescription
+                    : $t("about.profile.loading")}</CardDescription
             >
         </CardHeader>
         <CardContent class="my-3">
             <p>
                 {profileData
                     ? profileData.bio
-                    : $t("aboutDevProfileProfileInfo")}
+                    : $t("about.profile.info")}
             </p></CardContent
         >
         <CardFooter>

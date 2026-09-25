@@ -107,10 +107,12 @@ export async function log({ level = "info", message, callStack }: LoggerInterArg
  *
  * This function must never throw — logging should not cause application failures.
  *
+ * Exported for unit testing.
+ *
  * @param message - Any value provided to the logger.
  * @returns A normalized string safe for backend logging.
  */
-function normalizeLogMessage(message: unknown): string {
+export function normalizeLogMessage(message: unknown): string {
 	if (isStructuredLogMessage(message)) {
 		if (message.error instanceof Error) {
 			return `${message.context}: ${message.error.message}`;
