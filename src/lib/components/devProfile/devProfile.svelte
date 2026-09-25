@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Avatar, AvatarFallback, AvatarImage } from "$components/ui/avatar";
-    import type { GitHubProfile } from "src/types/devProfileTypes";
+    import type { GitHubProfile } from "$types/devProfileTypes";
     import {
         Card,
         CardContent,

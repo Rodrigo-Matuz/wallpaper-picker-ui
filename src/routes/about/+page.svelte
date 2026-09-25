@@ -23,11 +23,11 @@
         kofi: SiKofi,
     } as const;
 
-    const matuz = contributorsConfig.contributors.find((c) => c.id === "matuz");
+    const matuz = contributorsConfig.contributors.find((c) => c.id === "matuz")!;
 
     const matuzLinks = matuz.links.map((link) => ({
         ...link,
-        icon: iconMap[link.icon],
+        icon: iconMap[link.icon as keyof typeof iconMap],
     }));
 
 </script>

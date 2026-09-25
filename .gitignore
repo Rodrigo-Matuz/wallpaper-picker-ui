@@ -46,6 +46,7 @@ lerna-debug.log*
 # Local / misc
 # =====================
 *.local
+docs/
 
 # =====================
 # Editor & IDE configs
