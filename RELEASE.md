@@ -1,12 +1,47 @@
-# Release notes — Wallpaper Picker UI
+# Release notes — Wallpaper Picker UI v3.5
 
-**Status: work-in-progress.** This document tracks changes since the last
-released version.  It will be finalised and published when the next release
-tag is pushed.
+**In preparation — not yet released.** Finalise the highlights and upgrade notes
+below before tagging `v3.5.0`.  The v3.4.0 notes further down are historical
+reference.
+
+## Highlights
+
+* **Nix / Home Manager support** — the project ships a `flake.nix` with a dev
+  shell, a buildable package (`nix build`), a NixOS module, and a Home Manager
+  module that declaratively manages `~/.config/WallpaperPickerUI/config.json`.
+* **Home Manager configuration module** — users can declare `command`,
+  `wallpapersPath`, `debugMode`, `newWallpapers`, `darkMode`, and `language`
+  in their HM config; HM writes `config.json` as the source of truth, and the
+  app's runtime `updateConfig()` calls still work on top.
+* **Single-source icon generation** — all Tauri bundle icons (ICO, ICNS, PNGs),
+  the web favicon, and `icon-256` are now generated from one source image
+  (`Icon.png`) via `scripts/gen-icons.py`.  ICO and ICNS embed multiple
+  resolutions; every PNG is Lanczos-resized to its exact target dimensions.
+* **Fix first-run i18n placeholder-key bug (P0)** — the app no longer displays
+  literal translation keys (e.g. `home.search.placeholder`) on first run.  Two
+  root causes fixed: English translation file code `"en"` → `"eng"` to match the
+  codebase convention, and `import.meta.glob` module-namespace handling so the
+  `languages` registry populated correctly at runtime.  `serde_json = "1"` added
+  to `Cargo.toml` (was missing; Rust code uses it for config serialization).
+* **README improvements** — added Nix / Home Manager installation instructions
+  with a complete HM example config, documented `bun run version` for syncing
+  the version across all three files, and clarified the Dependencies and
+  Contributing Translations sections.
+
+## Upgrade notes
+
+* Nix / Home Manager users: `home-manager switch` rewrites
+  `~/.config/WallpaperPickerUI/config.json` to match the HM declaration; the
+  app's in-app setting edits are preserved if they happen after the switch, but
+  a later switch will reset the file.  For most users `command`, `wallpapersPath`,
+  `darkMode`, and `language` are static preferences, so conflicts are rare.
+* All icons are now regenerated from `Icon.png`; if you replaced any icon file
+  manually in a previous install, re-apply your changes to `Icon.png` and run
+  `scripts/gen-icons.py`.
+* The i18n fix means first-run users now see the correct translated text
+  immediately; existing installs are unaffected.
 
 ---
-
-# Release notes — Wallpaper Picker UI v3.4.0
 
 **2026-09-25** — `v3.4.0`
 
@@ -42,103 +77,6 @@ tag is pushed.
   baseline for future updates.**
 * Windows users no longer need `zenity` or `rfd` for folder selection.
 * **FFmpeg is still required on `PATH` for thumbnail generation.**
-
----
-
-# Changes since v3.4.0
-
-**Status: work-in-progress — not yet released.**
-
-The following commits have landed on `main` since `v3.4.0`.  They will ship
-in the next release.
-
-## ecd1b1b — Fix first-run i18n placeholder-key bug + serde_json (P0)
-
-**Fixes a critical bug where the app displayed literal translation keys
-(e.g. `home.search.placeholder`) instead of the translated text on first run.**
-
-- Fixed English translation file language code from `"en"` to `"eng"` to match
-  the codebase default (`index.ts` `currentLanguage`, `defaults.ts`, `t()`
-  fallback).
-- Fixed `import.meta.glob` module namespace handling in `index.ts`: Vite's eager
-  JSON globs return `{ default: TranslationFile }` namespaces, so `mod.code` /
-  `mod.name` / `mod.translations` were `undefined` at runtime, producing an
-  empty `languages` registry and causing every `t(key)` to fall back to
-  returning the key itself.
-- Added `serde_json = "1"` to `Cargo.toml` `[dependencies]` (was missing; Rust
-  code uses it for config serialization alongside `serde` with `derive`).
-
-## 88ba669 — Replace all project icons with single source Icon.png
-
-Generate every icon (Tauri bundle ICO/ICNS/PNGs, static web favicon and
-`icon-256`) from one source image (`Icon.png` at repo root) using a new
-`scripts/gen-icons.py` utility.  ICO and ICNS embed multiple resolutions; all
-PNGs are Lanczos-resized to exact target dimensions.
-
-Icon sizes produced (biggest first):
-
-- `icon.png` — 512×512
-- `128x128@2x.png` — 256×256
-- `icon-256.png` — 256×256
-- `Square310x310Logo.png` — 310×310
-- `Square284x284Logo.png` — 284×284
-- `128x128.png` — 128×128
-- `Square150x150Logo.png` — 150×150
-- `Square142x142Logo.png` — 142×142
-- `Square107x107Logo.png` — 107×107
-- `Square89x89Logo.png` — 89×89
-- `Square71x71Logo.png` — 71×71
-- `Square44x44Logo.png` — 44×44
-- `StoreLogo.png` — 50×50
-- `Square30x30Logo.png` — 30×30
-- `32x32.png` — 32×32
-- `favicon.png` — 100×100
-- `icon.ico` — 16, 32, 48, 256 px embedded
-- `icon.icns` — 16, 32, 64, 128, 256, 512, 1024 px embedded
-
-## ad669cb — Add flake.nix for Nix support
-
-- `nix develop` — dev shell with Bun + Rust + Tauri Linux system deps
-  (webkit2gtk-4.1, openssl, libappindicator3, librsvg, clang, libclang,
-  icu69, icu-data-en, pkg-config).
-- `nix build` — Linux bundles (deb / rpm / appimage) under `./result`.
-- Dev shell exports `BUN_INSTALL`, `CARGO_HOME`, `RUSTUP_HOME`, and
-  `SSL_CERT_DIR` so bun, cargo, and HTTPS all work inside Nix.
-- Includes NixOS module (`programs.wallpaper-picker-ui.enable`) and overlay
-  for cross-flake consumption.
-
-## 0931ad4 — Add Home Manager module and trim dev shellHook
-
-- Added `homeManagerModules.default` with options for all user-facing config
-  fields: `command`, `wallpapersPath`, `debugMode`, `newWallpapers`,
-  `darkMode`, `language` (eng / pt-br / de / fr / es).  HM writes
-  `~/.config/WallpaperPickerUI/config.json` as the declarative source of truth;
-  the app reads it on startup and can update it via `updateConfig()` at runtime.
-  `thumbnailsHashMap` is legacy (now in `thumbnails/map.json`) and is not managed
-  by HM.
-- Trimmed dev `shellHook` to a minimal one-liner (PATH + writable homes + SSL
-  certs + a single hint line).  The shellHook only fires for developers who run
-  `nix develop` — end users who install via `nix build` / NixOS / Home Manager
-  never see it.
-
-## 0da63d7 — Add Nix / Home Manager installation instructions to README
-
-- Document dev shell (`nix develop`), NixOS module, Home Manager module, and
-  manual `nix build`.
-- Include a complete Home Manager example config with all available options.
-- Add a note about `home-manager switch` behaviour vs in-app config edits.
-- Add a short "Updating the version" subsection showing `bun run version`.
-
-## d124493 — Improved README
-
-- Move "Suggested Default Command" after Preview, before Dependencies.
-- Clarify Dependencies: FFmpeg + mpvpaper (Linux) + WebView2 (Windows) + native
-  folder dialog, no extra Windows deps; default command is Linux syntax.
-- Add "Releases" section explaining the release workflow.
-- Update "Build from Source" with `bun run tauri build --no-bundle`.
-- Contributing Translations: add schema section, rename copy file to
-  `<lang>-translation.json`, correct portuguese-brasil naming.
-- Position "Contributing Translations" after "Installation".
 
 ---
 
