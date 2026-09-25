@@ -169,6 +169,118 @@ Go to the [Releases](https://github.com/Rodrigo-Matuz/wallpaper-picker/releases)
 
 </details>
 
+### Installing with Nix / Home Manager
+
+The project ships a [flake.nix](flake.nix) that provides a dev shell, a
+buildable package, and a Home Manager module for declarative configuration.
+
+#### Dev shell (for hacking on the project)
+
+```bash
+nix develop
+```
+
+This drops you into a shell with Bun, Rust, and all Tauri Linux system
+dependencies.  Run `bun run tauri build` to build, `bun run check` to type-
+check, etc.  The shell is for developers only — end users who just want the
+app do not need it.
+
+#### End-user install
+
+**Option A — NixOS (system-wide)**
+
+Add the flake to your system configuration:
+
+```nix
+# configuration.nix (or your NixOS module overlay)
+{
+  inputs.wallpaper-picker-ui = {
+    url = "github:Rodrigo-Matuz/wallpaper-picker-ui";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  # ... then in your configuration ...
+  programs.wallpaper-picker-ui.enable = true;
+}
+```
+
+**Option B — Home Manager (user environment)**
+
+Add the flake to your Home Manager configuration and declare your preferred
+settings:
+
+```nix
+# home.nix (or your HM modules)
+{
+  inputs.wallpaper-picker-ui = {
+    url = "github:Rodrigo-Matuz/wallpaper-picker-ui";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  home = {
+    packages = with pkgs; [
+      # (other packages...)
+    ];
+
+    programs.wallpaper-picker-ui = {
+      enable = true;
+
+      # The command the app runs when you apply a wallpaper.
+      # $VP is replaced with the selected file path.
+      command = "/usr/bin/mpvpaper -o \"loop no-audio\" \"*\" \"$VP\"";
+
+      # Folder to scan for wallpapers (null = app prompts on first run).
+      wallpapersPath = "/home/your-user/Pictures/wallpapers";
+
+      # App behaviour preferences.
+      debugMode = false;
+      newWallpapers = true;
+      darkMode = true;
+
+      # UI language: "eng", "pt-br", "de", "fr", "es".
+      language = "eng";
+    };
+  };
+}
+```
+
+On `home-manager switch`, Home Manager writes
+`~/.config/WallpaperPickerUI/config.json` with your settings.  The app reads
+this file on startup.  You can still change settings at runtime from the app's
+Settings screen — those changes are written back to the same file by the app
+via its `updateConfig()` function.  The `command`, `wallpapersPath`, `darkMode`,
+and `language` fields are static preferences, so conflicts between HM and
+in-app edits are rare.
+
+> **Note:** `home-manager switch` rewrites `config.json` to match your HM
+> declaration.  If you make frequent in-app setting changes, run `home-manager
+> switch` only when you've updated your HM declaration — or accept that HM
+> will reset the file to your declared state.
+
+#### Building the package manually
+
+```bash
+nix build .#wallpaper-picker-ui
+# result/ contains the Linux bundles (.deb, .rpm, .AppImage) and the binary
+```
+
+`nix build` runs the full Tauri build (frontend + Rust) and produces Linux
+bundles under `./result`.  The signing key (`TAURI_SIGNING_PRIVATE_KEY`) must
+be available for installer bundles; use `nix build` inside a `nix develop`
+shell or pass the key via `--impure` / a wrapper.
+
+### Updating the version
+
+The project keeps version in sync across three files via a script:
+
+```bash
+bun run version 3.4.1
+```
+
+This updates `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`
+together.  Commit the result and push — the release workflow triggers automatically
+when a `v*` tag is pushed.
+
 ## Releases
 
 Releases are produced automatically by the GitHub Actions release workflow
