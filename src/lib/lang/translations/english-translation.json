@@ -1,6 +1,6 @@
 {
 	"$schema": "../translation.schema.json",
-	"code": "en",
+	"code": "eng",
 	"name": "English",
 	"translations": {
 		"home.search.placeholder": "Search Wallpapers...",

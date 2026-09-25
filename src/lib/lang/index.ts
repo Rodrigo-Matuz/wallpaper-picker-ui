@@ -39,9 +39,11 @@ const languages: Record<string, { name: string; data: Record<string, string> }> 
  * Each JSON file contributes one language entry keyed by its declared `code`.
  */
 for (const mod of Object.values(translationModules)) {
-	languages[mod.code] = {
-		name: mod.name,
-		data: mod.translations,
+	const file = ("default" in mod ? mod.default : mod) as TranslationFile | undefined;
+	if (!file?.code) continue;
+	languages[file.code] = {
+		name: file.name,
+		data: file.translations,
 	};
 }
 
