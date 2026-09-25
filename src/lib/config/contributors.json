@@ -6,6 +6,11 @@
 			"githubUrl": "https://github.com/Rodrigo-Matuz",
 			"links": [
 				{
+					"id": "website",
+					"url": "https://matuz.dev/projects/wallpaper-picker",
+					"icon": "website"
+				},
+				{
 					"id": "github",
 					"url": "https://github.com/Rodrigo-Matuz",
 					"icon": "github"

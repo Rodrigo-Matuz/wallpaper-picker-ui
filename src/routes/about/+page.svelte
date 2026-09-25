@@ -13,10 +13,12 @@
         SiGmail,
         SiKofi,
     } from "@icons-pack/svelte-simple-icons";
+    import { Globe } from "@lucide/svelte";
 
     const version = __APP_VERSION__;
 
     const iconMap = {
+        website: Globe,
         github: SiGithub,
         discord: SiDiscord,
         gmail: SiGmail,

@@ -30,7 +30,7 @@
 			"identifier": "fs:allow-data-read",
 			"allow": [
 				{
-					"path": "$DATA/me.matuz.wallpaper-picker-ui/thumbnails"
+					"path": "$DATA/dev.matuz.wallpaper-picker-ui/thumbnails"
 				}
 			]
 		},
@@ -38,7 +38,7 @@
 			"identifier": "fs:allow-data-write",
 			"allow": [
 				{
-					"path": "$DATA/me.matuz.wallpaper-picker-ui/thumbnails"
+					"path": "$DATA/dev.matuz.wallpaper-picker-ui/thumbnails"
 				}
 			]
 		},
@@ -46,7 +46,7 @@
 			"identifier": "fs:allow-mkdir",
 			"allow": [
 				{
-					"path": "$DATA/me.matuz.wallpaper-picker-ui"
+					"path": "$DATA/dev.matuz.wallpaper-picker-ui"
 				}
 			]
 		},
@@ -54,7 +54,7 @@
 			"identifier": "fs:allow-exists",
 			"allow": [
 				{
-					"path": "$DATA/me.matuz.wallpaper-picker-ui"
+					"path": "$DATA/dev.matuz.wallpaper-picker-ui"
 				}
 			]
 		},
@@ -62,10 +62,10 @@
 			"identifier": "fs:allow-read-file",
 			"allow": [
 				{
-					"path": "$DATA/me.matuz.wallpaper-picker-ui/thumbnails"
+					"path": "$DATA/dev.matuz.wallpaper-picker-ui/thumbnails"
 				},
 				{
-					"path": "$DATA/me.matuz.wallpaper-picker-ui/thumbnails/*"
+					"path": "$DATA/dev.matuz.wallpaper-picker-ui/thumbnails/*"
 				}
 			]
 		},

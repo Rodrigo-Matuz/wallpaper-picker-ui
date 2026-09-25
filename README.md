@@ -69,7 +69,7 @@ src-tauri/capabilities/permissions.json
 * **Create, read, write, list and check existence of files** inside its own data directory:
 
   * Thumbnails cache:
-    `~/.local/share/me.matuz.wallpaper-picker-ui/thumbnails`
+    `~/.local/share/dev.matuz.wallpaper-picker-ui/thumbnails`
 
 * **Create its own application data folder** if it does not exist
 
