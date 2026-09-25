@@ -1,0 +1,18 @@
+# Normalize line endings: the repo is LF everywhere (Biome is configured
+# with lineEnding: "lf"). eol=lf forces LF on checkout even on Windows
+# (where autocrlf defaults to true), keeping `bun run lint` green in CI.
+* text=auto eol=lf
+
+# Windows scripts keep CRLF intentionally
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets
+*.png binary
+*.ico binary
+*.icns binary
+*.jpg binary
+*.gif binary
+*.woff binary
+*.woff2 binary
