@@ -208,7 +208,7 @@
           default = homeManagerModules.default;
         };
 
-        nixosModules.default = ({ config, pkgs, ... }:
+        nixosModules.default = ({ config, pkgs, lib, ... }:
           let
             wallpaper-picker-ui = self.packages.${pkgs.system}.default;
           in
