@@ -125,17 +125,27 @@ nix develop
 
 The shell is intended for development. End users who only want to run the application do not need it.
 
-#### Build the Nix package manually
+#### Build the Nix package
 
 ```bash
-nix build .#wallpaper-picker-ui
-
-# result/ contains the Linux bundles (.deb, .rpm, .AppImage) and the binary
+nix build .#default          # pinned to the version in flake.nix
+nix build .#latest           # impure: always fetches the newest release
+nix run .#default            # build + run in one step
 ```
 
-`nix build` runs the full Tauri build and produces Linux bundles under `./result`.
+`nix build` downloads the pre-built AppImage from the latest GitHub release
+and wraps it so `./result/bin/wallpaper-picker-ui` is the executable.  No
+local compilation, no system webkit2gtk needed at runtime — the AppImage is
+self-contained.
 
-The signing key (`TAURI_SIGNING_PRIVATE_KEY`) must be available when building installer bundles. Use `nix build` inside a `nix develop` shell or pass the key through `--impure` / a wrapper.
+`nix build .#latest` is impure: it queries the GitHub releases API at
+evaluation time to find the current tag, then downloads that release's
+AppImage.  Use it when you want the newest version without waiting for
+flake.nix to be updated after a release.
+
+The signing key (`TAURI_SIGNING_PRIVATE_KEY`) is only needed when building
+installer bundles from source (e.g. inside `nix develop` + `tauri build`);
+it is not required for the pre-built AppImage path.
 
 </details>
 

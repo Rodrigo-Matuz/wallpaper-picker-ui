@@ -1,12 +1,16 @@
 # Release workflow: triggered by pushing a version tag (e.g. `git tag v3.4.0 && git push origin v3.4.0`).
-#
+
 # Requirements on the repository side (Settings → Secrets and variables → Actions):
 # - TAURI_SIGNING_PRIVATE_KEY: minisign private key for the updater
 #   (`bunx @tauri-apps/cli signer generate -w ~/.tauri/wallpaper-picker-ui.key`)
 # - TAURI_SIGNING_PRIVATE_KEY_PASSWORD: the password chosen when generating it
-#
+
 # The build creates a draft GitHub release with installers (deb/rpm/AppImage on
 # Linux, NSIS + MSI on Windows) and updater artifacts; review and publish it.
+
+# After the release is published the workflow also updates flake.nix with the
+# new version number and AppImage SHA256, then commits that back to main so
+# `nix build` always tracks the latest release without manual edits.
 
 name: Release
 
@@ -49,3 +53,43 @@ jobs:
           releaseBody: "See the assets to download and install this version."
           releaseDraft: true
           prerelease: false
+
+      # ── Post-release: update flake.nix to track the new version ──────────
+      # Only runs on the Linux job to avoid duplicate commits.
+      - name: Update flake.nix version and AppImage SHA256
+        if: runner.os == 'Linux' && github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"            # e.g. v3.5.0
+          VERSION="${TAG#v}"                  # e.g. 3.5.0
+          APPIMAGE_NAME="wallpaper-picker-ui_${VERSION}_amd64.AppImage"
+          APPIMAGE_URL="https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/${TAG}/${APPIMAGE_NAME}"
+
+          echo "Tag: $TAG  Version: $VERSION"
+          echo "AppImage URL: $APPIMAGE_URL"
+
+          # Download the AppImage to compute its SHA256.
+          curl -fsSL "$APPIMAGE_URL" -o /tmp/appimage
+          HASH=$(sha256sum /tmp/appimage | cut -d' ' -f1)
+          echo "SHA256: $HASH"
+
+          # Update version and sha256 in flake.nix via sed.
+          # The version string appears on its own line:  version = "3.4.0";
+          # The sha256 string appears inside fetchurl's sha256 attribute.
+          FLAKE="flake.nix"
+
+          sed -i "s/version = \"[^\"]*\";/version = \"${VERSION}\";/" "$FLAKE"
+          sed -i "s/sha256 = \"sha256-[a-f0-9]*\";/sha256 = \"sha256-${HASH}\";/" "$FLAKE"
+
+          echo "=== flake.nix updated ==="
+          git diff "$FLAKE" || true
+
+      - name: Commit updated flake.nix
+        if: runner.os == 'Linux' && github.event_name == 'push'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(flake): bump to ${GITHUB_REF_NAME}"
+          file_pattern: flake.nix
+          branch: main

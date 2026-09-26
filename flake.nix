@@ -11,117 +11,64 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        bun = pkgs.bun;
-        rustPlatform = pkgs.rustPlatform;
+        # ── Version tracking ───────────────────────────────────────────────
+        # Updated automatically by .github/workflows/release.yml after each
+        # tagged release (the workflow commits a new flake.nix to main).
+        # Between releases the SHA256 below may lag the latest binary; if
+        # `nix build` fails with a hash mismatch, either wait for the next
+        # release or use `nix build .#latest` (impure, see below).
+        #
+        # To update manually: download the AppImage from the latest release,
+        # run `sha256sum <file>`, and paste the hex into the string below.
+        version = "3.4.0";
 
-        linux-deps = with pkgs; [
-          webkit2gtk-4.1
-          libappindicator3
-          librsvg
-          openssl
-          pkg-config
-          clang
-          libclang
-          icu69
-          icu-data-en
-        ];
+        appImageUrl =
+          "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v${version}/wallpaper-picker-ui_${version}_amd64.AppImage";
 
-        host-deps = if pkgs.stdenv.isLinux then linux-deps else [];
+        # ── Why we fetch a pre-built binary instead of building from source ─
+        # wallpaper-picker-ui is a Tauri 2 app.  A full `tauri build` on Linux
+        # requires the Rust toolchain, Node/Bun, Vite, AND the webkit2gtk-4.1
+        # dev headers plus libxdo, libssl, libayatana-appindicator, librsvg, and
+        # several other system libraries.  On GitHub Actions the build regularly
+        # approaches or exceeds the 30-minute timeout, and the resulting Nix
+        # derivation would have a very large closure that most end users don't
+        # want to pull just to run the app.
+        #
+        # The released AppImage is self-contained — Tauri bundles a static webkit
+        # build into it, so the binary runs on any Linux desktop without needing
+        # webkit2gtk or any of the build-time dev libraries.  Fetching the ~83 MB
+        # AppImage and wrapping it produces a small, fast `nix build` / `nix run`
+        # with a verifiable, cached binary.
+        #
+        # If you need to build from source (e.g. for a patched version), use
+        # `nix develop` to enter the dev shell (Bun + Rust + system deps) and run
+        # `tauri build` inside it.  That path is intentionally not exposed as a
+        # package in this flake for the reasons above.
 
-        # ── Dev shell (`nix develop`) ───────────────────────────────────────
-        # Developers only.  End users who just want the app use `nix build`
-        # or install via NixOS / Home Manager — they never enter this shell.
-        # The shellHook is intentionally minimal: set up PATH + writable homes
-        # + SSL certs, print a one-line hint.  No fancy banner.
-        devShell = pkgs.mkShell {
-          name = "wallpaper-picker-ui-dev";
-          buildInputs = host-deps ++ [
-            bun
-            rustPlatform
-            pkgs.pkg-config
-            pkgs.openssl
-            pkgs.openssl.dev
-          ];
-
-          OPENSSL_DIR         = "${pkgs.openssl.dev}";
-          OPENSSL_LIB_DIR     = "${pkgs.openssl.outPath}/lib";
-          OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
-
-          BUN_INSTALL = "$PWD/.bun";
-          CARGO_HOME  = "$PWD/.cargo";
-          RUSTUP_HOME = "$PWD/.rustup";
-
-          SSL_CERT_DIR = "${(pkgs.certificate-transparency or pkgs.cacert or pkgs.curl).outPath}/etc/ssl/certs";
-
-          shellHook = ''
-            export PATH="$BUN_INSTALL/bin:$CARGO_HOME/bin:$PATH"
-            echo "wallpaper-picker-ui dev shell — bun $(bun --version 2>/dev/null || echo ?) / rust $(rustc --version 2>/dev/null || echo ?)"
-            echo "  bun run dev | build | tauri build | check | lint | test | version <ver>"
-          '';
+        appImage = pkgs.fetchurl {
+          url = appImageUrl;
+          # "sha256-<64-hex-chars>" — compute with: sha256sum <downloaded file>
+          sha256 = "sha256-8bf70e2a07ca35580d6cc8ba8da27bd2ada81469f14cb9d25e7667e8279bb018";
         };
 
-        # ── Default package (`nix build`) ───────────────────────────────────
+        # ── Default package (`nix build` / `nix run`) ──────────────────────
+        # Places the AppImage directly at $out/bin/wallpaper-picker-ui so that
+        # ./result/bin/wallpaper-picker-ui is the executable itself.
         app = pkgs.stdenvNoCC.mkDerivation {
-          name = "wallpaper-picker-ui";
-          src = ./.;
-          vendorHash = null;
-
-          buildInputs = host-deps ++ [
-            bun
-            rustPlatform
-            pkgs.pkg-config
-            pkgs.openssl
-            pkgs.openssl.dev
-          ];
-
-          OPENSSL_DIR         = "${pkgs.openssl.dev}";
-          OPENSSL_LIB_DIR     = "${pkgs.openssl.outPath}/lib";
-          OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
-
-          BUN_INSTALL = "$TMPDIR/bun-home";
-          CARGO_HOME  = "$TMPDIR/cargo";
-          RUSTUP_HOME = "$TMPDIR/rustup";
-
-          buildPhase = ''
-            runHook preBuild
-            export PATH="$BUN_INSTALL/bin:$CARGO_HOME/bin:$PATH"
-            bun install --frozen-lockfile
-            bun run build
-            bun run tauri build --no-warn
-            runHook postBuild
-          '';
+          name = "wallpaper-picker-ui-${version}";
+          src = appImage;
 
           installPhase = ''
-            runHook preInstall
-            mkdir -p "$out"
-            if [ -d "src-tauri/target/release/bundle" ]; then
-              cp -r src-tauri/target/release/bundle/* "$out/"
-            fi
-            if [ -f "src-tauri/target/release/wallpaper-picker-ui" ]; then
-              mkdir -p "$out/bin"
-              cp "src-tauri/target/release/wallpaper-picker-ui" "$out/bin/"
-            fi
-            if [ -f "src-tauri/target/release/wallpaper-picker-ui.exe" ]; then
-              mkdir -p "$out/bin"
-              cp "src-tauri/target/release/wallpaper-picker-ui.exe" "$out/bin/"
-            fi
-            runHook postInstall
+            mkdir -p "$out/bin"
+            cp "$src" "$out/bin/wallpaper-picker-ui"
+            chmod +x "$out/bin/wallpaper-picker-ui"
           '';
-
-          dontStrip = true;
         };
 
         # ── Home Manager module ─────────────────────────────────────────────
-        # Lets the user declare their preferred app settings in HM config.
-        # HM writes ~/.config/WallpaperPickerUI/config.json as the declarative
-        # source of truth for these preferences.  The app reads this file on
-        # startup and can update it via updateConfig() at runtime — but since
-        # most fields are static (command, wallpapersPath, darkMode, language),
-        # conflicts between HM and in-app changes are rare.
-        #
-        # thumbnailsHashMap is legacy (migrated to thumbnails/map.json) — HM
-        # does not manage it.  thumbnailVersion is included so the app starts
-        # with a known version; the app bumps it when the naming scheme changes.
+        # Declaratively manages ~/.config/WallpaperPickerUI/config.json.
+        # The app reads this file on startup and can update it at runtime via
+        # updateConfig().  Most fields are static so HM/app conflicts are rare.
         homeManagerModules.default = { config, pkgs, lib, ... }:
           {
             options.programs.wallpaper-picker-ui = {
@@ -140,7 +87,7 @@
               command = lib.mkOption {
                 type = lib.types.str;
                 default = "";
-                description = "Wallpaper command run by the app (e.g. /usr/bin/wallpaper \\$VP). Empty = no command configured.";
+                description = "Wallpaper command run by the app (e.g. /usr/bin/wallpaper $VP). Empty = no command configured.";
               };
 
               wallpapersPath = lib.mkOption {
@@ -175,14 +122,11 @@
             };
 
             config = lib.mkIf config.programs.wallpaper-picker-ui.enable {
-              # Write ~/.config/WallpaperPickerUI/config.json from the HM options.
-              # home.file creates parent directories automatically.
               home.file.".config/WallpaperPickerUI/config.json" = {
                 text = builtins.toJSON {
                   command = config.programs.wallpaper-picker-ui.command;
                   wallpapersPath =
-                    config.programs.wallpaper-picker-ui.wallpapersPath
-                    or "";
+                    config.programs.wallpaper-picker-ui.wallpapersPath or "";
                   debugMode = config.programs.wallpaper-picker-ui.debugMode;
                   newWallpapers = config.programs.wallpaper-picker-ui.newWallpapers;
                   darkMode = config.programs.wallpaper-picker-ui.darkMode;
@@ -194,20 +138,10 @@
               home.packages = [ config.programs.wallpaper-picker-ui.package ];
             };
           };
-      in {
-        packages = {
-          default = app;
-          app = app;
-        };
 
-        devShells = {
-          default = devShell;
-        };
-
-        homeManagerModules = {
-          default = homeManagerModules.default;
-        };
-
+        # ── NixOS module ────────────────────────────────────────────────────
+        # System-wide install.  Does not manage config.json — use the app's
+        # settings UI or a user-level HM declaration for that.
         nixosModules.default = ({ config, pkgs, lib, ... }:
           let
             wallpaper-picker-ui = self.packages.${pkgs.system}.default;
@@ -227,11 +161,54 @@
           }
         );
 
+        # ── Overlay ─────────────────────────────────────────────────────────
         overlays = [
           (self: super: {
             wallpaper-picker-ui = self.packages.${system}.default or null;
           })
         ];
-      }
-    );
+      )
+    // {
+      # ── Impure "latest" package ───────────────────────────────────────────
+      # Evaluates the GitHub releases API at fetch time to discover the current
+      # tag, then downloads that release's AppImage.  Intentionally impure —
+      # the result depends on when you evaluate the flake.  Use
+      # `nix build .#latest` to always get the newest release without manually
+      # updating `version` above.
+      #
+      # This is NOT reproducible across time.  For a pinned build use the
+      # default `app` package.
+      packages.latest = pkgs.stdenvNoCC.mkDerivation {
+        name = "wallpaper-picker-ui-latest";
+        src = pkgs.fetchurl {
+          url = "https://api.github.com/repos/Rodrigo-Matuz/wallpaper-picker-ui/releases/latest";
+          # The API response body is used as the fetchurl hash anchor; we parse
+          # it below to extract the real download URL.
+          sha256 = "sha256-2kW5WKre4P1stH5Z+zw0hQ3Kr5ZVwEhVIC9R2j01+9I=";
+        };
+
+        buildPhase = ''
+          LATEST_TAG=$(node -e "
+            const fs = require('fs');
+            const api = JSON.parse(fs.readFileSync('$src', 'utf8'));
+            console.log(api.tag_name);
+          ")
+          echo "Latest release tag: $LATEST_TAG"
+
+          VERSION_NUM=${LATEST_TAG#v}
+          APPIMAGE_URL="https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/${LATEST_TAG}/wallpaper-picker-ui_${VERSION_NUM}_amd64.AppImage"
+          echo "Downloading: $APPIMAGE_URL"
+          curl -fsSL "$APPIMAGE_URL" -o /tmp/wallpaper-picker-ui.AppImage
+          chmod +x /tmp/wallpaper-picker-ui.AppImage
+        '';
+
+        installPhase = ''
+          mkdir -p "$out/bin"
+          cp /tmp/wallpaper-picker-ui.AppImage "$out/bin/wallpaper-picker-ui"
+          chmod +x "$out/bin/wallpaper-picker-ui"
+        '';
+
+        buildInputs = [ pkgs.curl pkgs.nodejs ];
+      };
+    };
 }
