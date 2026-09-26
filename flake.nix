@@ -69,7 +69,7 @@
         # Declaratively manages ~/.config/WallpaperPickerUI/config.json.
         # The app reads this file on startup and can update it at runtime via
         # updateConfig().  Most fields are static so HM/app conflicts are rare.
-        homeManagerModules.default = { config, pkgs, lib, ... }:
+        _homeManagerModule = { config, pkgs, lib, ... }:
           {
             options.programs.wallpaper-picker-ui = {
               enable = lib.mkOption {
@@ -142,7 +142,7 @@
         # ── NixOS module ────────────────────────────────────────────────────
         # System-wide install.  Does not manage config.json — use the app's
         # settings UI or a user-level HM declaration for that.
-        nixosModules.default = ({ config, pkgs, lib, ... }:
+        _nixosModule = { config, pkgs, lib, ... }:
           let
             wallpaper-picker-ui = self.packages.${pkgs.system}.default;
           in
@@ -158,57 +158,71 @@
             config = lib.mkIf config.programs.wallpaper-picker-ui.enable {
               environment.systemPackages = [ wallpaper-picker-ui ];
             };
-          }
-        );
+          };
 
         # ── Overlay ─────────────────────────────────────────────────────────
-        overlays = [
-          (self: super: {
-            wallpaper-picker-ui = self.packages.${system}.default or null;
-          })
-        ];
-      )
-    // {
-      # ── Impure "latest" package ───────────────────────────────────────────
-      # Evaluates the GitHub releases API at fetch time to discover the current
-      # tag, then downloads that release's AppImage.  Intentionally impure —
-      # the result depends on when you evaluate the flake.  Use
-      # `nix build .#latest` to always get the newest release without manually
-      # updating `version` above.
-      #
-      # This is NOT reproducible across time.  For a pinned build use the
-      # default `app` package.
-      packages.latest = pkgs.stdenvNoCC.mkDerivation {
-        name = "wallpaper-picker-ui-latest";
-        src = pkgs.fetchurl {
-          url = "https://api.github.com/repos/Rodrigo-Matuz/wallpaper-picker-ui/releases/latest";
-          # The API response body is used as the fetchurl hash anchor; we parse
-          # it below to extract the real download URL.
-          sha256 = "sha256-2kW5WKre4P1stH5Z+zw0hQ3Kr5ZVwEhVIC9R2j01+9I=";
+        _overlay = (self: super: {
+          wallpaper-picker-ui = self.packages.${system}.default or null;
+        });
+
+        # ── Impure "latest" package ───────────────────────────────────────────
+        # Evaluates the GitHub releases API at fetch time to discover the current
+        # tag, then downloads that release's AppImage.  Intentionally impure —
+        # the result depends on when you evaluate the flake.  Use
+        # `nix build .#latest` to always get the newest release without manually
+        # updating `version` above.
+        #
+        # This is NOT reproducible across time.  For a pinned build use the
+        # default `app` package.
+        _latest = pkgs.stdenvNoCC.mkDerivation {
+          name = "wallpaper-picker-ui-latest";
+          src = pkgs.fetchurl {
+            url = "https://api.github.com/repos/Rodrigo-Matuz/wallpaper-picker-ui/releases/latest";
+            # The API response body is used as the fetchurl hash anchor; we parse
+            # it below to extract the real download URL.
+            sha256 = "sha256-2kW5WKre4P1stH5Z+zw0hQ3Kr5ZVwEhVIC9R2j01+9I=";
+          };
+
+          buildPhase = ''
+            LATEST_TAG=$(node -e "
+              const fs = require('fs');
+              const api = JSON.parse(fs.readFileSync('$src', 'utf8'));
+              console.log(api.tag_name);
+            ")
+            echo "Latest release tag: $LATEST_TAG"
+
+            VERSION_NUM=\${LATEST_TAG#v}
+            APPIMAGE_URL="https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/\${LATEST_TAG}/wallpaper-picker-ui_\${VERSION_NUM}_amd64.AppImage"
+            echo "Downloading: $APPIMAGE_URL"
+            curl -fsSL "$APPIMAGE_URL" -o /tmp/wallpaper-picker-ui.AppImage
+            chmod +x /tmp/wallpaper-picker-ui.AppImage
+          '';
+
+          installPhase = ''
+            mkdir -p "$out/bin"
+            cp /tmp/wallpaper-picker-ui.AppImage "$out/bin/wallpaper-picker-ui"
+            chmod +x "$out/bin/wallpaper-picker-ui"
+          '';
+
+          buildInputs = [ pkgs.curl pkgs.nodejs ];
+        };
+      in
+      {
+        packages = {
+          default = app;
+          app = app;
+          latest = _latest;
         };
 
-        buildPhase = ''
-          LATEST_TAG=$(node -e "
-            const fs = require('fs');
-            const api = JSON.parse(fs.readFileSync('$src', 'utf8'));
-            console.log(api.tag_name);
-          ")
-          echo "Latest release tag: $LATEST_TAG"
+        homeManagerModules = {
+          default = _homeManagerModule;
+        };
 
-          VERSION_NUM=${LATEST_TAG#v}
-          APPIMAGE_URL="https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/${LATEST_TAG}/wallpaper-picker-ui_${VERSION_NUM}_amd64.AppImage"
-          echo "Downloading: $APPIMAGE_URL"
-          curl -fsSL "$APPIMAGE_URL" -o /tmp/wallpaper-picker-ui.AppImage
-          chmod +x /tmp/wallpaper-picker-ui.AppImage
-        '';
+        nixosModules = {
+          default = _nixosModule;
+        };
 
-        installPhase = ''
-          mkdir -p "$out/bin"
-          cp /tmp/wallpaper-picker-ui.AppImage "$out/bin/wallpaper-picker-ui"
-          chmod +x "$out/bin/wallpaper-picker-ui"
-        '';
-
-        buildInputs = [ pkgs.curl pkgs.nodejs ];
-      };
-    };
+        overlays = [ _overlay ];
+      }
+    );
 }
