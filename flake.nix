@@ -26,6 +26,9 @@
         pname = "wallpaper-picker-ui";
         inherit version;
         src = appImage;
+        # The FHS sandbox does not mount all host directories (notably /etc/nixos).
+        # Do not force bubblewrap to chdir to an inaccessible host working directory.
+        chdirToPwd = false;
         nativeBuildInputs = [ pkgs.makeWrapper ];
         extraInstallCommands = ''
           # The app launches ffmpeg by name when making video thumbnails.
