@@ -15,7 +15,7 @@ let {
     bind:ref
     data-slot="progress"
     class={cn(
-        "relative bg-primary/20 rounded-full w-full h-2 overflow-hidden",
+        'relative bg-surface-hover/40 rounded-none w-full h-1 overflow-hidden border-border border',
         className,
     )}
     {value}
@@ -24,7 +24,7 @@ let {
 >
     <div
         data-slot="progress-indicator"
-        class="flex-1 bg-primary w-full h-full transition-all"
+        class="flex-1 bg-primary w-full h-full transition-all rounded-none"
         style="transform: translateX(-{100 -
             (100 * (value ?? 0)) / (max ?? 1)}%)"
     ></div>

@@ -10,7 +10,7 @@ import {
 	DialogTrigger,
 } from "$components/ui/dialog";
 import * as Select from "$components/ui/select";
-import { languages, setLanguage } from "$lang/index";
+import { languages, setLanguage } from "$lib/lang/index";
 
 export let name = "SettingsName";
 export let shortDescription = "Short Description";
@@ -21,11 +21,9 @@ const availableLanguages = Object.keys(languages) as Array<keyof typeof language
 
 let selectedLanguage = "";
 
-// Text shown inside Select.Trigger
 $: triggerLabel =
 	languages[selectedLanguage as keyof typeof languages]?.name ?? selectorPlaceholder;
 
-// React to changes
 $: if (selectedLanguage) {
 	setLanguage(selectedLanguage as keyof typeof languages);
 }
@@ -33,37 +31,22 @@ $: if (selectedLanguage) {
 
 <Card>
     <Dialog>
-        <div class="p-10">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center space-x-3">
+        <div class="p-6">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex items-center gap-3">
                     <DialogTrigger>
-                        <Info
-                            class="text-primary hover:text-secondary cursor-pointer"
-                            size={18}
-                        />
+                        <Info class="text-muted hover:text-primary cursor-pointer transition-colors" size={18} />
                     </DialogTrigger>
-
-                    <DialogContent class="bg-card">
-                        <DialogHeader>
-                            <DialogTitle class="text-primary text-2xl">
-                                {name}
-                            </DialogTitle>
-                            <DialogDescription class="text-foreground text-md">
-                                {@html hintDescription}
-                            </DialogDescription>
-                        </DialogHeader>
-                    </DialogContent>
-
-                    <CardTitle class="font-bold text-primary text-2xl">
+                    <CardTitle class="font-semibold text-lg leading-none text-foreground">
                         {name}
                     </CardTitle>
                 </div>
-
                 <Select.Root type="single" bind:value={selectedLanguage}>
-                    <Select.Trigger class="w-60">
-                        {triggerLabel}
-                    </Select.Trigger>
-
+                    <div class="flex items-center gap-2">
+                        <Select.Trigger class="w-full bg-surface border-border border rounded-md px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted outline-none transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-primary">
+                            {triggerLabel}
+                        </Select.Trigger>
+                    </div>
                     <Select.Content>
                         <Select.Group>
                             {#each availableLanguages as lang (lang)}
@@ -78,10 +61,17 @@ $: if (selectedLanguage) {
                     </Select.Content>
                 </Select.Root>
             </div>
-
-            <div class="flex justify-between">
-                <p class="mt-4">{shortDescription}</p>
-            </div>
+            <p class="mt-3 text-muted text-sm leading-relaxed">{shortDescription}</p>
         </div>
+        <DialogContent class="bg-surface">
+            <DialogHeader>
+                <DialogTitle class="font-semibold text-lg text-foreground">
+                    {name}
+                </DialogTitle>
+                <DialogDescription class="text-muted text-sm">
+                    {@html hintDescription}
+                </DialogDescription>
+            </DialogHeader>
+        </DialogContent>
     </Dialog>
 </Card>

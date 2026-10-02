@@ -15,7 +15,7 @@ let {
     bind:checked
     data-slot="switch"
     class={cn(
-        "peer inline-flex items-center data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80 disabled:opacity-50 shadow-xs border border-transparent focus-visible:border-ring rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 w-8 h-[1.15rem] transition-all cursor-pointer disabled:cursor-not-allowed shrink-0",
+        'peer inline-flex items-center data-[state=checked]:bg-primary data-[state=unchecked]:bg-surface-hover dark:data-[state=unchecked]:bg-surface-hover disabled:opacity-50 border border-transparent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary rounded-md outline-none w-10 h-[1.2rem] transition-colors cursor-pointer disabled:cursor-not-allowed shrink-0',
         className,
     )}
     {...restProps}
@@ -23,7 +23,7 @@ let {
     <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
         class={cn(
-            "block bg-background dark:data-[state=checked]:bg-primary-foreground dark:data-[state=unchecked]:bg-foreground rounded-full ring-0 size-4 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0 pointer-events-none",
+            'block bg-foreground dark:data-[state=checked]:bg-primary-foreground dark:data-[state=unchecked]:bg-foreground rounded-md ring-0 size-4 transition-transform data-[state=checked]:translate-x-[calc(100%-3px)] data-[state=unchecked]:translate-x-0 pointer-events-none',
         )}
     />
 </SwitchPrimitive.Root>

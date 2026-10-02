@@ -1,7 +1,5 @@
 <script lang="ts">
 import { Info } from "@lucide/svelte";
-import { fetchConfig } from "$api/config/read";
-import { updateConfig } from "$api/config/update";
 import { Button } from "$components/ui/button";
 import { Card, CardTitle } from "$components/ui/card";
 import {
@@ -13,8 +11,10 @@ import {
 	DialogTrigger,
 } from "$components/ui/dialog";
 import { Input } from "$components/ui/input";
-import { t } from "$lang/index";
-import { log } from "$utils/logger";
+import { fetchConfig } from "$lib/api/config/read";
+import { updateConfig } from "$lib/api/config/update";
+import { t } from "$lib/lang/index";
+import { log } from "$lib/utils/logger";
 
 export let name: string = "SettingsName";
 export let shortDescription: string = "Short Description";
@@ -22,7 +22,7 @@ export let hintDescription: string = "Hint Description";
 export let inputPlaceholder: string = "Placeholder";
 
 let inputValue = "";
-let mustSave = "primary";
+let mustSave: "primary" | "destructive" = "primary";
 
 const loadConfig = async () => {
 	inputValue = (await fetchConfig()).command;
@@ -33,6 +33,7 @@ loadConfig();
 function handleInputChange() {
 	mustSave = "destructive";
 }
+
 async function handleSave() {
 	mustSave = "primary";
 	try {
@@ -47,49 +48,39 @@ async function handleSave() {
 }
 </script>
 
-<Card
-    ><Dialog>
-        <div class="p-10">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center space-x-3">
+<Card>
+    <Dialog>
+        <div class="p-6">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex items-center gap-3">
                     <DialogTrigger>
-                        <Info
-                            class="text-primary hover:text-secondary cursor-pointer"
-                            size={18}
-                        />
+                        <Info class="text-muted hover:text-primary cursor-pointer transition-colors" size={18} />
                     </DialogTrigger>
-                    <CardTitle class="font-bold text-primary text-2xl">
+                    <CardTitle class="font-semibold text-lg leading-none text-foreground">
                         {name}
                     </CardTitle>
                 </div>
-                <Input
-                    class={`w-80 text-md bg-transparent border-0 border-b-2
-                rounded-none border-primary focus-visible:ring-0 focus:outline-card 
-                focus-visible:border-secondary outline-none focus-visible:border-b-secondary
-                `}
-                    oninput={handleInputChange}
-                    placeholder={inputPlaceholder}
-                    bind:value={inputValue}
-                />
+                <Button onclick={handleSave} size="sm" variant={mustSave === 'destructive' ? 'outline' : 'primary'}>
+                    {name}
+                </Button>
             </div>
-            <div class="flex justify-between">
-                <p class="mt-4">{shortDescription}</p>
-                <Button
-                    class="align-self-end mt-3 bg-{mustSave}"
-                    onclick={handleSave}
-                    size="sm">{$t("settings.command.button.text")}</Button
-                >
-            </div>
-            <DialogContent class="bg-card">
-                <DialogHeader>
-                    <DialogTitle class="text-primary text-2xl">
-                        {name}
-                    </DialogTitle>
-                    <DialogDescription class="text-foreground text-md">
-                        {@html hintDescription}
-                    </DialogDescription>
-                </DialogHeader>
-            </DialogContent>
+            <p class="mt-3 text-muted text-sm leading-relaxed">{shortDescription}</p>
         </div>
-    </Dialog></Card
->
+        <DialogContent class="bg-surface">
+            <DialogHeader>
+                <DialogTitle class="font-semibold text-lg text-foreground">
+                    {name}
+                </DialogTitle>
+                <DialogDescription class="text-muted text-sm">
+                    {@html hintDescription}
+                </DialogDescription>
+            </DialogHeader>
+            <Input
+                class="w-full mt-4"
+                placeholder={inputPlaceholder}
+                bind:value={inputValue}
+                oninput={handleInputChange}
+            />
+        </DialogContent>
+    </Dialog>
+</Card>

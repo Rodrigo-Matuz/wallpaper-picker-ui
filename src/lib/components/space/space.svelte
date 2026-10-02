@@ -3,5 +3,5 @@ export let larger: boolean = false;
 </script>
 
 <div
-    class={`h-0.5 w-9/12 rounded-full mx-auto ${larger ? "my-8" : "my-4"}`}
+    class="{larger ? 'my-8' : 'my-4'} h-px w-full bg-gradient-to-r from-transparent via-foreground/10 to-transparent"
 ></div>

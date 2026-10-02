@@ -366,7 +366,7 @@ Commit the changes and push them. The release workflow triggers automatically wh
 
 ### Releases
 
-Releases are produced automatically by the GitHub Actions release workflow when a version tag such as `v3.4.0` is pushed to `main`.
+Releases are produced automatically by the GitHub Actions release workflow when a version tag such as `v3.5.0` is pushed from `main`.
 
 The workflow:
 
@@ -383,8 +383,8 @@ The workflow:
 To trigger a release:
 
 ```bash
-git tag v3.4.0
-git push origin v3.4.0
+git tag v3.5.0
+git push origin v3.5.0
 ```
 
 The public signing key is configured in `src-tauri/tauri.conf.json`.

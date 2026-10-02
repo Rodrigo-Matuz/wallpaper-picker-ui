@@ -20,14 +20,14 @@ let {
 }: Props = $props();
 </script>
 
-{#if type === "file"}
+{#if type === 'file'}
     <input
         bind:this={ref}
         data-slot={dataSlot}
         class={cn(
-            "flex bg-transparent selection:bg-primary dark:bg-input/30 disabled:opacity-50 shadow-xs px-3 pt-1.5 border border-input rounded-md outline-none ring-offset-background w-full min-w-0 h-9 font-medium selection:text-primary-foreground placeholder:text-muted-foreground text-sm transition-[color,box-shadow] disabled:cursor-not-allowed",
-            "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-            "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+            'flex bg-transparent disabled:opacity-50 px-3 pt-1.5 border border-border rounded-md outline-none w-full min-w-0 h-9 font-medium placeholder:text-muted text-sm transition-colors disabled:cursor-not-allowed',
+            'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary',
+            'aria-invalid:outline-destructive aria-invalid:opacity-70',
             className,
         )}
         type="file"
@@ -40,9 +40,9 @@ let {
         bind:this={ref}
         data-slot={dataSlot}
         class={cn(
-            "flex bg-background selection:bg-primary dark:bg-input/30 disabled:opacity-50 shadow-xs px-3 py-1 border border-input rounded-md outline-none ring-offset-background w-full min-w-0 h-9 selection:text-primary-foreground placeholder:text-muted-foreground md:text-sm text-base transition-[color,box-shadow] disabled:cursor-not-allowed",
-            "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-            "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+            'flex bg-surface hover:bg-surface-raised disabled:opacity-50 px-3 py-2 border border-border rounded-md outline-none w-full min-w-0 h-9 font-medium placeholder:text-muted text-base transition-colors disabled:cursor-not-allowed',
+            'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary',
+            'aria-invalid:outline-destructive aria-invalid:opacity-70',
             className,
         )}
         {type}

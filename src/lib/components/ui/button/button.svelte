@@ -1,72 +1,77 @@
-<script lang="ts" module>
-import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
-import { tv, type VariantProps } from "tailwind-variants";
-import { cn, type WithElementRef } from "$utils/index";
-
-export const buttonVariants = tv({
-	base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-	variants: {
-		variant: {
-			default:
-				"bg-primary text-primary-foreground hover:bg-secondary shadow-xs cursor-pointer",
-			destructive:
-				"bg-destructive hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 text-white shadow-xs",
-			outline:
-				"bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border shadow-xs",
-			secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-xs",
-			ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-			link: "text-primary underline-offset-4 hover:underline",
-		},
-		size: {
-			default: "h-9 px-4 py-2 has-[>svg]:px-3",
-			sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-			lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-			icon: "size-9",
-			"icon-sm": "size-8",
-			"icon-lg": "size-10",
-		},
-	},
-	defaultVariants: {
-		variant: "default",
-		size: "default",
-	},
-});
-
-export type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
-export type ButtonSize = VariantProps<typeof buttonVariants>["size"];
-
-export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
-	WithElementRef<HTMLAnchorAttributes> & {
-		variant?: ButtonVariant;
-		size?: ButtonSize;
-		onclick?: (event: MouseEvent) => void;
-	};
-</script>
-
 <script lang="ts">
-    let {
-        class: className,
-        variant = "default",
-        size = "default",
-        ref = $bindable(null),
-        href = undefined,
-        type = "button",
-        disabled,
-        onclick,
-        children,
-        ...restProps
-    }: ButtonProps = $props();
+import type { Snippet } from "svelte";
+import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
+
+interface BaseProps {
+	variant?: "accent" | "primary" | "outline" | "ghost";
+	size?: "sm" | "md" | "lg";
+	onclick?: (event: MouseEvent) => void;
+	disabled?: boolean;
+	class?: string;
+	children: Snippet;
+}
+
+type AnchorButtonProps = BaseProps &
+	Pick<HTMLAnchorAttributes, "href" | "target" | "rel"> & {
+		type?: never;
+		ref?: HTMLAnchorElement | null;
+	};
+
+type NativeButtonProps = BaseProps &
+	Pick<
+		HTMLButtonAttributes,
+		"form" | "formaction" | "formenctype" | "formmethod" | "formnovalidate" | "formtarget"
+	> & {
+		href?: never;
+		type?: "button" | "submit" | "reset";
+		ref?: HTMLButtonElement | null;
+	};
+
+type Props = AnchorButtonProps | NativeButtonProps;
+
+let {
+	class: className,
+	variant = "accent",
+	size = "md",
+	ref = $bindable(null),
+	href,
+	type = "button",
+	disabled,
+	onclick,
+	children,
+	...restProps
+}: Props = $props();
+
+const baseStyles =
+	"inline-flex items-center justify-center gap-2 font-semibold uppercase tracking-[0.14em] transition-colors disabled:pointer-events-none disabled:opacity-50 cursor-pointer";
+
+const sizeStyles: Record<string, string> = {
+	sm: "px-4 py-2 text-[10px] sm:text-xs",
+	md: "px-5 py-3 text-xs",
+	lg: "px-6 py-4 text-xs",
+};
+
+const variantStyles: Record<string, string> = {
+	accent: "bg-accent text-white hover:bg-accent/85",
+	primary: "bg-primary text-white hover:bg-primary/85",
+	outline: "border border-foreground/15 text-foreground hover:border-success hover:text-success",
+	ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 text-foreground",
+};
+
+const classes = $derived(
+	`${baseStyles} ${sizeStyles[size]} ${variantStyles[variant]} ${className}`,
+);
 </script>
 
-{#if href}
+{#if href !== undefined}
     <a
         bind:this={ref}
         data-slot="button"
-        class={cn(buttonVariants({ variant, size }), className)}
+        class={classes}
         href={disabled ? undefined : href}
         aria-disabled={disabled}
         {onclick}
-        role={disabled ? "link" : undefined}
+        role={disabled ? 'link' : undefined}
         tabindex={disabled ? -1 : undefined}
         {...restProps}
     >
@@ -76,7 +81,7 @@ export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
     <button
         bind:this={ref}
         data-slot="button"
-        class={cn(buttonVariants({ variant, size }), className)}
+        class={classes}
         {type}
         {disabled}
         {onclick}

@@ -1,5 +1,4 @@
 <script lang="ts">
-import { Info } from "@lucide/svelte";
 import { Button } from "$components/ui/button";
 import { Card, CardTitle } from "$components/ui/card";
 import {
@@ -13,41 +12,39 @@ import {
 
 export let name: string = "SettingsName";
 export let shortDescription: string = "Short Description";
-export let buttonName: string = "BUTTON";
 export let hintDescription: string = "Hint Description";
+export let buttonName: string = "BUTTON";
 export let buttonOnClick: () => {};
 </script>
 
-<Card
-    ><Dialog>
-        <div class="p-10">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center space-x-3">
+<Card>
+    <Dialog>
+        <div class="p-6">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex items-center gap-3">
                     <DialogTrigger>
-                        <Info
-                            class="text-primary hover:text-secondary cursor-pointer"
-                            size={18}
-                        />
+                        <span class="cursor-pointer">
+                            <CardTitle class="font-semibold text-lg leading-none text-foreground">
+                                {name}
+                            </CardTitle>
+                        </span>
                     </DialogTrigger>
-                    <CardTitle class="font-bold text-primary text-2xl">
-                        {name}
-                    </CardTitle>
                 </div>
-                <Button onclick={buttonOnClick} size="sm">{buttonName}</Button>
+                <Button onclick={buttonOnClick} size="sm" variant="primary">
+                    {buttonName}
+                </Button>
             </div>
-            <div class="flex justify-between">
-                <p class="mt-4">{shortDescription}</p>
-            </div>
-            <DialogContent class="bg-card">
-                <DialogHeader>
-                    <DialogTitle class="text-primary text-2xl">
-                        {name}
-                    </DialogTitle>
-                    <DialogDescription class="text-foreground text-md">
-                        {@html hintDescription}
-                    </DialogDescription>
-                </DialogHeader>
-            </DialogContent>
+            <p class="mt-3 text-muted text-sm leading-relaxed">{shortDescription}</p>
         </div>
-    </Dialog></Card
->
+        <DialogContent class="bg-surface">
+            <DialogHeader>
+                <DialogTitle class="font-semibold text-lg text-foreground">
+                    {name}
+                </DialogTitle>
+                <DialogDescription class="text-muted text-sm">
+                    {@html hintDescription}
+                </DialogDescription>
+            </DialogHeader>
+        </DialogContent>
+    </Dialog>
+</Card>

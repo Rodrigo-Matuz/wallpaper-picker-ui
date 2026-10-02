@@ -1,18 +1,17 @@
-# Release notes — Wallpaper Picker UI v3.5
+# Release notes — Wallpaper Picker UI v3.5.0
 
-**In preparation — not yet released.** Finalise the highlights and upgrade notes
-below before tagging `v3.5.0`.  The v3.4.0 notes further down are historical
-reference.
+Release notes for `v3.5.0`. The tagged GitHub Actions workflow creates a draft
+release; review its assets and publish it after the build succeeds.
 
 ## Highlights
 
-* **Nix / Home Manager support** — the project ships a `flake.nix` with a dev
-  shell, a buildable package (`nix build`), a NixOS module, and a Home Manager
-  module that declaratively manages `~/.config/WallpaperPickerUI/config.json`.
+* **Nix / Home Manager support** — the x86_64-linux flake packages the pinned,
+  hash-verified AppImage with a desktop entry and FFmpeg for thumbnails. It
+  includes a NixOS installation module and a Home Manager configuration module.
 * **Home Manager configuration module** — users can declare `command`,
   `wallpapersPath`, `debugMode`, `newWallpapers`, `darkMode`, and `language`
-  in their HM config; HM writes `config.json` as the source of truth, and the
-  app's runtime `updateConfig()` calls still work on top.
+  in their HM config; the generated `config.json` is the declarative source
+  of truth.
 * **Single-source icon generation** — all Tauri bundle icons (ICO, ICNS, PNGs),
   the web favicon, and `icon-256` are now generated from one source image
   (`Icon.png`) via `scripts/gen-icons.py`.  ICO and ICNS embed multiple
@@ -45,11 +44,10 @@ reference.
 
 ## Upgrade notes
 
-* Nix / Home Manager users: `home-manager switch` rewrites
-  `~/.config/WallpaperPickerUI/config.json` to match the HM declaration; the
-  app's in-app setting edits are preserved if they happen after the switch, but
-  a later switch will reset the file.  For most users `command`, `wallpapersPath`,
-  `darkMode`, and `language` are static preferences, so conflicts are rare.
+* Home Manager writes `~/.config/WallpaperPickerUI/config.json` as a read-only
+  symlink. Edit the Nix declaration and rebuild to change preferences; in-app
+  settings cannot persist with this module. Use the NixOS module or install the
+  package alone if you prefer writable in-app settings.
 * All icons are now regenerated from `Icon.png`; if you replaced any icon file
   manually in a previous install, re-apply your changes to `Icon.png` and run
   `scripts/gen-icons.py`.
