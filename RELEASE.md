@@ -1,64 +1,13 @@
-# Release notes — Wallpaper Picker UI v3.5.0
+# Release notes — Wallpaper Picker UI v3.6.0 (draft)
 
-Release notes for `v3.5.0`. The tagged GitHub Actions workflow creates a draft
-release; review its assets and publish it after the build succeeds.
+For the next release. Version numbers and the published v3.5.0 release remain unchanged until v3.6.0 is prepared and tagged.
 
-## Highlights
+## Changes
 
-* **Nix / Home Manager support** — the x86_64-linux flake packages the pinned,
-  hash-verified AppImage with a desktop entry and FFmpeg for thumbnails. It
-  includes a NixOS installation module and a Home Manager configuration module.
-* **Home Manager configuration module** — users can declare `command`,
-  `wallpapersPath`, `debugMode`, `newWallpapers`, `darkMode`, and `language`
-  in their HM config; the generated `config.json` is the declarative source
-  of truth.
-* **Single-source icon generation** — all Tauri bundle icons (ICO, ICNS, PNGs),
-  the web favicon, and `icon-256` are now generated from one source image
-  (`Icon.png`) via `scripts/gen-icons.py`.  ICO and ICNS embed multiple
-  resolutions; every PNG is Lanczos-resized to its exact target dimensions.
-* **Fix first-run i18n placeholder-key bug (P0)** — the app no longer displays
-  literal translation keys (e.g. `home.search.placeholder`) on first run.  Two
-  root causes fixed: English translation file code `"en"` → `"eng"` to match the
-  codebase convention, and `import.meta.glob` module-namespace handling so the
-  `languages` registry populated correctly at runtime.  `serde_json = "1"` added
-  to `Cargo.toml` (was missing; Rust code uses it for config serialization).
-* **README improvements** — added Nix / Home Manager installation instructions
-  with a complete HM example config, documented `bun run version` for syncing
-  the version across all three files, and clarified the Dependencies and
-  Contributing Translations sections.
-* **UI / style rework (portfolio aesthetic)** — ported the matuz.dev design
-  system into the app: Tailwind v4 `@theme` tokens (`#1e65ff` primary,
-  `#702ef3` secondary, `#fc1a70` accent, `#030a14` bg, etc.), Inter +
-  JetBrains Mono + Newsreader via Google Fonts, `text-gradient` and
-  `animate-in` utilities, custom scrollbar (primary-on-hover), `::selection`
-  secondary color, focus-visible outline. Re-spun button to square-edged
-  uppercase with letter-spacing and 4 variants (accent / primary / outline /
-  ghost). Re-skinned card, input, switch, dialog, select, and progress to
-  flat `bg-surface` + `border-border` with no shadows. Navbar → translucent
-  `bg-background/80 backdrop-blur-sm border-b`. Display grid → `bg-surface`
-  thumbnail cards with a cleaner hover overlay. `Space` → gradient divider.
-  Settings page → centered `max-w-2xl` single-column layout with consistent
-  `p-6` card padding, `text-muted` descriptions, and `font-semibold text-lg`
-  titles. Footer → `border-t border-foreground/10 bg-surface` with mono
-  uppercase tracking.
+- Show **Wallpaper Picker UI** as the window title and application name in desktop and installer metadata. The executable remains `wallpaper-picker-ui`.
+- Keep the existing application identifier and Windows MSI upgrade code so the display-name change does not create a separate MSI installation.
 
-## Upgrade notes
+## For developers
 
-* Home Manager writes `~/.config/WallpaperPickerUI/config.json` as a read-only
-  symlink. Edit the Nix declaration and rebuild to change preferences; in-app
-  settings cannot persist with this module. Use the NixOS module or install the
-  package alone if you prefer writable in-app settings.
-* All icons are now regenerated from `Icon.png`; if you replaced any icon file
-  manually in a previous install, re-apply your changes to `Icon.png` and run
-  `scripts/gen-icons.py`.
-* The i18n fix means first-run users now see the correct translated text
-  immediately; existing installs are unaffected.
-* **Visual rework** — the entire app has been restyled to match the matuz.dev
-  portfolio aesthetic.  The colour palette is now the portfolio's
-  navy / blue-violet / pink scheme; buttons are square-edged uppercase with
-  letter-spacing; cards, inputs, switches, dialogs, selects, and progress
-  all use flat `bg-surface` + `border-border` with no shadows.  The navbar
-  uses a translucent background with backdrop blur; the settings page is a
-  centred single-column layout.  If you have custom CSS overrides, re-check
-  them against the new token names (`--color-primary`, `--color-surface`,
-  `--color-border`, etc.).
+- Added tests for frontend functions, Svelte components, scripts, and Rust backend modules. Each test lives alongside its implementation in a per-module directory.
+- CI now runs Bun unit tests and Vitest component tests on Linux and Windows, alongside the existing Rust checks and tests.

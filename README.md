@@ -15,24 +15,21 @@ Wallpaper Picker UI lets you quickly preview wallpapers, automatically generate 
 
 ## Features
 
-* Grid-based wallpaper browser with clean thumbnail previews
-* Automatic video thumbnails generated with FFmpeg
-* Animated/live wallpaper support
-* Customizable wallpaper apply command
-
-  * Works with `mpvpaper`, but can use any script or tool
-* Theme support
-
-  * Includes a pre-made theme
-  * Supports custom themes
-  * Manual dark/light mode toggle
-* Multi-language support:
-
-  * English
-  * Português (Brasil)
-  * Deutsch
-  * Français
-  * Español
+- Grid-based wallpaper browser with clean thumbnail previews
+- Automatic video thumbnails generated with FFmpeg
+- Animated/live wallpaper support
+- Customizable wallpaper apply command
+- Works with `mpvpaper`, but can use any script or tool
+- Theme support
+  - Includes a pre-made theme
+  - Supports custom themes
+  - Manual dark/light mode toggle
+- Multi-language support:
+  - English
+  - Português (Brasil)
+  - Deutsch
+  - Français
+  - Español
 
 ## Installation
 
@@ -350,6 +347,26 @@ Wallpaper Picker UI is built with **[Tauri](https://tauri.app/)**, a secure and 
 * **Frontend:** Svelte + TypeScript
 
   * Reactive UI with strong type safety and a modern development experience
+
+### Testing
+
+```bash
+bun install --frozen-lockfile
+bun run check:translations
+bun run lint
+bun run check
+bun run test             # Bun tests for application logic and scripts
+bun run test:components  # Vitest/jsdom tests for Svelte components
+bun run build
+
+# With Rust and Tauri's system dependencies installed:
+cd src-tauri && cargo check && cargo test
+```
+
+Tests live beside their implementations in per-module directories (for example,
+`src/lib/api/config/read/read.ts` and `read.test.ts`, or
+`src-tauri/src/get_videos_list/mod.rs` and `tests.rs`). The CI workflow runs both
+frontend test commands on Linux and Windows, plus the Rust suite on both platforms.
 
 ### Updating the version
 
