@@ -21,8 +21,8 @@ const searchPlaceholder = inputPlaceholder || $t("home.search.placeholder");
 >
     <div class="flex items-center gap-3 max-w-7xl mx-auto w-full">
         {#if leftIcon}
-            <Button onclick={leftOnClick} variant="outline" size="sm" class="w-9">
-                <svelte:component this={leftIcon} class="size-5" />
+            <Button onclick={leftOnClick} variant="outline" size="sm" class="size-9 p-0!">
+                <svelte:component this={leftIcon} class="size-5 shrink-0" />
             </Button>
         {/if}
 
@@ -39,8 +39,8 @@ const searchPlaceholder = inputPlaceholder || $t("home.search.placeholder");
         {/if}
 
         {#if rightIcon}
-            <Button onclick={rightOnClick} variant="ghost" size="sm" class="w-9">
-                <svelte:component this={rightIcon} class="size-5" />
+            <Button onclick={rightOnClick} variant="ghost" size="sm" class="size-9 p-0!">
+                <svelte:component this={rightIcon} class="size-5 shrink-0" />
             </Button>
         {/if}
     </div>
