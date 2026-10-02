@@ -1,6 +1,7 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
-	"productName": "wallpaper-picker-ui",
+	"productName": "Wallpaper Picker UI",
+	"mainBinaryName": "wallpaper-picker-ui",
 	"version": "3.5.0",
 	"identifier": "dev.matuz.wallpaper-picker-ui",
 	"build": {
@@ -12,7 +13,7 @@
 	"app": {
 		"windows": [
 			{
-				"title": "wallpaper-picker-ui",
+				"title": "Wallpaper Picker UI",
 				"width": 950,
 				"height": 600,
 				"fullscreen": false,
@@ -43,6 +44,9 @@
 		"windows": {
 			"nsis": {
 				"installMode": "currentUser"
+			},
+			"wix": {
+				"upgradeCode": "83118bd9-967b-5a1f-94be-e18868474288"
 			}
 		}
 	},
