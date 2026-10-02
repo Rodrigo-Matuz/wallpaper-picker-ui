@@ -46,7 +46,7 @@ lerna-debug.log*
 # Local / misc
 # =====================
 *.local
-docs/
+docs/*
 
 # Tauri updater signing keys (NEVER commit the private key)
 .tauri-keys/
