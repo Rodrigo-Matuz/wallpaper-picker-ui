@@ -1,15 +1,6 @@
 <script lang="ts">
-import { Info } from "@lucide/svelte";
+import SettingRow from "$components/settings/Row/row.svelte";
 import { Button } from "$components/ui/button";
-import { Card, CardTitle } from "$components/ui/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "$components/ui/dialog";
 import { Input } from "$components/ui/input";
 import { fetchConfig } from "$lib/api/config/read/read";
 import { updateConfig } from "$lib/api/config/update/update";
@@ -48,39 +39,20 @@ async function handleSave() {
 }
 </script>
 
-<Card>
-    <Dialog>
-        <div class="p-6">
-            <div class="flex items-start justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <DialogTrigger>
-                        <Info class="text-muted hover:text-primary cursor-pointer transition-colors" size={18} />
-                    </DialogTrigger>
-                    <CardTitle class="font-semibold text-lg leading-none text-foreground">
-                        {name}
-                    </CardTitle>
-                </div>
-                <Button onclick={handleSave} size="sm" variant={mustSave === 'destructive' ? 'outline' : 'primary'}>
-                    {name}
-                </Button>
-            </div>
-            <p class="mt-3 text-muted text-sm leading-relaxed">{shortDescription}</p>
-        </div>
-        <DialogContent class="bg-surface">
-            <DialogHeader>
-                <DialogTitle class="font-semibold text-lg text-foreground">
-                    {name}
-                </DialogTitle>
-                <DialogDescription class="text-muted text-sm">
-                    {@html hintDescription}
-                </DialogDescription>
-            </DialogHeader>
+<SettingRow {name} {shortDescription} {hintDescription} stacked>
+    {#snippet children(labelId, descriptionId)}
+        <form class="flex min-w-0 flex-col gap-3 sm:flex-row" on:submit|preventDefault={handleSave}>
             <Input
-                class="w-full mt-4"
+                class="h-11 min-w-0 flex-1 rounded-none border-foreground/15 bg-background font-mono text-[13px]"
                 placeholder={inputPlaceholder}
+                aria-labelledby={labelId}
+                aria-describedby={descriptionId}
                 bind:value={inputValue}
                 oninput={handleInputChange}
             />
-        </DialogContent>
-    </Dialog>
-</Card>
+            <Button type="submit" size="sm" variant={mustSave === 'destructive' ? 'primary' : 'outline'} class="min-h-11 shrink-0">
+                {$t('settings.command.button.text')}
+            </Button>
+        </form>
+    {/snippet}
+</SettingRow>

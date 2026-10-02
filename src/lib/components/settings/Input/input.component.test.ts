@@ -25,13 +25,11 @@ describe("SettingsInput", () => {
 			inputPlaceholder: "Enter command",
 		});
 		await waitFor(() => expect(fetchConfig).toHaveBeenCalledTimes(1));
-		const trigger = document.querySelector("[data-dialog-trigger]");
-		if (!trigger) throw new Error("Settings dialog trigger is missing");
-		await fireEvent.click(trigger);
-		const field = (await screen.findByPlaceholderText("Enter command")) as HTMLInputElement;
+		const field = screen.getByRole("textbox", { name: "Command" }) as HTMLInputElement;
+		expect(document.querySelector("[data-dialog-trigger]")).toBeNull();
 		expect(field.value).toBe("mpvpaper $VP");
 		await fireEvent.input(field, { target: { value: "new-wallpaper $VP" } });
-		await fireEvent.click(screen.getByRole("button", { name: "Command" }));
+		await fireEvent.click(screen.getByRole("button", { name: "SAVE" }));
 		expect(updateConfig).toHaveBeenCalledExactlyOnceWith({ command: "new-wallpaper $VP" });
 		expect(log).not.toHaveBeenCalled();
 	});

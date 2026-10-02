@@ -15,7 +15,9 @@ describe("SettingsSwitch", () => {
 			fetchValue,
 			onToggle,
 		});
-		const toggle = screen.getByRole("switch");
+		const toggle = screen.getByRole("switch", { name: "Dark Mode" });
+		expect(screen.getByRole("heading", { name: "Dark Mode" })).toBeTruthy();
+		expect(document.querySelector("[data-dialog-trigger]")).toBeNull();
 		await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("false"));
 		expect(fetchValue).toHaveBeenCalledTimes(1);
 		await fireEvent.click(toggle);

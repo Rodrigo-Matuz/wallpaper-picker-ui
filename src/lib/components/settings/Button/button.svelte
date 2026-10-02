@@ -1,50 +1,21 @@
 <script lang="ts">
+import SettingRow from "$components/settings/Row/row.svelte";
 import { Button } from "$components/ui/button";
-import { Card, CardTitle } from "$components/ui/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "$components/ui/dialog";
 
 export let name: string = "SettingsName";
 export let shortDescription: string = "Short Description";
 export let hintDescription: string = "Hint Description";
 export let buttonName: string = "BUTTON";
-export let buttonOnClick: () => {};
+export let buttonOnClick: () => unknown;
+export let destructive = false;
 </script>
 
-<Card>
-    <Dialog>
-        <div class="p-6">
-            <div class="flex items-start justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <DialogTrigger>
-                        <span class="cursor-pointer">
-                            <CardTitle class="font-semibold text-lg leading-none text-foreground">
-                                {name}
-                            </CardTitle>
-                        </span>
-                    </DialogTrigger>
-                </div>
-                <Button onclick={buttonOnClick} size="sm" variant="primary">
-                    {buttonName}
-                </Button>
-            </div>
-            <p class="mt-3 text-muted text-sm leading-relaxed">{shortDescription}</p>
+<SettingRow {name} {shortDescription} {hintDescription}>
+    {#snippet children(labelId, descriptionId)}
+        <div role="group" aria-labelledby={labelId} aria-describedby={descriptionId}>
+            <Button onclick={buttonOnClick} size="sm" variant="outline" class={destructive ? 'min-h-11 whitespace-normal border-accent/35 text-accent hover:border-accent! hover:text-accent!' : 'min-h-11 whitespace-normal hover:border-accent! hover:text-accent!'}>
+                {buttonName}
+            </Button>
         </div>
-        <DialogContent class="bg-surface">
-            <DialogHeader>
-                <DialogTitle class="font-semibold text-lg text-foreground">
-                    {name}
-                </DialogTitle>
-                <DialogDescription class="text-muted text-sm">
-                    {@html hintDescription}
-                </DialogDescription>
-            </DialogHeader>
-        </DialogContent>
-    </Dialog>
-</Card>
+    {/snippet}
+</SettingRow>
