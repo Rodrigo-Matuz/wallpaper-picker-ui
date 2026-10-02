@@ -86,6 +86,6 @@ jobs:
         if: runner.os == 'Linux' && github.event_name == 'push'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(flake): bump to ${GITHUB_REF_NAME}"
+          commit_message: "chore(flake): bump to ${{ github.ref_name }}"
           file_pattern: flake.nix
           branch: main

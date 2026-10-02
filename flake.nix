@@ -12,7 +12,7 @@
 
       # Install the published release, not a source build that downloads Bun and
       # Cargo dependencies inside Nix's network-isolated build sandbox.
-      # Hash verified against the v3.4.0 GitHub release asset (and a local download).
+      # Hash derived from the AppImage built and signed by the release workflow.
       appImage = pkgs.fetchurl {
         url = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v${version}/wallpaper-picker-ui_${version}_amd64.AppImage";
         hash = "sha256-SNffzyWPopp8D48zYM3XRusBZ0GkOUIBxweX4bhRfuo=";
