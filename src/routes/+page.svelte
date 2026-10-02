@@ -12,6 +12,7 @@ import { currentLanguage, setLanguage, t } from "$lib/lang/index";
 let searchQuery = $state("");
 let loading = $state(true);
 const translate = $derived($t);
+let visibleWallpapers = $state(0);
 
 onMount(async () => {
 	try {
@@ -51,14 +52,16 @@ const handleInputChange = (event: Event) => {
             />
 
             <div class="px-4 pb-8">
-                <Display {searchQuery} />
+                <Display {searchQuery} onVisibleCountChange={(count) => { visibleWallpapers = count; }} />
             </div>
         </div>
 
-        <footer class="border-t border-foreground/10 bg-surface px-4 py-4">
-            <div class="mx-auto flex max-w-7xl flex-col items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle sm:flex-row sm:items-center sm:justify-between">
-                <span>{translate('home.thank.you.footer')}</span>
-            </div>
-        </footer>
+        {#if visibleWallpapers === 0}
+            <footer class="border-t border-foreground/10 bg-surface px-4 py-4">
+                <div class="mx-auto flex max-w-7xl flex-col items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle sm:flex-row sm:items-center sm:justify-between">
+                    <span>{translate('home.thank.you.footer')}</span>
+                </div>
+            </footer>
+        {/if}
     </div>
 {/if}

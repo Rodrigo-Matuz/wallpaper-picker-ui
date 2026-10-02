@@ -13,6 +13,7 @@ import { t } from "$lib/lang/index";
 import { normalizeForSearch } from "$lib/utils/search/search";
 
 export let searchQuery: string = "";
+export let onVisibleCountChange: (count: number) => void = () => {};
 
 let value = 0;
 
@@ -30,6 +31,9 @@ $: normalizedSearchQuery = normalizeForSearch(searchQuery);
 
 $: filteredThumbnails = Object.entries($thumbnails).filter(([, videoPath]) =>
 	normalizeForSearch(videoPath).includes(normalizedSearchQuery),
+);
+$: onVisibleCountChange(
+	$totalVideos > 0 && $thumbnailsGenerated < $totalVideos ? 0 : filteredThumbnails.length,
 );
 </script>
 
