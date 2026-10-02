@@ -2,7 +2,13 @@ use walkdir::WalkDir;
 
 /// Directories that never contain wallpapers and are expensive to walk.
 const SKIPPED_DIRS: &[&str] = &[
-    "$RECYCLE.BIN", "System Volume Information", "lost+found", "proc", "sys", "dev", "run",
+    "$RECYCLE.BIN",
+    "System Volume Information",
+    "lost+found",
+    "proc",
+    "sys",
+    "dev",
+    "run",
 ];
 
 /// Skips hidden entries (dot-prefixed, e.g. `.git`, `.cache`) and known noise
@@ -48,3 +54,6 @@ pub async fn get_videos_list(directory: String) -> Result<Vec<String>, String> {
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[cfg(test)]
+mod tests;

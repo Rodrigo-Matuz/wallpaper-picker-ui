@@ -44,6 +44,12 @@ fn run_detached(full_command: &str) -> Result<(), String> {
         .map_err(|e| format!("Failed to execute command: {}", e))
 }
 
+/// Substitutes every `$VP` with the quoted path, preserving the command's
+/// existing string-replacement semantics.
+fn substitute_video_path(command: &str, path: &str) -> String {
+    command.replace("$VP", &format!("\"{}\"", path))
+}
+
 /// Sends the user's wallpaper command for the selected video.
 ///
 /// `$VP` in the configured command is replaced with the quoted video path.
@@ -51,7 +57,7 @@ fn run_detached(full_command: &str) -> Result<(), String> {
 /// only spawn failures (cannot start the shell) are reported back as `Err`.
 #[tauri::command]
 pub async fn send_command(command: String, path: String) -> Result<String, String> {
-    let full_command = command.replace("$VP", &format!("\"{}\"", path));
+    let full_command = substitute_video_path(&command, &path);
 
     tauri::async_runtime::spawn_blocking(move || run_detached(&full_command))
         .await
@@ -59,3 +65,6 @@ pub async fn send_command(command: String, path: String) -> Result<String, Strin
 
     Ok("Command is running in the background".to_string())
 }
+
+#[cfg(test)]
+mod tests;

@@ -3,6 +3,8 @@
 //! Kept separate from the production code (generate_thumbnails.rs).
 
 use super::*;
+use crate::test_support::TempDir;
+use std::fs;
 use std::path::PathBuf;
 
 #[test]
@@ -42,4 +44,44 @@ fn non_utf8_path_is_an_error_not_a_panic() {
     use std::os::unix::ffi::OsStrExt;
     let path = PathBuf::from(OsStr::from_bytes(b"/videos/\xff\xfe.mp4"));
     assert!(generate_thumbnail_name(&path).is_err());
+}
+
+#[test]
+fn path_without_file_stem_reports_error() {
+    assert!(generate_thumbnail_name(Path::new(""))
+        .unwrap_err()
+        .contains("file stem"));
+}
+
+#[test]
+fn thumbnail_name_handles_unicode_and_preserves_file_stem() {
+    let path = Path::new("/videos/café 雨.mov");
+    let name = generate_thumbnail_name(path).unwrap();
+    assert!(name.starts_with("café 雨-"));
+    assert!(name.ends_with(".png"));
+}
+
+#[test]
+fn only_nonempty_existing_files_are_valid_thumbnails() {
+    let tmp = TempDir::new();
+    let path = tmp.path().join("thumbnail.png");
+    assert!(!is_valid_thumbnail(&path));
+    fs::write(&path, []).unwrap();
+    assert!(!is_valid_thumbnail(&path));
+    fs::write(&path, b"data").unwrap();
+    assert!(is_valid_thumbnail(&path));
+}
+
+#[test]
+fn thumbnail_directory_creation_failure_is_reported() {
+    let tmp = TempDir::new();
+    let file = tmp.path().join("already-a-file");
+    fs::write(&file, b"data").unwrap();
+    let result = tauri::async_runtime::block_on(generate_thumb(
+        tmp.path().join("missing-video.mp4").display().to_string(),
+        file.join("impossible").display().to_string(),
+    ));
+    assert!(result
+        .unwrap_err()
+        .starts_with("Failed to create thumbnails directory:"));
 }

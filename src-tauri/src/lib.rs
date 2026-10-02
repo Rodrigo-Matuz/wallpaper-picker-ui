@@ -3,6 +3,8 @@ mod generate_thumbnails;
 mod get_videos_list;
 mod log_message;
 mod send_command;
+#[cfg(test)]
+mod test_support;
 mod validate_video_paths;
 
 pub use cleanup_thumbnails::cleanup_thumbnails;

@@ -46,3 +46,6 @@ pub async fn cleanup_thumbnails(
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[cfg(test)]
+mod tests;

@@ -16,3 +16,6 @@ pub async fn validate_video_paths(paths: Vec<String>) -> Result<Vec<String>, Str
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[cfg(test)]
+mod tests;

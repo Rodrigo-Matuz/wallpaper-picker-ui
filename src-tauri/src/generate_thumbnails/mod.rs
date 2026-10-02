@@ -118,10 +118,7 @@ fn is_valid_thumbnail(path: &Path) -> bool {
 
 /// Cheap sanity check that ffmpeg can be executed.
 fn ffmpeg_available() -> bool {
-    Command::new("ffmpeg")
-        .arg("-version")
-        .output()
-        .is_ok()
+    Command::new("ffmpeg").arg("-version").output().is_ok()
 }
 
 /// Generates a thumbnail image for a video using `ffmpeg`.
@@ -176,10 +173,7 @@ fn generate_thumbnail(video_path: &Path, thumbnail_path: &Path) -> bool {
         }
     }
 
-    eprintln!(
-        "Warning: failed to generate thumbnail {:?}",
-        thumbnail_path
-    );
+    eprintln!("Warning: failed to generate thumbnail {:?}", thumbnail_path);
     false
 }
 
