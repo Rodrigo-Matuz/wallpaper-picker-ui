@@ -5,6 +5,19 @@ import Switch from "./switch.svelte";
 afterEach(cleanup);
 
 describe("Switch", () => {
+	it("defines circular track and thumb with explicit padded endpoints", () => {
+		render(Switch, { "aria-label": "Geometry" });
+		const track = screen.getByRole("switch", { name: "Geometry" });
+		const thumb = track.querySelector('[data-slot="switch-thumb"]');
+		expect(track.classList.contains("rounded-full")).toBe(true);
+		expect(track.classList.contains("h-6")).toBe(true);
+		expect(track.classList.contains("p-0.5")).toBe(true);
+		expect(thumb?.classList.contains("rounded-full")).toBe(true);
+		expect(thumb?.classList.contains("data-[state=checked]:translate-x-4")).toBe(true);
+		expect(thumb?.classList.contains("duration-150")).toBe(true);
+		expect(thumb?.classList.contains("motion-reduce:transition-none")).toBe(true);
+	});
+
 	it("reports each user toggle and updates its checked state", async () => {
 		const onCheckedChange = vi.fn();
 		render(Switch, { "aria-label": "Dark mode", checked: false, onCheckedChange });
