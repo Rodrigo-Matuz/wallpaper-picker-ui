@@ -1,5 +1,5 @@
 import { type BaseDirectory, exists, mkdir } from "@tauri-apps/plugin-fs";
-import { log } from "./logger";
+import { log } from "./logger/logger";
 
 /** DOCS:
  * Ensures that a directory exists under a given Tauri base directory.

@@ -4,8 +4,8 @@ import { onMount } from "svelte";
 import { goto } from "$app/navigation";
 import Display from "$components/display";
 import Navbar from "$components/navbar";
-import { fetchConfig } from "$lib/api/config/read";
-import { selectFolder } from "$lib/api/system/selectFolder";
+import { fetchConfig } from "$lib/api/config/read/read";
+import { selectFolder } from "$lib/api/system/selectFolder/selectFolder";
 import { handleThumbnails } from "$lib/api/thumbnails/handle";
 import { currentLanguage, setLanguage, t } from "$lib/lang/index";
 

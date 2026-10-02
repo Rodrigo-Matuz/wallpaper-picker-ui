@@ -1,7 +1,7 @@
 import { BaseDirectory, exists, writeFile } from "@tauri-apps/plugin-fs";
 import { defaultConfig } from "$api/config/defaults";
 import { ensureDir } from "$utils/ensureDirs";
-import { log } from "$utils/logger";
+import { log } from "$utils/logger/logger";
 import { CONFIG_FILE_PATH } from "$utils/paths";
 
 /** DOCS:

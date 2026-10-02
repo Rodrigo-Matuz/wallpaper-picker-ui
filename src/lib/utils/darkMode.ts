@@ -1,7 +1,7 @@
 import { setMode } from "mode-watcher";
-import { fetchConfig } from "$api/config/read";
-import { updateConfig } from "$api/config/update";
-import { log } from "./logger";
+import { fetchConfig } from "$api/config/read/read";
+import { updateConfig } from "$api/config/update/update";
+import { log } from "./logger/logger";
 
 /**
  * Toggles the application's dark mode setting.

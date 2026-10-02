@@ -3,7 +3,7 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
 import type { ApiResult } from "$types/resultTypes";
 import { ensureDir } from "$utils/ensureDirs";
-import { log } from "$utils/logger";
+import { log } from "$utils/logger/logger";
 import { THUMBNAILS_DIR } from "$utils/paths";
 
 /** DOCS:

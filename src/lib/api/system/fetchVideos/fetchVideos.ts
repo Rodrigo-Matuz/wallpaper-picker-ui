@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { fetchConfig } from "$api/config/read";
-import { log } from "$utils/logger";
+import { fetchConfig } from "$api/config/read/read";
+import { log } from "$utils/logger/logger";
 
 /** DOCS:
  * Fetches a list of video files from the directory specified in the application's configuration file.

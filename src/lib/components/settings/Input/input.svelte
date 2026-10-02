@@ -11,10 +11,10 @@ import {
 	DialogTrigger,
 } from "$components/ui/dialog";
 import { Input } from "$components/ui/input";
-import { fetchConfig } from "$lib/api/config/read";
-import { updateConfig } from "$lib/api/config/update";
+import { fetchConfig } from "$lib/api/config/read/read";
+import { updateConfig } from "$lib/api/config/update/update";
 import { t } from "$lib/lang/index";
-import { log } from "$lib/utils/logger";
+import { log } from "$lib/utils/logger/logger";
 
 export let name: string = "SettingsName";
 export let shortDescription: string = "Short Description";

@@ -11,9 +11,10 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "biome check .",
 		"format": "biome format --write .",
-		"test": "bun test",
-		"check:translations": "node scripts/check-translations.mjs",
-		"version": "node scripts/version.mjs",
+		"test": "bun test --path-ignore-patterns='**/*.component.test.ts'",
+		"test:components": "vitest run --config vitest.config.ts",
+		"check:translations": "node scripts/check-translations/check-translations.mjs",
+		"version": "node scripts/version/version.mjs",
 		"tauri": "tauri"
 	},
 	"license": "MIT",
@@ -38,11 +39,13 @@
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.1.18",
 		"@tauri-apps/cli": "^2",
+		"@testing-library/svelte": "^5",
 		"@types/bun": "^1.4.2",
 		"@types/node": "^25.0.9",
 		"autoprefixer": "^10.4.23",
 		"bits-ui": "^2.14.4",
 		"clsx": "^2.1.1",
+		"jsdom": "^26",
 		"postcss": "^8.5.6",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
@@ -52,6 +55,7 @@
 		"tailwindcss": "^4.1.18",
 		"tw-animate-css": "^1.4.0",
 		"typescript": "~5.6.2",
-		"vite": "^6.0.3"
+		"vite": "^6.0.3",
+		"vitest": "^3"
 	}
 }

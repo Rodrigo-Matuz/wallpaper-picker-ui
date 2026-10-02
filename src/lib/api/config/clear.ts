@@ -1,6 +1,6 @@
 import { BaseDirectory, remove } from "@tauri-apps/plugin-fs";
-import { clearConfigCache } from "$api/config/read";
-import { log } from "$utils/logger";
+import { clearConfigCache } from "$api/config/read/read";
+import { log } from "$utils/logger/logger";
 import { CONFIG_FILE_PATH } from "$utils/paths";
 
 /** DOCS:

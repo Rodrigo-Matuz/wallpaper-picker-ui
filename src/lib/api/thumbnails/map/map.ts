@@ -1,9 +1,9 @@
 import { BaseDirectory, exists, readTextFile, writeFile } from "@tauri-apps/plugin-fs";
-import { fetchConfig } from "$api/config/read";
-import { updateConfig } from "$api/config/update";
+import { fetchConfig } from "$api/config/read/read";
+import { updateConfig } from "$api/config/update/update";
 import type { ThumbnailRecord } from "$types/configTypes";
 import { ensureDir } from "$utils/ensureDirs";
-import { log } from "$utils/logger";
+import { log } from "$utils/logger/logger";
 import { THUMBNAILS_DIR } from "$utils/paths";
 
 /**

@@ -19,7 +19,8 @@ jobs:
       - run: bun run check:translations
       - run: bun run lint
       - run: bun run check
-      - run: bun test
+      - run: bun run test
+      - run: bun run test:components
       - run: bun run build
 
   rust:

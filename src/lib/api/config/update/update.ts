@@ -1,9 +1,9 @@
 import { BaseDirectory, writeFile } from "@tauri-apps/plugin-fs";
-import { ensureConfig } from "$api/config/ensure";
-import { fetchConfig, setConfigCache } from "$api/config/read";
+import { ensureConfig } from "$api/config/ensure/ensure";
+import { fetchConfig, setConfigCache } from "$api/config/read/read";
 import type { ConfigInterArgs } from "$types/configTypes";
 import { ensureDir } from "$utils/ensureDirs";
-import { log } from "$utils/logger";
+import { log } from "$utils/logger/logger";
 import { CONFIG_FILE_PATH, CONFIG_ROOT_DIR } from "$utils/paths";
 
 /**

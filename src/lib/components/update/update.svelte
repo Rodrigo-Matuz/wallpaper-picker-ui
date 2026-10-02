@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { toast } from "svelte-sonner";
-import { checkForUpdates, getUpdateState, installUpdate } from "$utils/updating";
+import { checkForUpdates, getUpdateState, installUpdate } from "$utils/updating/updating";
 
 let available = false;
 let version: string | undefined;

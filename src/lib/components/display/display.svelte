@@ -1,7 +1,7 @@
 <script lang="ts">
 import { CirclePlay } from "@lucide/svelte";
 import { onMount } from "svelte";
-import { sendCommand } from "$api/system/execCommand";
+import { sendCommand } from "$api/system/execCommand/execCommand";
 import {
 	handleThumbnails,
 	thumbnails,
@@ -10,7 +10,7 @@ import {
 } from "$api/thumbnails/handle";
 import { Progress } from "$components/ui/progress";
 import { t } from "$lib/lang/index";
-import { normalizeForSearch } from "$lib/utils/search";
+import { normalizeForSearch } from "$lib/utils/search/search";
 
 export let searchQuery: string = "";
 

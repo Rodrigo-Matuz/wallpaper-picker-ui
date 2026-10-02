@@ -1,6 +1,6 @@
 import { BaseDirectory, remove } from "@tauri-apps/plugin-fs";
-import { writeThumbnailMap } from "$api/thumbnails/map";
-import { log } from "$utils/logger";
+import { writeThumbnailMap } from "$api/thumbnails/map/map";
+import { log } from "$utils/logger/logger";
 import { THUMBNAILS_DIR } from "$utils/paths";
 
 /** DOCS:

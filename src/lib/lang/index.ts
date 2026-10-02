@@ -1,5 +1,6 @@
 import { derived, writable } from "svelte/store";
-import { updateConfig } from "$api/config/update";
+import { updateConfig } from "$api/config/update/update";
+import { type LanguageRegistry, resolveTranslation } from "./translate/translate";
 
 /** DOCS:
  * Represents the expected structure of a translation JSON file.
@@ -31,7 +32,7 @@ const translationModules = import.meta.glob<TranslationFile>("./translations/*.j
  * The key is the language code (e.g. "eng", "pt-br").
  * Each entry contains the display name and translation key-value pairs.
  */
-const languages: Record<string, { name: string; data: Record<string, string> }> = {};
+const languages: LanguageRegistry = {};
 
 /** DOCS:
  * Populates the `languages` registry using the loaded translation modules.
@@ -103,18 +104,7 @@ export function setLanguage(lang: string) {
  * ```
  */
 export const t = derived(currentLanguage, ($lang) => {
-	return (key: string) => {
-		if (languages[$lang]?.data[key]) {
-			return languages[$lang].data[key];
-		}
-
-		const base = $lang.split("-")[0];
-		if (languages[base]?.data[key]) {
-			return languages[base].data[key];
-		}
-
-		return languages.eng?.data[key] ?? key;
-	};
+	return (key: string) => resolveTranslation(languages, $lang, key);
 });
 
 export { languages };

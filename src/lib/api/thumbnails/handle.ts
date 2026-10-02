@@ -3,20 +3,20 @@ import { appDataDir, basename } from "@tauri-apps/api/path";
 import { BaseDirectory, readFile } from "@tauri-apps/plugin-fs";
 import { get, writable } from "svelte/store";
 import { toast } from "svelte-sonner";
-import { fetchConfig } from "$api/config/read";
-import { updateConfig } from "$api/config/update";
-import { fetchVideos } from "$api/system/fetchVideos";
-import { generateThumb } from "$api/thumbnails/generate";
+import { fetchConfig } from "$api/config/read/read";
+import { updateConfig } from "$api/config/update/update";
+import { fetchVideos } from "$api/system/fetchVideos/fetchVideos";
+import { generateThumb } from "$api/thumbnails/generate/generate";
 import {
 	migrateThumbnailMapFromConfig,
 	readThumbnailMap,
 	writeThumbnailMap,
-} from "$api/thumbnails/map";
+} from "$api/thumbnails/map/map";
 import { t } from "$lang/index";
 import type { ThumbnailRecord } from "$types/configTypes";
-import { log } from "$utils/logger";
+import { log } from "$utils/logger/logger";
 import { THUMBNAILS_DIR } from "$utils/paths";
-import { sortJsonByKey } from "$utils/sortJson";
+import { sortJsonByKey } from "$utils/sortJson/sortJson";
 
 export const thumbnails = writable<ThumbnailRecord>({});
 export const thumbnailsGenerated = writable(0);

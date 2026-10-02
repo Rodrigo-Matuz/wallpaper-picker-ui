@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { fetchConfig } from "$api/config/read";
+import { fetchConfig } from "$api/config/read/read";
 import type { LoggerInterArgs, StructuredLogMessage } from "$types/loggerTypes";
 
 /** DOCS:

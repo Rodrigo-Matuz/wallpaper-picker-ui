@@ -1,8 +1,8 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { get } from "svelte/store";
-import { updateConfig } from "$api/config/update";
+import { updateConfig } from "$api/config/update/update";
 import { t } from "$lang/index";
-import { log } from "$utils/logger";
+import { log } from "$utils/logger/logger";
 
 /** DOCS:
  * Opens a native folder selection dialog (Tauri dialog plugin), logs the operation,

@@ -1,9 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { get } from "svelte/store";
 import { toast } from "svelte-sonner";
-import { fetchConfig } from "$api/config/read";
+import { fetchConfig } from "$api/config/read/read";
 import { t } from "$lang/index";
-import { log } from "$utils/logger";
+import { log } from "$utils/logger/logger";
 
 /** DOCS:
  * Sends a command to the backend using the provided video path, invoking a Tauri command with the user's configuration settings.
