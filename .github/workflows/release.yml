@@ -9,7 +9,7 @@
 # Linux, NSIS + MSI on Windows) and updater artifacts; review and publish it.
 
 # After the Linux bundle is built, the workflow updates flake.nix with the
-# new version and the hash of that exact AppImage, then commits to main.
+# new version and the hash of that exact .deb, then commits to main.
 
 name: Release
 
@@ -55,7 +55,7 @@ jobs:
 
       # ── Post-release: update flake.nix to track the new version ──────────
       # Only runs on the Linux job to avoid duplicate commits.
-      - name: Update flake.nix version and AppImage SHA256
+      - name: Update flake.nix version and deb SHA256
         if: runner.os == 'Linux' && github.event_name == 'push'
         shell: bash
         run: |
@@ -63,13 +63,13 @@ jobs:
 
           TAG="${GITHUB_REF_NAME}"            # e.g. v3.5.0
           VERSION="${TAG#v}"                  # e.g. 3.5.0
-          APPIMAGE="src-tauri/target/release/bundle/appimage/wallpaper-picker-ui_${VERSION}_amd64.AppImage"
+          DEB="src-tauri/target/release/bundle/deb/wallpaper-picker-ui_${VERSION}_amd64.deb"
 
           echo "Tag: $TAG  Version: $VERSION"
-          test -f "$APPIMAGE"
+          test -f "$DEB"
           # The release is still a draft: use the local artifact, not its
           # GitHub download URL (draft release assets are not public).
-          HASH=$(openssl dgst -sha256 -binary "$APPIMAGE" | base64 -w0)
+          HASH=$(openssl dgst -sha256 -binary "$DEB" | base64 -w0)
 
           # Both replacements must match exactly once; fail rather than
           # silently committing a version with the previous release's hash.

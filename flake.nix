@@ -5,39 +5,46 @@
 
   outputs = { self, nixpkgs }:
     let
-      system = "x86_64-linux"; # The upstream release only publishes an amd64 AppImage.
+      system = "x86_64-linux"; # The upstream release only publishes amd64 Linux bundles.
       pkgs = nixpkgs.legacyPackages.${system};
       lib = nixpkgs.lib;
       version = "3.5.0";
-
-      # Install the published release, not a source build that downloads Bun and
-      # Cargo dependencies inside Nix's network-isolated build sandbox.
-      # Hash derived from the AppImage built and signed by the release workflow.
-      appImage = pkgs.fetchurl {
-        url = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v${version}/wallpaper-picker-ui_${version}_amd64.AppImage";
-        hash = "sha256-SNffzyWPopp8D48zYM3XRusBZ0GkOUIBxweX4bhRfuo=";
+      # Use the published .deb binary, not a sandboxed source build (Bun and
+      # Cargo need prefetched dependencies). The AppImage bundles Ubuntu's
+      # WebKitGTK/Wayland libraries and displays a black window with EGL errors
+      # on newer NixOS Mesa. Re-link this binary to Nixpkgs' native WebKitGTK.
+      # Hash verified against the downloaded release asset's GitHub SHA-256.
+      deb = pkgs.fetchurl {
+        url = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v${version}/wallpaper-picker-ui_${version}_amd64.deb";
+        hash = "sha256-p1zJqeadSN3SM33inTNnxXjhPHAM6Z39KcnluzgiaVA=";
       };
-      appImageContents = pkgs.appimageTools.extract {
+      package = pkgs.stdenv.mkDerivation {
         pname = "wallpaper-picker-ui";
         inherit version;
-        src = appImage;
-      };
-      package = pkgs.appimageTools.wrapType2 {
-        pname = "wallpaper-picker-ui";
-        inherit version;
-        src = appImage;
-        # The FHS sandbox does not mount all host directories (notably /etc/nixos).
-        # Do not force bubblewrap to chdir to an inaccessible host working directory.
-        chdirToPwd = false;
-        nativeBuildInputs = [ pkgs.makeWrapper ];
-        extraInstallCommands = ''
-          # The app launches ffmpeg by name when making video thumbnails.
-          wrapProgram "$out/bin/wallpaper-picker-ui" \
-            --prefix PATH : ${lib.makeBinPath [ pkgs.ffmpeg ]}
-          install -Dm444 ${appImageContents}/usr/share/applications/wallpaper-picker-ui.desktop \
-            "$out/share/applications/wallpaper-picker-ui.desktop"
-          install -Dm444 ${appImageContents}/usr/share/icons/hicolor/256x256/apps/wallpaper-picker-ui.png \
-            "$out/share/icons/hicolor/256x256/apps/wallpaper-picker-ui.png"
+        src = deb;
+        nativeBuildInputs = with pkgs; [ dpkg autoPatchelfHook wrapGAppsHook3 ];
+        buildInputs = with pkgs; [
+          gtk3 webkitgtk_4_1 libsoup_3 gdk-pixbuf cairo glib glib-networking
+          librsvg libayatana-appindicator
+        ];
+        unpackPhase = ''
+          runHook preUnpack
+          dpkg-deb -x "$src" .
+          runHook postUnpack
+        '';
+        dontConfigure = true;
+        dontBuild = true;
+        dontStrip = true;
+        installPhase = ''
+          runHook preInstall
+          install -Dm755 usr/bin/wallpaper-picker-ui "$out/bin/wallpaper-picker-ui"
+          mkdir -p "$out/share"
+          cp -r usr/share/. "$out/share/"
+          runHook postInstall
+        '';
+        preFixup = ''
+          # Video thumbnails launch ffmpeg by name; GTK needs schemas/modules.
+          gappsWrapperArgs+=(--prefix PATH : ${lib.makeBinPath [ pkgs.ffmpeg ]})
         '';
         meta = {
           description = "Desktop UI for browsing and applying wallpapers";

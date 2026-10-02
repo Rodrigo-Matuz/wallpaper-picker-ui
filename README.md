@@ -42,7 +42,7 @@ The easiest option is to download a pre-built binary for your system from the [R
 
 ### NixOS / Home Manager
 
-The x86_64-linux flake installs the pinned GitHub release AppImage (with a desktop launcher and FFmpeg). It provides NixOS and Home Manager modules.
+The x86_64-linux flake installs the pinned GitHub release `.deb` binary, patched to use Nixpkgs' WebKitGTK and GTK libraries (with a desktop launcher and FFmpeg). The AppImage's bundled WebKitGTK can open a black window with an EGL error on newer Mesa/Wayland systems. The flake provides NixOS and Home Manager modules.
 
 <details>
 <summary>Show Nix installation</summary>
@@ -82,6 +82,8 @@ Home Manager writes `~/.config/WallpaperPickerUI/config.json` as a read-only
 symlink. Edit the Nix declaration and rebuild to change preferences; in-app
 changes to this file cannot persist. If you want writable in-app settings,
 install the system module or the package alone instead.
+Do not also install it directly with `nix profile add` when Home Manager owns
+the package; duplicate profile entries can prevent Home Manager activation.
 
 #### Direct installation
 
@@ -90,9 +92,10 @@ nix build github:Rodrigo-Matuz/wallpaper-picker-ui
 nix profile install github:Rodrigo-Matuz/wallpaper-picker-ui
 ```
 
-The package fetches and verifies the pinned release AppImage; it does not
+The package fetches and verifies the pinned release `.deb`; it does not
 compile Bun/Rust dependencies in the Nix sandbox. The release workflow updates
-its version and hash when a new release is built. No signing key is needed to
+its version and hash when a new release is built. Check the native package with
+`bash scripts/check-nix-package.sh` on a Nix host. No signing key is needed to
 install the published release.
 
 </details>
