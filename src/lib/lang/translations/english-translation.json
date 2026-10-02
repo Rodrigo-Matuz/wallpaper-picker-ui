@@ -6,7 +6,7 @@
 		"home.search.placeholder": "Search Wallpapers...",
 		"home.thumbs.generating.text": "Generating thumbnails",
 		"home.thumbs.generating.hint": "Already generated thumbnails? Turn off “New wallpapers” in settings.",
-		"home.thank.you.footer": "Thank you for using the app :3",
+		"home.thank.you.footer": "Thank you for using the app",
 		"home.folder.dialog.title": "Select the folder containing your wallpapers",
 		"toast.command.failed": "Failed to run the wallpaper command",
 		"toast.command.none": "No wallpaper command configured — set one in Settings",

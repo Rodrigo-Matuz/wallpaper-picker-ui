@@ -6,7 +6,7 @@
 		"home.search.placeholder": "Rechercher des fonds d’écran...",
 		"home.thumbs.generating.text": "Génération des miniatures...",
 		"home.thumbs.generating.hint": "Vignettes déjà générées ? Désactivez « Nouveaux fonds d’écran » dans les paramètres.",
-		"home.thank.you.footer": "Merci d’utiliser l’application :3",
+		"home.thank.you.footer": "Merci d’utiliser l’application",
 		"home.folder.dialog.title": "Sélectionnez le dossier contenant vos fonds d’écran",
 		"toast.command.failed": "Échec de l’exécution de la commande de fond d’écran",
 		"toast.command.none": "Aucune commande de fond d’écran configurée — définissez-la dans les paramètres",
