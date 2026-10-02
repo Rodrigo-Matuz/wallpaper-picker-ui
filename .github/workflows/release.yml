@@ -8,9 +8,8 @@
 # The build creates a draft GitHub release with installers (deb/rpm/AppImage on
 # Linux, NSIS + MSI on Windows) and updater artifacts; review and publish it.
 
-# After the release is published the workflow also updates flake.nix with the
-# new version number and AppImage SHA256, then commits that back to main so
-# `nix build` always tracks the latest release without manual edits.
+# After the Linux bundle is built, the workflow updates flake.nix with the
+# new version and the hash of that exact AppImage, then commits to main.
 
 name: Release
 
@@ -64,24 +63,21 @@ jobs:
 
           TAG="${GITHUB_REF_NAME}"            # e.g. v3.5.0
           VERSION="${TAG#v}"                  # e.g. 3.5.0
-          APPIMAGE_NAME="wallpaper-picker-ui_${VERSION}_amd64.AppImage"
-          APPIMAGE_URL="https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/${TAG}/${APPIMAGE_NAME}"
+          APPIMAGE="src-tauri/target/release/bundle/appimage/wallpaper-picker-ui_${VERSION}_amd64.AppImage"
 
           echo "Tag: $TAG  Version: $VERSION"
-          echo "AppImage URL: $APPIMAGE_URL"
+          test -f "$APPIMAGE"
+          # The release is still a draft: use the local artifact, not its
+          # GitHub download URL (draft release assets are not public).
+          HASH=$(openssl dgst -sha256 -binary "$APPIMAGE" | base64 -w0)
 
-          # Download the AppImage to compute its SHA256.
-          curl -fsSL "$APPIMAGE_URL" -o /tmp/appimage
-          HASH=$(sha256sum /tmp/appimage | cut -d' ' -f1)
-          echo "SHA256: $HASH"
-
-          # Update version and sha256 in flake.nix via sed.
-          # The version string appears on its own line:  version = "3.4.0";
-          # The sha256 string appears inside fetchurl's sha256 attribute.
+          # Both replacements must match exactly once; fail rather than
+          # silently committing a version with the previous release's hash.
           FLAKE="flake.nix"
-
-          sed -i "s/version = \"[^\"]*\";/version = \"${VERSION}\";/" "$FLAKE"
-          sed -i "s/sha256 = \"sha256-[a-f0-9]*\";/sha256 = \"sha256-${HASH}\";/" "$FLAKE"
+          grep -qE '^[[:space:]]*version = "[^"]+";' "$FLAKE"
+          grep -qE '^[[:space:]]*hash = "sha256-[^"]+";' "$FLAKE"
+          sed -i -E "s|^([[:space:]]*)version = \"[^\"]+\";|\1version = \"${VERSION}\";|" "$FLAKE"
+          sed -i -E "s|^([[:space:]]*)hash = \"sha256-[^\"]+\";|\1hash = \"sha256-${HASH}\";|" "$FLAKE"
 
           echo "=== flake.nix updated ==="
           git diff "$FLAKE" || true

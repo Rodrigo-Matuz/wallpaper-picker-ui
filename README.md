@@ -42,110 +42,58 @@ The easiest option is to download a pre-built binary for your system from the [R
 
 ### NixOS / Home Manager
 
-The project also provides a Nix flake with a buildable package and Home Manager module.
+The x86_64-linux flake installs the pinned GitHub release AppImage (with a desktop launcher and FFmpeg). It provides NixOS and Home Manager modules.
 
 <details>
 <summary>Show Nix installation</summary>
 
-#### NixOS
+#### Flake input (NixOS or Home Manager)
 
-Add the flake to your system configuration:
+Add the input to your root `flake.nix`:
 
 ```nix
-# configuration.nix (or your NixOS module overlay)
-{
-  inputs.wallpaper-picker-ui = {
-    url = "github:Rodrigo-Matuz/wallpaper-picker-ui";
-    inputs.nixpkgs.follows = "nixpkgs";
-  };
-
-  # ... then in your configuration ...
-  programs.wallpaper-picker-ui.enable = true;
-}
+wallpaper-picker-ui = {
+  url = "github:Rodrigo-Matuz/wallpaper-picker-ui";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
 ```
 
-#### Home Manager
-
-Add the flake to your Home Manager configuration:
+Include `inputs.wallpaper-picker-ui.nixosModules.default` in
+`nixosSystem.modules` and set `programs.wallpaper-picker-ui.enable = true;`
+for a system-wide install. Or include
+`inputs.wallpaper-picker-ui.homeManagerModules.default` in your Home Manager
+module imports to install it per user and declare the preferences:
 
 ```nix
-# home.nix (or your HM modules)
-{
-  inputs.wallpaper-picker-ui = {
-    url = "github:Rodrigo-Matuz/wallpaper-picker-ui";
-    inputs.nixpkgs.follows = "nixpkgs";
-  };
-
-  home = {
-    packages = with pkgs; [
-      # (other packages...)
-    ];
-
-    programs.wallpaper-picker-ui = {
-      enable = true;
-
-      # The command the app runs when you apply a wallpaper.
-      # $VP is replaced with the selected file path.
-      command = "/usr/bin/mpvpaper -o \"loop no-audio\" \"*\" \"$VP\"";
-
-      # Folder to scan for wallpapers (null = app prompts on first run).
-      wallpapersPath = "/home/your-user/Pictures/wallpapers";
-
-      # App behaviour preferences.
-      debugMode = false;
-      newWallpapers = true;
-      darkMode = true;
-
-      # UI language: "eng", "pt-br", "de", "fr", "es".
-      language = "eng";
-    };
+{ config, pkgs, ... }: {
+  programs.wallpaper-picker-ui = {
+    enable = true;
+    command = "${pkgs.mpvpaper}/bin/mpvpaper -o \"loop no-audio\" \"*\" \"$VP\"";
+    wallpapersPath = "${config.home.homeDirectory}/Wallpapers";
+    debugMode = false;
+    newWallpapers = true;
+    darkMode = true;
+    language = "eng"; # eng, pt-br, de, fr, es
   };
 }
 ```
 
-After `home-manager switch`, Home Manager writes:
+Home Manager writes `~/.config/WallpaperPickerUI/config.json` as a read-only
+symlink. Edit the Nix declaration and rebuild to change preferences; in-app
+changes to this file cannot persist. If you want writable in-app settings,
+install the system module or the package alone instead.
 
-```text
-~/.config/WallpaperPickerUI/config.json
-```
-
-The app reads this file on startup. Settings can still be changed at runtime from the app's Settings screen, and those changes are written back to the same file through `updateConfig()`.
-
-The `command`, `wallpapersPath`, `darkMode`, and `language` fields are static preferences, so conflicts between Home Manager and in-app edits are rare.
-
-> **Note:** `home-manager switch` rewrites `config.json` to match your Home Manager declaration. If you frequently change settings in the app, run `home-manager switch` only after updating your declaration, or accept that Home Manager will reset the file to its declared state.
-
-#### Nix development shell
-
-For development, the flake provides a shell containing Bun, Rust, and the required Tauri Linux dependencies:
+#### Direct installation
 
 ```bash
-nix develop
+nix build github:Rodrigo-Matuz/wallpaper-picker-ui
+nix profile install github:Rodrigo-Matuz/wallpaper-picker-ui
 ```
 
-The shell is intended for development. End users who only want to run the application do not need it.
-
-#### Build the Nix package
-
-```bash
-nix build .#default          # pinned to the version in flake.nix
-nix build .#latest           # impure: always fetches the newest release
-nix run .#default            # build + run in one step
-```
-
-`nix build` downloads the pre-built AppImage from the latest GitHub release
-and wraps it so `./result/bin/wallpaper-picker-ui` is the executable.  No
-local compilation, no system webkit2gtk needed at runtime — the AppImage is
-self-contained.
-
-`nix build .#latest` is impure: it queries the GitHub releases API at
-evaluation time to find the current tag, then downloads that release's
-AppImage.  Use it when you want the newest version without waiting for
-flake.nix to be updated after a release.
-
-The signing key (`TAURI_SIGNING_PRIVATE_KEY`) is only needed when building
-installer bundles from source (e.g. inside `nix develop` + `tauri build`);
-it is not required for the pre-built AppImage path.
+The package fetches and verifies the pinned release AppImage; it does not
+compile Bun/Rust dependencies in the Nix sandbox. The release workflow updates
+its version and hash when a new release is built. No signing key is needed to
+install the published release.
 
 </details>
 

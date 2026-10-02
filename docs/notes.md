@@ -1,0 +1,8 @@
+# Nix installation notes
+
+- The published Linux artifact is currently **x86_64 only**. The flake pins the GitHub release AppImage by its verified SHA-256; it uses `appimageTools.wrapType2` so NixOS can install it with a desktop entry/icon. The wrapper adds FFmpeg to `PATH` for video thumbnails.
+- Do not call `bun install` or `cargo fetch` in a normal sandboxed Nix `buildPhase`: the sandbox cannot resolve package registries. A source-based package needs prefetched, fixed-output Bun and Cargo dependencies instead of disabling sandboxing.
+- The Home Manager module writes `~/.config/WallpaperPickerUI/config.json` using `xdg.configFile`. This is a read-only symlink, so app-side settings writes will not persist; change the Nix declaration instead. Use the NixOS module (or install the package directly) to keep settings writable.
+- The release workflow hashes the **local** AppImage produced by Tauri, because the release is still a draft and its GitHub download URL is not yet public at that stage.
+- In this machine's `/etc/nixos/flake.nix`, the Home Manager module belongs in `home-manager.users.matuz.imports`; `home/wallpaper/default.nix` belongs in `home/matuz.nix` imports. The local `/home/matuz/Repos` path is a symlink; Nix `path:` inputs must use the physical `/mnt/workspace_linux/Repos/...` path. A GitHub flake URL avoids this distinction.
+- The local test copy of `/etc/nixos` passed `nix flake check`, `nixos-rebuild dry-build`, and `nixos-rebuild build` with the Home Manager options enabled; this is build validation only, not an activated system or a runtime test.
