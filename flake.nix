@@ -8,14 +8,14 @@
       system = "x86_64-linux"; # The upstream release only publishes an amd64 AppImage.
       pkgs = nixpkgs.legacyPackages.${system};
       lib = nixpkgs.lib;
-      version = "3.4.0";
+      version = "3.5.0";
 
       # Install the published release, not a source build that downloads Bun and
       # Cargo dependencies inside Nix's network-isolated build sandbox.
       # Hash verified against the v3.4.0 GitHub release asset (and a local download).
       appImage = pkgs.fetchurl {
         url = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v${version}/wallpaper-picker-ui_${version}_amd64.AppImage";
-        hash = "sha256-i/cOKgfKNVgNbMi6jaJ70q2oFGnxTLnSXnZn6CebsBg=";
+        hash = "sha256-SNffzyWPopp8D48zYM3XRusBZ0GkOUIBxweX4bhRfuo=";
       };
       appImageContents = pkgs.appimageTools.extract {
         pname = "wallpaper-picker-ui";
