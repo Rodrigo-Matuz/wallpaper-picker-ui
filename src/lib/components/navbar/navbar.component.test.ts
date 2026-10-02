@@ -18,6 +18,15 @@ describe("Navbar", () => {
 		}
 	});
 
+	it("uses matching borderless, transparent controls with success-colored hover", () => {
+		render(Navbar);
+		for (const button of screen.getAllByRole("button")) {
+			expect(button.classList.contains("border-0")).toBe(true);
+			expect(button.classList.contains("hover:bg-transparent!")).toBe(true);
+			expect(button.classList.contains("hover:text-success!")).toBe(true);
+		}
+	});
+
 	it("forwards both action clicks and enabled search input", async () => {
 		const leftOnClick = vi.fn();
 		const rightOnClick = vi.fn();
