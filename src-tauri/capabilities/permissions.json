@@ -28,26 +28,10 @@
 			]
 		},
 		{
-			"identifier": "fs:allow-data-read",
-			"allow": [
-				{
-					"path": "$DATA/dev.matuz.wallpaper-picker-ui/thumbnails"
-				}
-			]
-		},
-		{
-			"identifier": "fs:allow-data-write",
-			"allow": [
-				{
-					"path": "$DATA/dev.matuz.wallpaper-picker-ui/thumbnails"
-				}
-			]
-		},
-		{
 			"identifier": "fs:allow-mkdir",
 			"allow": [
 				{
-					"path": "$DATA/dev.matuz.wallpaper-picker-ui"
+					"path": "$APPDATA/thumbnails"
 				}
 			]
 		},
@@ -55,7 +39,10 @@
 			"identifier": "fs:allow-exists",
 			"allow": [
 				{
-					"path": "$DATA/dev.matuz.wallpaper-picker-ui"
+					"path": "$APPDATA/thumbnails"
+				},
+				{
+					"path": "$APPDATA/thumbnails/map.json"
 				}
 			]
 		},
@@ -63,10 +50,18 @@
 			"identifier": "fs:allow-read-file",
 			"allow": [
 				{
-					"path": "$DATA/dev.matuz.wallpaper-picker-ui/thumbnails"
+					"path": "$APPDATA/thumbnails/map.json"
 				},
 				{
-					"path": "$DATA/dev.matuz.wallpaper-picker-ui/thumbnails/*"
+					"path": "$APPDATA/thumbnails/*"
+				}
+			]
+		},
+		{
+			"identifier": "fs:allow-write-file",
+			"allow": [
+				{
+					"path": "$APPDATA/thumbnails/map.json"
 				}
 			]
 		},

@@ -75,12 +75,17 @@ module imports to install it per user and declare the preferences:
 }
 ```
 
-Home Manager writes `~/.config/WallpaperPickerUI/config.json` as a read-only
-symlink. Edit the Nix declaration and rebuild to change preferences; in-app
-changes to this file cannot persist. If you want writable in-app settings,
-install the system module or the package alone instead.
-Do not also install it directly with `nix profile add` when Home Manager owns
-the package; duplicate profile entries can prevent Home Manager activation.
+Home Manager uses these values **only to initialize**
+`~/.config/WallpaperPickerUI/config.json`. It creates a regular, user-writable
+file if one is missing; subsequent rebuilds leave it alone, so settings changed
+in the app persist. When upgrading from the old Home Manager module, activation
+removes the old managed symlink and seeds a writable file from the current Nix
+values. Changing the Nix values later will **not** reset existing settings; use
+the app to change them, or remove `config.json` while the app is closed and
+activate Home Manager again to seed a fresh copy. Back up the file first if you
+want to retain any settings. Do not also install the app directly with
+`nix profile add` when Home Manager owns the package; duplicate profile entries
+can prevent Home Manager activation.
 
 #### Direct installation
 
@@ -214,12 +219,12 @@ src-tauri/capabilities/permissions.json
 * **Its own configuration file**
 
   * Linux: `~/.config/WallpaperPickerUI/config.json`
-* **Its own application data directory**
+* **Its thumbnail cache**
 
-  * Create, read, write, list, and check files
-  * Thumbnail cache:
-    `~/.local/share/dev.matuz.wallpaper-picker-ui/thumbnails`
-* **Application data directory creation** when it does not already exist
+  * Create/check the thumbnails directory, read/write `thumbnails/map.json`,
+    and read generated thumbnail images via the Tauri filesystem plugin
+  * Linux: `~/.local/share/dev.matuz.wallpaper-picker-ui/thumbnails`
+  * The Rust backend generates and removes thumbnail images in that directory
 * Tauri built-in functionality:
 
   * Open external links (`opener`)

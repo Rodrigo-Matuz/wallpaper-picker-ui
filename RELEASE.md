@@ -1,34 +1,10 @@
-# Release notes — Wallpaper Picker UI v3.6.0
+# Release notes — Wallpaper Picker UI v3.6.1
 
-This release includes the UI overhaul and improvements below.
+This is a correction release for v3.6.0.
 
-## In-app updates are still in progress
+- Permit the app to check, read, and write its thumbnail map in the app-data directory. Thumbnail previews can be persisted and shown again.
+- On Home Manager installations, seed `~/.config/WallpaperPickerUI/config.json` as a regular, writable file instead of a read-only Nix-store symlink. Existing user settings are left untouched on subsequent activations; Nix configuration values are initial defaults, not permanent overrides.
 
-**In-app updating is not available or enabled in v3.6.0.** The updater is still being developed and verified; this version does not include an in-app update interface or automatic update installation.
+The Home Manager module change takes effect after updating its flake input and activating Home Manager/NixOS; installing the new binary alone does not replace an existing managed symlink. Nix package installations must also update the flake input after the release's `.deb` hash is committed to `main`.
 
-To try v3.6.0, download and install the appropriate package from this release, or update through your existing package-management workflow. Nix users update their flake to fetch the latest version; Nix installations will not use the in-app updater.
-
-## Changes
-
-- Show **Wallpaper Picker UI** as the window title and application name in desktop and installer metadata. The executable remains `wallpaper-picker-ui`.
-- Keep the existing application identifier and Windows MSI upgrade code so the display-name change does not create a separate MSI installation.
-
-### UI overhaul
-
-- Rework Settings into an elegant, grouped layout for Wallpaper, Preferences, and Maintenance instead of a stack of cards. Setting titles and descriptions stay visible, with expandable details for additional guidance.
-- Edit the wallpaper command inline with an explicit Save action. Other settings retain their immediate-change behavior, and the language selector shows the currently selected language.
-- Give Settings controls accessible labels and descriptions, and use the accent color for maintenance actions, including Clear and Delete.
-- Refine shared switches with rounded tracks, circular thumbs, correct on/off positioning, and restrained transitions that respect reduced-motion preferences.
-- Unify navbar action buttons with borderless, transparent styling and green hover feedback while retaining correctly sized, nonshrinking icons.
-- Show the home-page thank-you footer only when no wallpapers are displayed, including when a search has no matches; keep it out of the way when the grid is populated.
-- Redesign About with serif headings, restrained dividers, a project introduction and version display, and a responsive contributor roster. Every contributor in the configuration is displayed rather than only the original maintainer.
-- Keep the project website and source repository separate from contributors' personal websites and contact links. Matuz's personal website is `https://matuz.dev`; the project website is `https://matuz.dev/projects/wallpaper-picker`.
-- Keep contributor identities and labelled links available while GitHub profile details load or are unavailable. Handle failed or malformed responses gracefully and cancel pending profile requests when leaving the page.
-- Translate the new Settings and About text into all five supported languages: English, Brazilian Portuguese, French, German, and Spanish.
-- Adapt Settings and About layouts to narrow windows without horizontal scrolling.
-
-## For developers
-
-- Added tests for frontend functions, Svelte components, scripts, and Rust backend modules. Each test lives alongside its implementation in a per-module directory.
-- CI now runs Bun unit tests and Vitest component tests on Linux and Windows, alongside the existing Rust checks and tests.
-- Expand component-test discovery to include routes, with regression coverage for settings controls, navbar and switch styling, filtered-grid footer visibility, multiple contributors, separate project/profile links, and GitHub profile failures.
+In-app updating remains unavailable. Install v3.6.1 through your package manager or from the release assets; do not rely on an in-app update prompt.

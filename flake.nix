@@ -61,6 +61,12 @@
       homeManagerModules.default = { config, pkgs, lib, ... }:
         let
           cfg = config.programs.wallpaper-picker-ui;
+          configPath = "${config.xdg.configHome}/WallpaperPickerUI/config.json";
+          initialConfig = pkgs.writeText "wallpaper-picker-ui-initial-config.json" (builtins.toJSON {
+            inherit (cfg) command debugMode newWallpapers darkMode language;
+            wallpapersPath = if cfg.wallpapersPath == null then "" else cfg.wallpapersPath;
+            thumbnailVersion = 1;
+          });
         in
         {
           options.programs.wallpaper-picker-ui = {
@@ -104,11 +110,16 @@
 
           config = lib.mkIf cfg.enable {
             home.packages = [ cfg.package ];
-            xdg.configFile."WallpaperPickerUI/config.json".text = builtins.toJSON {
-              inherit (cfg) command debugMode newWallpapers darkMode language;
-              wallpapersPath = if cfg.wallpapersPath == null then "" else cfg.wallpapersPath;
-              thumbnailVersion = 1;
-            };
+            # A managed xdg.configFile is a read-only store symlink. Let Home
+            # Manager remove its old link during linkGeneration, then seed a
+            # normal user-owned file only when no config already exists.
+            home.activation.wallpaperPickerSeed = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+              configFile=${lib.escapeShellArg configPath}
+              if [[ ! -e "$configFile" && ! -L "$configFile" ]]; then
+                run mkdir -p -- "''${configFile%/*}"
+                run install -m 600 -- ${lib.escapeShellArg initialConfig} "$configFile"
+              fi
+            '';
           };
         };
 
