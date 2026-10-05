@@ -11,7 +11,9 @@ import { join } from "node:path";
 const TRANSLATIONS_DIR = "src/lib/lang/translations";
 const KEY_PATTERN = /^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9]+)+$/;
 
-const files = readdirSync(TRANSLATIONS_DIR).filter((f) => f.endsWith(".json"));
+const files = readdirSync(TRANSLATIONS_DIR)
+	.filter((f) => f.endsWith(".json"))
+	.sort();
 if (files.length === 0) {
 	console.error(`No translation files found in ${TRANSLATIONS_DIR}`);
 	process.exit(1);

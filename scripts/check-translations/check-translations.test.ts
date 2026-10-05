@@ -10,7 +10,7 @@ const english = {
 	translations: { "home.title": "Wallpaper", "home.subtitle": "Videos" },
 };
 
-function runChecker(files: Record<string, unknown>) {
+function runChecker(files: Record<string, unknown>, reverseDirectoryOrder = false) {
 	const root = mkdtempSync(join(tmpdir(), "wallpaper-translations-"));
 	try {
 		const directory = join(root, "src", "lib", "lang", "translations");
@@ -21,8 +21,22 @@ function runChecker(files: Record<string, unknown>) {
 				typeof value === "string" ? value : JSON.stringify(value),
 			);
 		}
+		const cmd = [process.execPath, script];
+		if (reverseDirectoryOrder) {
+			const preload = join(root, "reverse-directory-order.cjs");
+			writeFileSync(
+				preload,
+				[
+					'const fs = require("node:fs");',
+					"const original = fs.readdirSync;",
+					"fs.readdirSync = (...args) => original(...args).sort().reverse();",
+					'require("node:module").syncBuiltinESMExports();',
+				].join("\n"),
+			);
+			cmd.splice(1, 0, "--preload", preload);
+		}
 		const result = Bun.spawnSync({
-			cmd: [process.execPath, script],
+			cmd,
 			cwd: root,
 			stdout: "pipe",
 			stderr: "pipe",
@@ -78,6 +92,21 @@ describe("check-translations", () => {
 		expect(result.exitCode).toBe(1);
 		expect(result.stderr).toContain('missing key "home.subtitle"');
 		expect(result.stderr).toContain('extra key "home.extra"');
+	});
+
+	test("reports the same differences when directory enumeration is reversed", () => {
+		const files = {
+			"english.json": english,
+			"portuguese.json": {
+				code: "pt",
+				translations: { "home.title": "Papel", "home.extra": "Extra" },
+			},
+		};
+		const normal = runChecker(files);
+		const reversed = runChecker(files, true);
+		expect(normal.exitCode).toBe(1);
+		expect(reversed.exitCode).toBe(1);
+		expect(reversed.stderr).toBe(normal.stderr);
 	});
 
 	test("rejects blank and non-string translations", () => {
