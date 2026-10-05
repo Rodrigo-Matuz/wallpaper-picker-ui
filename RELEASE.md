@@ -1,6 +1,12 @@
-# Release notes — Wallpaper Picker UI v3.6.0 (draft)
+# Release notes — Wallpaper Picker UI v3.6.0
 
-For the next release. Version numbers and the published v3.5.0 release remain unchanged until v3.6.0 is prepared and tagged.
+This release includes the UI overhaul and improvements below.
+
+## In-app updates are still in progress
+
+**In-app updating is not available or enabled in v3.6.0.** The updater is still being developed and verified; this version does not include an in-app update interface or automatic update installation.
+
+To try v3.6.0, download and install the appropriate package from this release, or update through your existing package-management workflow. Nix users update their flake to fetch the latest version; Nix installations will not use the in-app updater.
 
 ## Changes
 
