@@ -174,7 +174,7 @@ describe("isolated updater controller", () => {
 				body: expectedBody,
 				date: expectedDate,
 			},
-			canDownload: false,
+			canDownload: true,
 			canInstall: false,
 		});
 		expect(result).toBe("completed");

@@ -16,7 +16,24 @@ export interface AvailableUpdate {
 	readonly date?: string;
 }
 
-export type UpdateFailurePhase = "support" | "check" | "cleanup";
+export type UpdateFailurePhase =
+	| "support"
+	| "check"
+	| "cleanup"
+	| "download"
+	| "install"
+	| "restart";
+
+export type UpdateDownloadEvent =
+	| { event: "Started"; data: { contentLength?: number | null } }
+	| { event: "Progress"; data: { chunkLength: number } }
+	| { event: "Finished" };
+
+export interface UpdateProgress {
+	readonly downloadedBytes: number;
+	readonly totalBytes: number | null;
+	readonly percent: number | null;
+}
 export type UpdateFailureCategory =
 	| "timeout"
 	| "network"
@@ -25,6 +42,9 @@ export type UpdateFailureCategory =
 	| "missing-target"
 	| "support-unavailable"
 	| "cleanup-failed"
+	| "invalid-signature"
+	| "install-failed"
+	| "restart-failed"
 	| "unknown";
 
 export interface UpdateFailure {
@@ -33,8 +53,21 @@ export interface UpdateFailure {
 }
 
 export interface UpdaterSnapshot {
-	readonly status: "idle" | "checking" | "up-to-date" | "available" | "manual-only" | "error";
-	readonly busy: "check" | "dismiss" | null;
+	readonly status:
+		| "idle"
+		| "checking"
+		| "up-to-date"
+		| "available"
+		| "manual-only"
+		| "error"
+		| "downloading"
+		| "ready-to-install"
+		| "installing"
+		| "installer-handoff"
+		| "restarting"
+		| "restart-required";
+	readonly busy: "check" | "dismiss" | "download" | "install" | "restart" | null;
+	readonly progress: UpdateProgress | null;
 	readonly currentVersion: string;
 	readonly support: UpdateSupport | null;
 	readonly availableUpdate: AvailableUpdate | null;
@@ -50,6 +83,11 @@ export interface UpdaterSnapshot {
 export interface NativeUpdateResource extends Omit<AvailableUpdate, "body" | "date"> {
 	readonly body?: string | null;
 	readonly date?: string | null;
+	download?(
+		onEvent: (event: UpdateDownloadEvent) => void,
+		options: { timeout: number },
+	): Promise<void>;
+	install?(): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -64,6 +102,11 @@ export interface UpdaterDependencies {
 	readonly detectSupport: () => Promise<unknown>;
 	readonly check: (options: UpdaterCheckOptions) => Promise<NativeUpdateResource | null>;
 	readonly now?: () => number;
+	/** Internal HTTP request bound, not an AbortSignal or full lifecycle cancellation guarantee. */
+	readonly downloadTimeoutMs?: number;
+	/** Missing/false safety gate disables installation; Settings must wire real pending-work safeguards. */
+	readonly prepareInstall?: () => Promise<boolean>;
+	readonly relaunch?: () => Promise<void>;
 	readonly reportError?: (details: {
 		phase: UpdateFailurePhase;
 		error: Error;

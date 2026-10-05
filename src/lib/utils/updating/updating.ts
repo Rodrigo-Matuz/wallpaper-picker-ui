@@ -23,7 +23,13 @@ const nativeAdapter: UpdaterDependencies = {
 	},
 	check: async (options) => {
 		const { check } = await import("@tauri-apps/plugin-updater");
-		return check(options);
+		const { createNativeUpdateResource } = await import("./native/native");
+		const update = await check(options);
+		return update ? createNativeUpdateResource(update) : null;
+	},
+	relaunch: async () => {
+		const { relaunch } = await import("@tauri-apps/plugin-process");
+		await relaunch();
 	},
 	reportError: async ({ phase, error }) => {
 		const { log } = await import("$utils/logger/logger");
