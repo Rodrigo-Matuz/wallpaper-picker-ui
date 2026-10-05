@@ -1,5 +1,6 @@
 mod cleanup_thumbnails;
 mod generate_thumbnails;
+mod get_update_support;
 mod get_videos_list;
 mod log_message;
 mod send_command;
@@ -9,6 +10,7 @@ mod validate_video_paths;
 
 pub use cleanup_thumbnails::cleanup_thumbnails;
 pub use generate_thumbnails::generate_thumb;
+pub use get_update_support::get_update_support;
 pub use get_videos_list::get_videos_list;
 pub use log_message::log_message;
 pub use send_command::send_command;
@@ -28,7 +30,8 @@ pub fn run() {
             send_command,
             generate_thumb,
             validate_video_paths,
-            cleanup_thumbnails
+            cleanup_thumbnails,
+            get_update_support
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
