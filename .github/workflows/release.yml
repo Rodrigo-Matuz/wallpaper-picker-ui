@@ -63,7 +63,15 @@ jobs:
 
           TAG="${GITHUB_REF_NAME}"            # e.g. v3.5.0
           VERSION="${TAG#v}"                  # e.g. 3.5.0
-          DEB="src-tauri/target/release/bundle/deb/wallpaper-picker-ui_${VERSION}_amd64.deb"
+          # Bundle names follow productName and can contain spaces; do not
+          # infer their prefix from the executable name.
+          shopt -s nullglob
+          DEBS=(src-tauri/target/release/bundle/deb/*_"${VERSION}"_amd64.deb)
+          if [ "${#DEBS[@]}" -ne 1 ]; then
+            printf 'Expected exactly one amd64 .deb for %s; found %s\n' "$VERSION" "${#DEBS[@]}" >&2
+            exit 1
+          fi
+          DEB="${DEBS[0]}"
 
           echo "Tag: $TAG  Version: $VERSION"
           test -f "$DEB"
