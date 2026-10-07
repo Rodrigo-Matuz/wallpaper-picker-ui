@@ -6,6 +6,7 @@ import type {
 	UpdateDownloadEvent,
 	UpdateFailureCategory,
 	UpdateFailurePhase,
+	UpdateProgress,
 	UpdaterDependencies,
 	UpdaterSnapshot,
 	UpdaterTarget,
@@ -20,6 +21,7 @@ const targets = new Map<string, UpdaterTarget>([
 	["linux/appimage", "linux-x86_64-appimage"],
 ]);
 
+/** DOCS: Copies untrusted IPC policy into a frozen snapshot; malformed policy fails closed. */
 function readSupport(raw: unknown): UpdateSupport {
 	const invalid: UpdateSupport = Object.freeze({
 		mode: "unknown",
@@ -52,6 +54,7 @@ function readSupport(raw: unknown): UpdateSupport {
 	});
 }
 
+/** DOCS: Exposes metadata only, normalizing native nulls without leaking handles or methods. */
 function readMetadata(update: NativeUpdateResource): AvailableUpdate {
 	const { currentVersion, version, body: nativeBody, date: nativeDate } = update;
 	const body = nativeBody === null ? undefined : nativeBody;
@@ -69,6 +72,7 @@ function readMetadata(update: NativeUpdateResource): AvailableUpdate {
 	return Object.freeze({ currentVersion, version, body, date });
 }
 
+/** DOCS: Approval requires the complete policy/architecture/installer match, not just a feed key. */
 function approvedTarget(support: UpdateSupport): UpdaterTarget | null {
 	if (
 		support.mode !== "self-managed" ||
@@ -81,6 +85,7 @@ function approvedTarget(support: UpdateSupport): UpdaterTarget | null {
 	return support.target;
 }
 
+/** DOCS: Heuristic UI diagnostics only; these categories never authorize native operations. */
 function failureCategory(phase: UpdateFailurePhase, message: string): UpdateFailureCategory {
 	if (phase === "support") return "support-unavailable";
 	if (phase === "cleanup") return "cleanup-failed";
@@ -97,6 +102,58 @@ function failureCategory(phase: UpdateFailurePhase, message: string): UpdateFail
 	return "unknown";
 }
 
+/** DOCS: Validates positive byte totals/timeouts; zero-length progress chunks use a different rule. */
+function isPositiveSafeInteger(value: unknown): value is number {
+	return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
+/** DOCS: Normalizes arbitrary rejections, including values whose string conversion throws. */
+function normalizeUpdaterError(raw: unknown): Error {
+	try {
+		return raw instanceof Error && typeof raw.message === "string"
+			? raw
+			: new Error(String(raw));
+	} catch {
+		return new Error("Unrecognized updater failure");
+	}
+}
+
+/** DOCS: Immutable progress; an unknown total stays indeterminate and percent never exceeds 100. */
+function createDownloadProgress(
+	downloadedBytes: number,
+	totalBytes: number | null,
+): UpdateProgress {
+	return Object.freeze({
+		downloadedBytes,
+		totalBytes,
+		percent: totalBytes === null ? null : Math.min(100, (downloadedBytes / totalBytes) * 100),
+	});
+}
+
+/** DOCS:
+ * Reduces accounting events without changing lifecycle state. Finished is deliberately ignored:
+ * only the awaited native download can establish signature-verified readiness.
+ * @returns Frozen progress, or null when an event must not publish a new snapshot.
+ */
+function nextDownloadProgress(
+	previous: UpdateProgress | null,
+	event: UpdateDownloadEvent,
+): UpdateProgress | null {
+	const downloadedBytes = previous?.downloadedBytes ?? 0;
+	const totalBytes = previous?.totalBytes ?? null;
+	if (event.event === "Started") {
+		const total = event.data.contentLength;
+		return createDownloadProgress(0, isPositiveSafeInteger(total) ? total : null);
+	}
+	if (event.event !== "Progress") return null;
+	const chunk = event.data.chunkLength;
+	if (!Number.isSafeInteger(chunk) || chunk < 0) return null;
+	return createDownloadProgress(
+		Math.min(Number.MAX_SAFE_INTEGER, downloadedBytes + chunk),
+		totalBytes,
+	);
+}
+
 /** DOCS:
  * Creates an isolated updater controller without performing native work on construction.
  * @param dependencies - Native boundary, clock, and application version for this controller.
@@ -104,12 +161,7 @@ function failureCategory(phase: UpdateFailurePhase, message: string): UpdateFail
  */
 export function createUpdaterController(dependencies: UpdaterDependencies) {
 	const configuredTimeout = dependencies.downloadTimeoutMs;
-	const downloadTimeout =
-		typeof configuredTimeout === "number" &&
-		Number.isSafeInteger(configuredTimeout) &&
-		configuredTimeout > 0
-			? configuredTimeout
-			: 600000;
+	const downloadTimeout = isPositiveSafeInteger(configuredTimeout) ? configuredTimeout : 600000;
 	let snapshot: UpdaterSnapshot = Object.freeze({
 		status: "idle",
 		busy: null,
@@ -133,43 +185,43 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 
 	let active: Promise<UpdateActionResult> | null = null;
 	let activeKind: UpdaterSnapshot["busy"] = null;
+	// Sole native owner, including resources quarantined after a rejected close.
 	let pending: NativeUpdateResource | null = null;
+	// Irreversible Linux install success: recovery must never install again. Not Windows handoff.
 	let installed = false;
 
 	function fail(raw: unknown, phase: UpdateFailurePhase) {
-		let error: Error;
-		try {
-			error =
-				raw instanceof Error && typeof raw.message === "string"
-					? raw
-					: new Error(String(raw));
-		} catch {
-			error = new Error("Unrecognized updater failure");
-		}
+		const error = normalizeUpdaterError(raw);
 		const category = failureCategory(phase, error.message);
 		publish({
 			status: installed ? "restart-required" : "error",
 			failure: Object.freeze({ phase, category }),
 			availableUpdate: installed ? snapshot.availableUpdate : null,
 		});
+		reportErrorSafely(phase, error);
+	}
+
+	/** DOCS: Diagnostics are best effort, never awaited and never allowed to break recovery. */
+	function reportErrorSafely(phase: UpdateFailurePhase, error: Error) {
 		try {
-			void Promise.resolve(dependencies.reportError?.({ phase, error })).catch(() => {});
+			void Promise.resolve(dependencies.reportError?.({ phase, error })).catch(() => {
+				/* Rejected diagnostics cannot alter the public failure or operation result. */
+			});
 		} catch {
-			/* Diagnostics must not break the update operation. */
+			/* A synchronous reporter failure has the same isolation guarantee. */
 		}
 	}
 
+	/** DOCS: Clear ownership only after confirmed close; rejection retains quarantine for retry. */
 	async function releasePending() {
 		if (!pending) return;
 		await pending.close();
 		pending = null;
 	}
 
-	function finishOperation() {
-		active = null;
-		activeKind = null;
-		publish({
-			busy: null,
+	/** DOCS: Derives UI capabilities without weakening the guards on the explicit actions. */
+	function availableActions() {
+		return {
 			canCheck: !installed && !["manual-only", "installer-handoff"].includes(snapshot.status),
 			canRetry: snapshot.status === "error" || snapshot.status === "restart-required",
 			canDownload:
@@ -185,9 +237,64 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 				(snapshot.support.platform === "windows" ||
 					typeof dependencies.relaunch === "function") &&
 				approvedTarget(snapshot.support) !== null,
-		});
+		};
 	}
 
+	/** DOCS: Release the lock before final publication, allowing a subscriber to start a new action. */
+	function finishOperation() {
+		active = null;
+		activeKind = null;
+		publish({ busy: null, ...availableActions() });
+	}
+
+	/** DOCS:
+	 * Register the exact final promise BEFORE publishing: store subscribers run synchronously
+	 * and may reenter an action. This must stay synchronous, not an async operation wrapper.
+	 */
+	function beginOperation(
+		operation: Promise<UpdateActionResult>,
+		kind: NonNullable<UpdaterSnapshot["busy"]>,
+		changes: Partial<UpdaterSnapshot> = {},
+	): Promise<UpdateActionResult> {
+		active = operation;
+		activeKind = kind;
+		publish({
+			...changes,
+			busy: kind,
+			canCheck: false,
+			canRetry: false,
+			canDownload: false,
+			canInstall: false,
+		});
+		return operation;
+	}
+
+	/** DOCS: Secondary cleanup failures supersede the displayed failure but retain native ownership. */
+	async function releasePendingReportingFailure() {
+		try {
+			await releasePending();
+		} catch (cleanupError) {
+			fail(cleanupError, "cleanup");
+		}
+	}
+
+	/** DOCS: Refresh policy before using an acquired resource; callers still compare exact targets. */
+	async function refreshSupport(): Promise<UpdateSupport> {
+		const support = readSupport(await dependencies.detectSupport());
+		publish({ support });
+		return support;
+	}
+
+	/** DOCS: Revocation becomes manual-only only after successful resource disposal. */
+	async function discardPendingAsManualOnly() {
+		await releasePending();
+		publish({ status: "manual-only", availableUpdate: null, progress: null });
+	}
+
+	/** DOCS:
+	 * Discards an available/verified resource; rejected close remains quarantined for explicit retry.
+	 * @returns Joined dismissal promise, busy for a conflicting action, or not-available without a resource.
+	 */
 	function dismissAvailableUpdate(): Promise<UpdateActionResult> {
 		if (active) return activeKind === "dismiss" ? active : Promise.resolve("busy");
 		if (!pending || !["available", "ready-to-install"].includes(snapshot.status))
@@ -203,19 +310,14 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 				return "failed" as const;
 			})
 			.finally(finishOperation);
-		active = operation;
-		activeKind = "dismiss";
-		publish({
-			busy: "dismiss",
-			canCheck: false,
-			canRetry: false,
-			canDownload: false,
-			canInstall: false,
-		});
-		return operation;
+		return beginOperation(operation, "dismiss");
 	}
 
-	/** DOCS: Downloads privately; readiness requires successful native verification, not Finished. */
+	/** DOCS:
+	 * Downloads privately after revalidating the acquired resource's exact installation target.
+	 * @returns Joined download promise; completed means the awaited native verification succeeded,
+	 * not merely that progress reported Finished. Conflicting actions return busy.
+	 */
 	function downloadUpdate(): Promise<UpdateActionResult> {
 		if (active) return activeKind === "download" ? active : Promise.resolve("busy");
 		const update = pending;
@@ -226,12 +328,10 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 		const operation = Promise.resolve()
 			.then(async () => {
 				const previousTarget = snapshot.support && approvedTarget(snapshot.support);
-				const support = readSupport(await dependencies.detectSupport());
-				publish({ support });
+				const support = await refreshSupport();
 				if (previousTarget === null || approvedTarget(support) !== previousTarget) {
 					phase = "cleanup";
-					await releasePending();
-					publish({ status: "manual-only", availableUpdate: null, progress: null });
+					await discardPendingAsManualOnly();
 					return "not-available" as const;
 				}
 				phase = "download";
@@ -239,35 +339,8 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 					update,
 					(event: UpdateDownloadEvent) => {
 						if (active !== operation || snapshot.status !== "downloading") return;
-						let downloadedBytes = snapshot.progress?.downloadedBytes ?? 0;
-						let totalBytes = snapshot.progress?.totalBytes ?? null;
-						if (event.event === "Started") {
-							downloadedBytes = 0;
-							const total = event.data.contentLength;
-							totalBytes =
-								typeof total === "number" &&
-								Number.isSafeInteger(total) &&
-								total > 0
-									? total
-									: null;
-						} else if (event.event === "Progress") {
-							const chunk = event.data.chunkLength;
-							if (!Number.isSafeInteger(chunk) || chunk < 0) return;
-							downloadedBytes = Math.min(
-								Number.MAX_SAFE_INTEGER,
-								downloadedBytes + chunk,
-							);
-						} else return;
-						publish({
-							progress: Object.freeze({
-								downloadedBytes,
-								totalBytes,
-								percent:
-									totalBytes === null
-										? null
-										: Math.min(100, (downloadedBytes / totalBytes) * 100),
-							}),
-						});
+						const progress = nextDownloadProgress(snapshot.progress, event);
+						if (progress) publish({ progress });
 					},
 					{ timeout: downloadTimeout },
 				);
@@ -277,31 +350,25 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 			.catch(async (error: unknown) => {
 				fail(error, phase);
 				if (phase !== "cleanup" && !installed) {
-					try {
-						await releasePending();
-					} catch (cleanupError) {
-						fail(cleanupError, "cleanup");
-					}
+					await releasePendingReportingFailure();
 				}
 				return "failed" as const;
 			})
 			.finally(finishOperation);
-		active = operation;
-		activeKind = "download";
-		publish({
+		return beginOperation(operation, "download", {
 			status: "downloading",
-			busy: "download",
-			canCheck: false,
-			canRetry: false,
-			canDownload: false,
-			canInstall: false,
 			failure: null,
-			progress: Object.freeze({ downloadedBytes: 0, totalBytes: null, percent: null }),
+			progress: createDownloadProgress(0, null),
 		});
-		return operation;
 	}
 
-	/** DOCS: Requires version-specific consent and the application's pending-work safety gate. */
+	/** DOCS:
+	 * Requires consent for this exact version and strict true from the application's safety gate.
+	 * Gate denial retains the verified resource. Windows hands off to its installer; Linux records
+	 * successful replacement before cleanup/relaunch so later recovery never repeats installation.
+	 * @param confirmation - Explicit user consent and the currently verified available version.
+	 * @returns Joined installation promise. Windows completed means handoff, not proven installation.
+	 */
 	function installAndRestart(confirmation?: {
 		confirmed: boolean;
 		version: string;
@@ -321,13 +388,11 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 		let phase: UpdateFailurePhase = "support";
 		const operation = Promise.resolve()
 			.then(async () => {
-				const target = snapshot.support && approvedTarget(snapshot.support);
-				const support = readSupport(await dependencies.detectSupport());
-				publish({ support });
-				if (target === null || approvedTarget(support) !== target) {
+				const previousTarget = snapshot.support && approvedTarget(snapshot.support);
+				const support = await refreshSupport();
+				if (previousTarget === null || approvedTarget(support) !== previousTarget) {
 					phase = "cleanup";
-					await releasePending();
-					publish({ status: "manual-only", availableUpdate: null, progress: null });
+					await discardPendingAsManualOnly();
 					return "not-available" as const;
 				}
 				phase = "install";
@@ -354,29 +419,15 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 			.catch(async (error: unknown) => {
 				fail(error, phase);
 				if (phase !== "cleanup" && !installed) {
-					try {
-						await releasePending();
-					} catch (cleanupError) {
-						fail(cleanupError, "cleanup");
-					}
+					await releasePendingReportingFailure();
 				}
 				return "failed" as const;
 			})
 			.finally(finishOperation);
-		active = operation;
-		activeKind = "install";
-		publish({
-			status: "installing",
-			busy: "install",
-			canCheck: false,
-			canDownload: false,
-			canInstall: false,
-			canRetry: false,
-			failure: null,
-		});
-		return operation;
+		return beginOperation(operation, "install", { status: "installing", failure: null });
 	}
 
+	/** DOCS: Called only after successful Linux installation; retries cleanup/safety/relaunch, not install. */
 	function restartOnly(): Promise<UpdateActionResult> {
 		const relaunch = dependencies.relaunch;
 		if (typeof relaunch !== "function") return Promise.resolve("not-available");
@@ -397,20 +448,13 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 				return "failed" as const;
 			})
 			.finally(finishOperation);
-		active = operation;
-		activeKind = "restart";
-		publish({
-			status: "restarting",
-			busy: "restart",
-			failure: null,
-			canCheck: false,
-			canRetry: false,
-			canDownload: false,
-			canInstall: false,
-		});
-		return operation;
+		return beginOperation(operation, "restart", { status: "restarting", failure: null });
 	}
 
+	/** DOCS:
+	 * Pre-install failures reacquire metadata and payload rather than blindly replaying install.
+	 * @returns A new check, or cleanup/restart only after successful replacement; busy on conflicts.
+	 */
 	function retry(): Promise<UpdateActionResult> {
 		if (active) return activeKind === "restart" ? active : Promise.resolve("busy");
 		if (installed && snapshot.status === "restart-required") return restartOnly();
@@ -418,7 +462,11 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 		return checkForUpdates();
 	}
 
-	function checkForUpdates() {
+	/** DOCS:
+	 * Releases the previous resource before policy detection and an exact-target, no-downgrade check.
+	 * @returns Joined check promise; completed may mean manual-only or up-to-date, not update found.
+	 */
+	function checkForUpdates(): Promise<UpdateActionResult> {
 		if (active) return activeKind === "check" ? active : Promise.resolve("busy" as const);
 		if (installed || snapshot.status === "installer-handoff")
 			return Promise.resolve("not-available" as const);
@@ -427,9 +475,8 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 			.then(async () => {
 				await releasePending();
 				phase = "support";
-				const support = readSupport(await dependencies.detectSupport());
+				const support = await refreshSupport();
 				const target = approvedTarget(support);
-				publish({ support });
 				if (target === null) {
 					publish({ status: "manual-only" });
 					return "completed" as const;
@@ -440,6 +487,7 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 					timeout: 15000,
 					allowDowngrades: false,
 				});
+				// Take ownership before reading getters: malformed metadata still requires cleanup.
 				pending = update;
 				publish({
 					status: update ? "available" : "up-to-date",
@@ -451,29 +499,17 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 			.catch(async (error: unknown) => {
 				fail(error, phase);
 				if (phase === "check" && pending) {
-					try {
-						await releasePending();
-					} catch (cleanupError) {
-						fail(cleanupError, "cleanup");
-					}
+					await releasePendingReportingFailure();
 				}
 				return "failed" as const;
 			})
 			.finally(finishOperation);
-		active = operation;
-		activeKind = "check";
-		publish({
+		return beginOperation(operation, "check", {
 			status: "checking",
-			busy: "check",
-			canCheck: false,
-			canRetry: false,
 			failure: null,
 			availableUpdate: null,
 			progress: null,
-			canDownload: false,
-			canInstall: false,
 		});
-		return operation;
 	}
 
 	return {
