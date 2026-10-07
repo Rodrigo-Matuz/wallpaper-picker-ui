@@ -1,5 +1,6 @@
 import { BaseDirectory, exists, writeFile } from "@tauri-apps/plugin-fs";
 import { defaultConfig } from "$api/config/defaults";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { ensureDir } from "$utils/ensureDirs";
 import { log } from "$utils/logger/logger";
 import { CONFIG_FILE_PATH } from "$utils/paths";
@@ -36,28 +37,33 @@ import { CONFIG_FILE_PATH } from "$utils/paths";
  * ```
  */
 export async function ensureConfig(): Promise<void> {
-	await ensureDir("WallpaperPickerUI", BaseDirectory.Config);
-
-	const configExists = await exists(CONFIG_FILE_PATH, {
-		baseDir: BaseDirectory.Config,
-	});
-
-	if (configExists) return;
-
+	const release = applicationWork.beginWork();
 	try {
-		const data = new TextEncoder().encode(JSON.stringify(defaultConfig, null, 4));
+		await ensureDir("WallpaperPickerUI", BaseDirectory.Config);
 
-		await writeFile(CONFIG_FILE_PATH, data, {
+		const configExists = await exists(CONFIG_FILE_PATH, {
 			baseDir: BaseDirectory.Config,
 		});
-	} catch (error) {
-		await log({
-			level: "error",
-			callStack: error instanceof Error ? error : new Error("Unknown error"),
-			message: {
-				context: "Failed to write configuration file",
-				error,
-			},
-		});
+
+		if (configExists) return;
+
+		try {
+			const data = new TextEncoder().encode(JSON.stringify(defaultConfig, null, 4));
+
+			await writeFile(CONFIG_FILE_PATH, data, {
+				baseDir: BaseDirectory.Config,
+			});
+		} catch (error) {
+			await log({
+				level: "error",
+				callStack: error instanceof Error ? error : new Error("Unknown error"),
+				message: {
+					context: "Failed to write configuration file",
+					error,
+				},
+			});
+		}
+	} finally {
+		release();
 	}
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { onDestroy } from "svelte";
 import SettingRow from "$components/settings/Row/row.svelte";
 import { Button } from "$components/ui/button";
 import { Input } from "$components/ui/input";
@@ -6,6 +7,7 @@ import { fetchConfig } from "$lib/api/config/read/read";
 import { updateConfig } from "$lib/api/config/update/update";
 import { t } from "$lib/lang/index";
 import { log } from "$lib/utils/logger/logger";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 
 export let name: string = "SettingsName";
 export let shortDescription: string = "Short Description";
@@ -14,6 +16,12 @@ export let inputPlaceholder: string = "Placeholder";
 
 let inputValue = "";
 let mustSave: "primary" | "destructive" = "primary";
+let releaseDirty: (() => void) | undefined;
+
+// updateConfig and clearConfig swallow persistence failures and return void. Neither
+// a resolved save nor deletion proves this draft was saved/reset; retain its token
+// conservatively until unmount. The existing save styling/behavior is unchanged.
+onDestroy(() => releaseDirty?.());
 
 const loadConfig = async () => {
 	inputValue = (await fetchConfig()).command;
@@ -22,6 +30,7 @@ const loadConfig = async () => {
 loadConfig();
 
 function handleInputChange() {
+	releaseDirty ??= applicationWork.beginDirtyInput();
 	mustSave = "destructive";
 }
 

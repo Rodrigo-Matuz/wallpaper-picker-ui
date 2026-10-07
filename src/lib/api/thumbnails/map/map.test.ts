@@ -30,7 +30,40 @@ afterEach(() => {
 	}
 });
 
+const { applicationWork } = await import("$utils/applicationWork/applicationWork");
+
 describe("thumbnail map persistence", () => {
+	test.each([
+		false,
+		true,
+	])("tracks standalone read directory setup (setup rejection=%s)", async (setupFails) => {
+		let release!: () => void;
+		let started!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const setup = new Promise<void>((resolve) => {
+			started = resolve;
+		});
+		const failure = new Error("directory denied");
+		ensureDir.mockImplementationOnce(async () => {
+			started();
+			await gate;
+			if (setupFails) throw failure;
+		});
+		const operation = readThumbnailMap();
+		const settled = Promise.allSettled([operation]);
+		try {
+			await setup;
+			expect(applicationWork.hasPendingWork()).toBe(true);
+		} finally {
+			release();
+			await settled;
+		}
+		expect(applicationWork.hasPendingWork()).toBe(false);
+		if (setupFails) await expect(operation).rejects.toBe(failure);
+		else await expect(operation).resolves.toEqual({});
+	});
 	test("missing map yields empty record without a read", async () => {
 		expect(await readThumbnailMap()).toEqual({});
 		expect(ensureDir).toHaveBeenCalledWith("thumbnails", BaseDirectory.AppData);

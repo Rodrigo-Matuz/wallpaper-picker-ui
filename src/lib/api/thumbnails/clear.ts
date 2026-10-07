@@ -1,5 +1,6 @@
 import { BaseDirectory, remove } from "@tauri-apps/plugin-fs";
 import { writeThumbnailMap } from "$api/thumbnails/map/map";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { log } from "$utils/logger/logger";
 import { THUMBNAILS_DIR } from "$utils/paths";
 
@@ -18,6 +19,7 @@ import { THUMBNAILS_DIR } from "$utils/paths";
  * ```
  */
 export const clearThumbnails = async (): Promise<void> => {
+	const release = applicationWork.beginWork();
 	try {
 		await remove(THUMBNAILS_DIR, {
 			baseDir: BaseDirectory.AppData,
@@ -43,5 +45,7 @@ export const clearThumbnails = async (): Promise<void> => {
 			},
 			callStack: error instanceof Error ? error : new Error("Unknown error"),
 		});
+	} finally {
+		release();
 	}
 };

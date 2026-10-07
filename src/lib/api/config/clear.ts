@@ -1,5 +1,6 @@
 import { BaseDirectory, remove } from "@tauri-apps/plugin-fs";
 import { clearConfigCache } from "$api/config/read/read";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { log } from "$utils/logger/logger";
 import { CONFIG_FILE_PATH } from "$utils/paths";
 
@@ -18,6 +19,7 @@ import { CONFIG_FILE_PATH } from "$utils/paths";
  * ```
  */
 export const clearConfig = async (): Promise<void> => {
+	const release = applicationWork.beginWork();
 	try {
 		await remove(CONFIG_FILE_PATH, { baseDir: BaseDirectory.Config });
 
@@ -40,5 +42,7 @@ export const clearConfig = async (): Promise<void> => {
 				error,
 			},
 		});
+	} finally {
+		release();
 	}
 };

@@ -24,7 +24,64 @@ afterEach(() => {
 	log.mockClear();
 });
 
+function deferred() {
+	let resolve!: () => void;
+	const promise = new Promise<void>((done) => {
+		resolve = done;
+	});
+	return { promise, resolve };
+}
+
+const { applicationWork } = await import("$utils/applicationWork/applicationWork");
+
 describe("fetchConfig", () => {
+	test.each([
+		false,
+		true,
+	])("tracks corrupt-config diagnostics and repair settlement (write failure=%s)", async (writeFails) => {
+		const diagnosticsStarted = deferred();
+		const diagnostics = deferred();
+		const writeStarted = deferred();
+		const write = deferred();
+		const finalLogStarted = deferred();
+		const finalLog = deferred();
+		readTextFile.mockResolvedValueOnce("{corrupt");
+		log.mockImplementationOnce(async () => {
+			diagnosticsStarted.resolve();
+			await diagnostics.promise;
+		});
+		writeFile.mockImplementationOnce(async () => {
+			writeStarted.resolve();
+			await write.promise;
+			if (writeFails) throw new Error("disk full");
+		});
+		log.mockImplementationOnce(async () => {
+			finalLogStarted.resolve();
+			await finalLog.promise;
+		});
+		const operation = fetchConfig();
+		try {
+			await diagnosticsStarted.promise;
+			expect(applicationWork.hasPendingWork()).toBe(true);
+			diagnostics.resolve();
+			await writeStarted.promise;
+			expect(applicationWork.hasPendingWork()).toBe(true);
+			// Cache hits do not establish repair completion or durable persistence.
+			expect(await fetchConfig()).toEqual(defaultConfig);
+			expect(applicationWork.hasPendingWork()).toBe(true);
+			write.resolve();
+			await finalLogStarted.promise;
+			expect(applicationWork.hasPendingWork()).toBe(true);
+			finalLog.resolve();
+			expect(await operation).toEqual(defaultConfig);
+			expect(applicationWork.hasPendingWork()).toBe(false);
+		} finally {
+			diagnostics.resolve();
+			write.resolve();
+			finalLog.resolve();
+			await operation;
+		}
+	});
 	test("ensures and reads the config file once, then serves the cache", async () => {
 		const config = { ...defaultConfig, language: "eng" as const, command: "mpv $VP" };
 		readTextFile.mockResolvedValueOnce(JSON.stringify(config));

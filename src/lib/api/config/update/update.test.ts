@@ -1,6 +1,69 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { defaultConfig } from "../defaults";
+
+function deferred() {
+	let resolve!: () => void;
+	const promise = new Promise<void>((done) => {
+		resolve = done;
+	});
+	return { promise, resolve };
+}
+
+test("tracks config work before prerequisites and through both queued writes and logging", async () => {
+	const directory = deferred();
+	const writeStarted = deferred();
+	const firstWrite = deferred();
+	const secondWriteStarted = deferred();
+	const secondWrite = deferred();
+	const logged = deferred();
+	const logging = deferred();
+	ensureDir.mockImplementationOnce(() => directory.promise);
+	writeFile.mockImplementationOnce(async () => {
+		writeStarted.resolve();
+		await firstWrite.promise;
+	});
+	writeFile.mockImplementationOnce(async () => {
+		secondWriteStarted.resolve();
+		await secondWrite.promise;
+	});
+	const first = updateConfig({ command: "first" });
+	let second: Promise<void> | undefined;
+	try {
+		expect(applicationWork.getSnapshot().pendingWork).toBe(1);
+		directory.resolve();
+		await writeStarted.promise;
+		second = updateConfig({ command: "second" });
+		expect(applicationWork.getSnapshot().pendingWork).toBe(2);
+		firstWrite.resolve();
+		await first;
+		await secondWriteStarted.promise;
+		expect(applicationWork.getSnapshot().pendingWork).toBe(1);
+		log.mockImplementationOnce(async () => {
+			logged.resolve();
+			await logging.promise;
+		});
+		secondWrite.resolve();
+		await logged.promise;
+		expect(applicationWork.hasPendingWork()).toBe(true);
+		logging.resolve();
+		await second;
+		expect(applicationWork.hasPendingWork()).toBe(false);
+	} finally {
+		for (const gate of [directory, firstWrite, secondWrite, logging]) gate.resolve();
+		await Promise.all([first, second]);
+	}
+});
+
+test("config tracking settles rejected prerequisites and swallowed write failures", async () => {
+	ensureDir.mockRejectedValueOnce(new Error("directory denied"));
+	await expect(updateConfig({})).rejects.toThrow("directory denied");
+	expect(applicationWork.hasPendingWork()).toBe(false);
+	writeFile.mockRejectedValueOnce(new Error("disk full"));
+	await updateConfig({});
+	expect(applicationWork.hasPendingWork()).toBe(false);
+});
 
 const ensureConfig = mock(async () => {});
 const ensureDir = mock(async () => {});

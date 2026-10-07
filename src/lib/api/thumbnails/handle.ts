@@ -14,6 +14,7 @@ import {
 } from "$api/thumbnails/map/map";
 import { t } from "$lang/index";
 import type { ThumbnailRecord } from "$types/configTypes";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { log } from "$utils/logger/logger";
 import { THUMBNAILS_DIR } from "$utils/paths";
 import { sortJsonByKey } from "$utils/sortJson/sortJson";
@@ -80,121 +81,126 @@ let activeBlobUrls: ThumbnailRecord = {};
  * ```
  */
 export async function handleThumbnails(forceRegenerate = false): Promise<void> {
-	if (isProcessing) {
-		if (pendingPromise) await pendingPromise;
-		return;
-	}
+	const release = applicationWork.beginWork();
+	try {
+		if (isProcessing) {
+			if (pendingPromise) await pendingPromise;
+			return;
+		}
 
-	isProcessing = true;
-	pendingPromise = (async () => {
-		try {
-			let thumbnailsHashMap = await readThumbnailMap();
+		isProcessing = true;
+		pendingPromise = (async () => {
+			try {
+				let thumbnailsHashMap = await readThumbnailMap();
 
-			if (Object.keys(thumbnailsHashMap).length === 0) {
-				thumbnailsHashMap = await migrateThumbnailMapFromConfig();
-			}
-
-			const { newWallpapers, thumbnailVersion } = await fetchConfig();
-			const needsMigration = (thumbnailVersion ?? 0) !== CURRENT_THUMBNAIL_VERSION;
-			const regenerate = forceRegenerate || needsMigration || newWallpapers;
-
-			if (regenerate) {
-				try {
-					thumbnailsGenerated.set(0);
-					const videosList = await fetchVideos();
-					totalVideos.set(videosList.length);
-
-					const { map: newThumbnailsHashMap, failures } =
-						await processVideoPaths(videosList);
-
-					totalVideos.set(0);
-
-					if (failures > 0) {
-						toast.warning(get(t)("toast.thumbnails.failed"));
-					}
-
-					const sorted = sortJsonByKey(newThumbnailsHashMap);
-					await writeThumbnailMap(sorted);
-					await updateConfig({ thumbnailVersion: CURRENT_THUMBNAIL_VERSION });
-					thumbnailsHashMap = sorted;
-				} catch (error) {
-					await log({
-						level: "error",
-						callStack: new Error(),
-						message: {
-							context: "Failed to generate thumbnails",
-							error,
-						},
-					});
+				if (Object.keys(thumbnailsHashMap).length === 0) {
+					thumbnailsHashMap = await migrateThumbnailMapFromConfig();
 				}
-			} else {
-				thumbnailsHashMap = await pruneMissingVideos(thumbnailsHashMap);
-			}
 
-			// Remove orphaned thumbnail files (deleted videos, old naming scheme).
-			try {
-				await invoke("cleanup_thumbnails", {
-					thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
-					keepFiles: Object.keys(thumbnailsHashMap),
-				});
-			} catch (error) {
-				await log({
-					level: "warn",
-					callStack: new Error(),
-					message: {
-						context: "Failed to clean up orphaned thumbnail files",
-						error,
-					},
-				});
-			}
+				const { newWallpapers, thumbnailVersion } = await fetchConfig();
+				const needsMigration = (thumbnailVersion ?? 0) !== CURRENT_THUMBNAIL_VERSION;
+				const regenerate = forceRegenerate || needsMigration || newWallpapers;
 
-			try {
-				const blobUrlsHashMap: ThumbnailRecord = {};
-				for (const [fileName, videoPath] of Object.entries(thumbnailsHashMap) as [
-					string,
-					string,
-				][]) {
+				if (regenerate) {
 					try {
-						const blobUrl = await fileToBlobUrl(fileName);
-						blobUrlsHashMap[blobUrl] = videoPath;
+						thumbnailsGenerated.set(0);
+						const videosList = await fetchVideos();
+						totalVideos.set(videosList.length);
+
+						const { map: newThumbnailsHashMap, failures } =
+							await processVideoPaths(videosList);
+
+						totalVideos.set(0);
+
+						if (failures > 0) {
+							toast.warning(get(t)("toast.thumbnails.failed"));
+						}
+
+						const sorted = sortJsonByKey(newThumbnailsHashMap);
+						await writeThumbnailMap(sorted);
+						await updateConfig({ thumbnailVersion: CURRENT_THUMBNAIL_VERSION });
+						thumbnailsHashMap = sorted;
 					} catch (error) {
 						await log({
 							level: "error",
 							callStack: new Error(),
 							message: {
-								context: "Failed to convert thumbnail file to blob URL",
+								context: "Failed to generate thumbnails",
 								error,
 							},
 						});
 					}
+				} else {
+					thumbnailsHashMap = await pruneMissingVideos(thumbnailsHashMap);
 				}
 
-				// Revoke blob URLs that are no longer referenced by the new store.
-				for (const oldUrl of Object.keys(activeBlobUrls)) {
-					if (!blobUrlsHashMap[oldUrl]) {
-						URL.revokeObjectURL(oldUrl);
+				// Remove orphaned thumbnail files (deleted videos, old naming scheme).
+				try {
+					await invoke("cleanup_thumbnails", {
+						thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
+						keepFiles: Object.keys(thumbnailsHashMap),
+					});
+				} catch (error) {
+					await log({
+						level: "warn",
+						callStack: new Error(),
+						message: {
+							context: "Failed to clean up orphaned thumbnail files",
+							error,
+						},
+					});
+				}
+
+				try {
+					const blobUrlsHashMap: ThumbnailRecord = {};
+					for (const [fileName, videoPath] of Object.entries(thumbnailsHashMap) as [
+						string,
+						string,
+					][]) {
+						try {
+							const blobUrl = await fileToBlobUrl(fileName);
+							blobUrlsHashMap[blobUrl] = videoPath;
+						} catch (error) {
+							await log({
+								level: "error",
+								callStack: new Error(),
+								message: {
+									context: "Failed to convert thumbnail file to blob URL",
+									error,
+								},
+							});
+						}
 					}
+
+					// Revoke blob URLs that are no longer referenced by the new store.
+					for (const oldUrl of Object.keys(activeBlobUrls)) {
+						if (!blobUrlsHashMap[oldUrl]) {
+							URL.revokeObjectURL(oldUrl);
+						}
+					}
+					activeBlobUrls = blobUrlsHashMap;
+
+					thumbnails.set(blobUrlsHashMap);
+				} catch (error) {
+					await log({
+						level: "error",
+						callStack: new Error(),
+						message: {
+							context: "Failed to update thumbnails store",
+							error,
+						},
+					});
 				}
-				activeBlobUrls = blobUrlsHashMap;
-
-				thumbnails.set(blobUrlsHashMap);
-			} catch (error) {
-				await log({
-					level: "error",
-					callStack: new Error(),
-					message: {
-						context: "Failed to update thumbnails store",
-						error,
-					},
-				});
+			} finally {
+				isProcessing = false;
+				pendingPromise = null;
 			}
-		} finally {
-			isProcessing = false;
-			pendingPromise = null;
-		}
-	})();
+		})();
 
-	await pendingPromise;
+		await pendingPromise;
+	} finally {
+		release();
+	}
 }
 
 /** DOCS:

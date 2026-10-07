@@ -2,6 +2,7 @@ import { BaseDirectory, exists, readTextFile, writeFile } from "@tauri-apps/plug
 import { fetchConfig } from "$api/config/read/read";
 import { updateConfig } from "$api/config/update/update";
 import type { ThumbnailRecord } from "$types/configTypes";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { ensureDir } from "$utils/ensureDirs";
 import { log } from "$utils/logger/logger";
 import { THUMBNAILS_DIR } from "$utils/paths";
@@ -31,25 +32,31 @@ const MAP_FILE = `${THUMBNAILS_DIR}/map.json`;
  * ```
  */
 export async function readThumbnailMap(): Promise<ThumbnailRecord> {
-	await ensureDir(THUMBNAILS_DIR, BaseDirectory.AppData);
-
+	// Even a standalone read may create the directory; retain its entire lifetime.
+	const release = applicationWork.beginWork();
 	try {
-		const mapExists = await exists(MAP_FILE, { baseDir: BaseDirectory.AppData });
-		if (!mapExists) return {};
+		await ensureDir(THUMBNAILS_DIR, BaseDirectory.AppData);
 
-		return JSON.parse(
-			await readTextFile(MAP_FILE, { baseDir: BaseDirectory.AppData }),
-		) as ThumbnailRecord;
-	} catch (error) {
-		await log({
-			level: "error",
-			callStack: error instanceof Error ? error : new Error("Unknown error"),
-			message: {
-				context: "Failed to read thumbnail map file",
-				error,
-			},
-		});
-		return {};
+		try {
+			const mapExists = await exists(MAP_FILE, { baseDir: BaseDirectory.AppData });
+			if (!mapExists) return {};
+
+			return JSON.parse(
+				await readTextFile(MAP_FILE, { baseDir: BaseDirectory.AppData }),
+			) as ThumbnailRecord;
+		} catch (error) {
+			await log({
+				level: "error",
+				callStack: error instanceof Error ? error : new Error("Unknown error"),
+				message: {
+					context: "Failed to read thumbnail map file",
+					error,
+				},
+			});
+			return {};
+		}
+	} finally {
+		release();
 	}
 }
 
@@ -65,21 +72,26 @@ export async function readThumbnailMap(): Promise<ThumbnailRecord> {
  * ```
  */
 export async function writeThumbnailMap(map: ThumbnailRecord): Promise<void> {
-	await ensureDir(THUMBNAILS_DIR, BaseDirectory.AppData);
-
+	const release = applicationWork.beginWork();
 	try {
-		const data = new TextEncoder().encode(JSON.stringify(map, null, 4));
-		await writeFile(MAP_FILE, data, { baseDir: BaseDirectory.AppData });
-	} catch (error) {
-		await log({
-			level: "error",
-			callStack: error instanceof Error ? error : new Error("Unknown error"),
-			message: {
-				context: "Failed to write thumbnail map file",
-				error,
-			},
-		});
-		throw error;
+		await ensureDir(THUMBNAILS_DIR, BaseDirectory.AppData);
+
+		try {
+			const data = new TextEncoder().encode(JSON.stringify(map, null, 4));
+			await writeFile(MAP_FILE, data, { baseDir: BaseDirectory.AppData });
+		} catch (error) {
+			await log({
+				level: "error",
+				callStack: error instanceof Error ? error : new Error("Unknown error"),
+				message: {
+					context: "Failed to write thumbnail map file",
+					error,
+				},
+			});
+			throw error;
+		}
+	} finally {
+		release();
 	}
 }
 
@@ -96,34 +108,39 @@ export async function writeThumbnailMap(map: ThumbnailRecord): Promise<void> {
  * ```
  */
 export async function migrateThumbnailMapFromConfig(): Promise<ThumbnailRecord> {
-	const mapExists = await exists(MAP_FILE, { baseDir: BaseDirectory.AppData });
-
-	if (mapExists) return {};
-
-	const legacy = (await fetchConfig()).thumbnailsHashMap;
-	if (!legacy || Object.keys(legacy).length === 0) return {};
-
+	const release = applicationWork.beginWork();
 	try {
-		await writeThumbnailMap(legacy);
-		await updateConfig({ thumbnailsHashMap: {} });
-		await log({
-			level: "info",
-			callStack: new Error(),
-			message: {
-				context: "Migrated thumbnailsHashMap from config.json to map.json",
-				count: Object.keys(legacy).length,
-			},
-		});
-		return legacy;
-	} catch (error) {
-		await log({
-			level: "error",
-			callStack: error instanceof Error ? error : new Error("Unknown error"),
-			message: {
-				context: "Failed to migrate thumbnailsHashMap to map.json",
-				error,
-			},
-		});
-		return {};
+		const mapExists = await exists(MAP_FILE, { baseDir: BaseDirectory.AppData });
+
+		if (mapExists) return {};
+
+		const legacy = (await fetchConfig()).thumbnailsHashMap;
+		if (!legacy || Object.keys(legacy).length === 0) return {};
+
+		try {
+			await writeThumbnailMap(legacy);
+			await updateConfig({ thumbnailsHashMap: {} });
+			await log({
+				level: "info",
+				callStack: new Error(),
+				message: {
+					context: "Migrated thumbnailsHashMap from config.json to map.json",
+					count: Object.keys(legacy).length,
+				},
+			});
+			return legacy;
+		} catch (error) {
+			await log({
+				level: "error",
+				callStack: error instanceof Error ? error : new Error("Unknown error"),
+				message: {
+					context: "Failed to migrate thumbnailsHashMap to map.json",
+					error,
+				},
+			});
+			return {};
+		}
+	} finally {
+		release();
 	}
 }

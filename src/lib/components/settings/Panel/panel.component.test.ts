@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import SettingsPage from "./panel.svelte";
 
 vi.stubGlobal("__APP_VERSION__", "test");
@@ -31,6 +32,19 @@ afterEach(() => {
 });
 
 describe("Settings page", () => {
+	it("config deletion does not discard the command draft or claim a confirmed reset", async () => {
+		const view = render(SettingsPage);
+		const field = screen.getByRole("textbox", { name: "Command" }) as HTMLInputElement;
+		await waitFor(() => expect(field.value).toBe("mpvpaper $VP"));
+		await fireEvent.input(field, { target: { value: "unsaved draft" } });
+		expect(applicationWork.hasDirtyInputs()).toBe(true);
+		await fireEvent.click(screen.getByRole("button", { name: "DELETE" }));
+		expect(clearConfig).toHaveBeenCalledTimes(1);
+		expect(field.value).toBe("unsaved draft");
+		expect(applicationWork.hasDirtyInputs()).toBe(true);
+		view.unmount();
+		expect(applicationWork.hasDirtyInputs()).toBe(false);
+	});
 	it("groups all six settings under labelled sections with a working section index", async () => {
 		render(SettingsPage);
 		expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeTruthy();

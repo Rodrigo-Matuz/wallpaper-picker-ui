@@ -2,6 +2,7 @@ import { BaseDirectory, writeFile } from "@tauri-apps/plugin-fs";
 import { ensureConfig } from "$api/config/ensure/ensure";
 import { fetchConfig, setConfigCache } from "$api/config/read/read";
 import type { ConfigInterArgs } from "$types/configTypes";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { ensureDir } from "$utils/ensureDirs";
 import { log } from "$utils/logger/logger";
 import { CONFIG_FILE_PATH, CONFIG_ROOT_DIR } from "$utils/paths";
@@ -22,7 +23,8 @@ let writeQueue: Promise<void> = Promise.resolve();
  *
  * @param newConfig - Partial configuration values to merge into the current config.
  *
- * @returns Resolves when the configuration has been successfully updated.
+ * @returns Resolves after the update attempt and logging; resolution does not prove
+ *          persistence because read/write failures are logged without rejection.
  *
  * @example
  * ```ts
@@ -30,12 +32,18 @@ let writeQueue: Promise<void> = Promise.resolve();
  * ```
  */
 export async function updateConfig(newConfig: Partial<ConfigInterArgs>): Promise<void> {
-	await ensureDir(CONFIG_ROOT_DIR, BaseDirectory.Config);
-	await ensureConfig();
+	const release = applicationWork.beginWork();
+	try {
+		await ensureDir(CONFIG_ROOT_DIR, BaseDirectory.Config);
+		await ensureConfig();
 
-	const run = writeQueue.then(() => performUpdate(newConfig));
-	writeQueue = run.catch(() => {});
-	return run;
+		const run = writeQueue.then(() => performUpdate(newConfig));
+		writeQueue = run.catch(() => {});
+		// Await the queued write and its logging before releasing passive accounting.
+		return await run;
+	} finally {
+		release();
+	}
 }
 
 async function performUpdate(newConfig: Partial<ConfigInterArgs>): Promise<void> {

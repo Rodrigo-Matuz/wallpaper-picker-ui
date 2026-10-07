@@ -2,6 +2,7 @@ import { BaseDirectory, readTextFile, writeFile } from "@tauri-apps/plugin-fs";
 import { defaultConfig } from "$api/config/defaults";
 import { ensureConfig } from "$api/config/ensure/ensure";
 import type { ConfigInterArgs } from "$types/configTypes";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { log } from "$utils/logger/logger";
 import { CONFIG_FILE_PATH } from "$utils/paths";
 
@@ -84,6 +85,14 @@ export async function fetchConfig(): Promise<ConfigInterArgs> {
 		configCache = configData;
 		return configData;
 	} catch (error) {
+		return await repairCorruptConfig(error);
+	}
+}
+
+/** Own corrupt-file recovery through diagnostics and the repair attempt, not cache hits. */
+async function repairCorruptConfig(error: unknown): Promise<ConfigInterArgs> {
+	const release = applicationWork.beginWork();
+	try {
 		await log({
 			level: "error",
 			callStack: error instanceof Error ? error : new Error("Unknown error"),
@@ -119,5 +128,7 @@ export async function fetchConfig(): Promise<ConfigInterArgs> {
 		}
 
 		return configCache;
+	} finally {
+		release();
 	}
 }

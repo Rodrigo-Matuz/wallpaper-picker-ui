@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir } from "@tauri-apps/api/path";
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
 import type { ApiResult } from "$types/resultTypes";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { ensureDir } from "$utils/ensureDirs";
 import { log } from "$utils/logger/logger";
 import { THUMBNAILS_DIR } from "$utils/paths";
@@ -27,27 +28,32 @@ import { THUMBNAILS_DIR } from "$utils/paths";
  * ```
  */
 export async function generateThumb(videoPath: string): Promise<ApiResult<string>> {
-	await ensureDir(THUMBNAILS_DIR, BaseDirectory.AppData);
-
+	const release = applicationWork.beginWork();
 	try {
-		const thumbPath = `${await appDataDir()}/${THUMBNAILS_DIR}`;
-		const value = await invoke<string>("generate_thumb", {
-			videoPath,
-			thumbPath,
-		});
-		return { ok: true, value };
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
+		await ensureDir(THUMBNAILS_DIR, BaseDirectory.AppData);
 
-		await log({
-			level: "error",
-			callStack: error instanceof Error ? error : new Error(),
-			message: {
-				context: "Error generating thumbnail",
-				error,
-			},
-		});
+		try {
+			const thumbPath = `${await appDataDir()}/${THUMBNAILS_DIR}`;
+			const value = await invoke<string>("generate_thumb", {
+				videoPath,
+				thumbPath,
+			});
+			return { ok: true, value };
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
 
-		return { ok: false, error: message };
+			await log({
+				level: "error",
+				callStack: error instanceof Error ? error : new Error(),
+				message: {
+					context: "Error generating thumbnail",
+					error,
+				},
+			});
+
+			return { ok: false, error: message };
+		}
+	} finally {
+		release();
 	}
 }
