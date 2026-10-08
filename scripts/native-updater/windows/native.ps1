@@ -93,6 +93,17 @@ function NsisRegistrationPath([string]$value, [string]$caseRoot) {
 	}
 	return $full
 }
+# Managed streaming hash avoids depending on optional cmdlet/module availability.
+# Keep identity lowercase SHA-256; unreadable files fail closed, never return a placeholder.
+function FileSha256([string]$file) {
+	$stream = [IO.File]::OpenRead($file)
+	try {
+		$hash = [Security.Cryptography.SHA256]::Create()
+		try {
+			return [BitConverter]::ToString($hash.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+		} finally { $hash.Dispose() }
+	} finally { $stream.Dispose() }
+}
 function Processes {
 	$result = @()
 	foreach ($process in @(Get-CimInstance Win32_Process -Filter "Name='wallpaper-picker-ui.exe'")) {
@@ -101,7 +112,7 @@ function Processes {
 		$result += [ordered]@{ pid=[int]$process.ProcessId; parentPid=[int]$process.ParentProcessId;
 			path=$process.ExecutablePath; startedUtc=$process.CreationDate.ToUniversalTime().ToString('o');
 			peVersion=$file.VersionInfo.ProductVersion;
-			sha256=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+			sha256=(FileSha256 $file.FullName) }
 	}
 	return $result
 }
@@ -155,7 +166,9 @@ $result = switch ($Action) {
 		$file = OwnedFile $p.artifactPath
 		if ($p.kind -eq 'msi') {
 			$log = Join-Path $root 'baseline-msi.log'
-			$child = Start-Process -FilePath "$env:SystemRoot\System32\msiexec.exe" -ArgumentList @('/i', ('"' + $file + '"'), '/qn', '/norestart', '/L*v', ('"' + $log + '"'), 'AUTOLAUNCHAPP=False') -PassThru
+			# main.wxs tests property presence, not Boolean text: False would launch the app.
+			# Omit AUTOLAUNCHAPP for baseline setup; only the later updater owns auto-relaunch.
+			$child = Start-Process -FilePath "$env:SystemRoot\System32\msiexec.exe" -ArgumentList @('/i', ('"' + $file + '"'), '/qn', '/norestart', '/L*v', ('"' + $log + '"')) -PassThru
 		} else {
 			$dir = Join-Path $root 'install\nsis'
 			# NSIS /D must be the final unquoted argument, per NSIS command-line contract.

@@ -118,7 +118,7 @@
 		"acceptancePassed": false,
 		"fact": "The previous conclusion that disabled devtools prevents all release automation was incorrect. The baseline locks tauri-runtime-wry 2.9.3, whose TAURI_WEBVIEW_AUTOMATION=true opt-in is independent of debug/devtools. Wry supplies its first existing webview to automation; WebKitGTK targetAddress permits attachment without launching a replacement browser. This is a source-supported unmodified-release route, not actual AppImage runtime proof.",
 		"limitation": "This bounded probe requests that mode, observes mounted provenance/native inspector, and optionally GETs a separate task-owned WebKitWebDriver /status. No WebDriver session creation, window selection, JavaScript evaluation, native IPC, download, installation or relaunch is implemented. Missing WebPage inspector targets with devtools disabled do not disprove the independent Automation route; a listener/target list/ready status is not app control.",
-		"nextGate": "First rerun the hosted writable/readonly feasibility probe and inspect bounded owned-process rejection diagnostics to identify the mounted-identity timeout; its root cause is still unknown. Only after strict mounted identity is established can hosted evidence establish version-compatible targetAddress attachment to the observed AppImage-owned server and preserve the first existing webview without navigation/replacement before verifying packaged IPC identity. A control adapter and full updater acceptance are outside this bounded change. Never substitute MiniBrowser, a development webview or an extracted/rebuilt/patched executable."
+		"nextGate": "Hosted run 37783877938 isolates the mount allowlist rejection: correct owned leaders report fuse.Wallpaper.AppImage. Pure captured-evidence replay now correlates the exact expected-image filename subtype without wildcard FUSE acceptance. After review, a fresh approved hosted probe must verify this correction against genuine published 3.6.0. Only then can hosted evidence establish version-compatible targetAddress attachment to the observed AppImage-owned server and preserve the first existing webview without navigation/replacement before verifying packaged IPC identity. A control adapter and full updater acceptance are outside this bounded change. Never substitute MiniBrowser, a development webview or an extracted/rebuilt/patched executable."
 	},
 	"boundedCorrections": [
 		"Strict shared schema/repository/exact target/published asset names/URLs/signature metadata and verified bounded size; caseRoot strictly below RUNNER_TEMP/native-updater-acceptance and inputs within caseRoot.",
@@ -144,15 +144,57 @@
 		"change": "Diagnostics only: retain first/latest scans and scan count before cleanup, leader returncode, bounded session-owned process status with strict all-slot UID check, allowlisted APPIMAGE/APPDIR/TMPDIR, exe, rejection stage/reason/errno, and only task-tmp mount rows. Keep mounted_identity unchanged; diagnostic limits never skip later correlation candidates.",
 		"bounds": "32 retained processes per scan, 16 task-tmp mount rows per process, 4096 characters per recorded path/value; bounded proc reads: status/cmdline 16 KiB, environ 128 KiB, mountinfo 1 MiB. Keep only first/latest scans, not every poll. Foreign-session detail is never read; foreign/unknown UID prevents environ/exe/mount reads.",
 		"pureRegression": "Observed RED then GREEN for missing diagnostic collector, missing bounded timeout retention, lost allowlisted environment on exe failure, diagnostic cap hiding later candidates, session change before sensitive reads, and missing enumeration-error evidence. Additional fixture tests cover strict rejection reasons, malformed/escaped mount rows, size bounds, foreign session/UID exclusion, leader exit and acceptance remaining false.",
-		"diagnosticsHostedExecuted": false,
-		"nextRealProbe": "After review, rerun the approved GitHub-hosted writable/readonly feasibility cases against genuine published 3.6.0 with this collector. Inspect mountedIdentityDiagnostics.firstScan/lastScan, stage/reason/errno, environment, exe and scopedMounts before proposing any correlation change. Exit 1 failed or 2 blocked remains required; no app-control adapter or updater acceptance is added."
+		"diagnosticsHostedExecuted": true,
+		"nextRealProbe": "Diagnostics were hosted-executed in run 37783877938 and isolated the filename-derived FUSE subtype rejection (see hostedFilenameSubtypeCorrection). After review, a fresh approved hosted probe must establish the corrected predicate and unexercised downstream feasibility. Exit 1 failed or 2 blocked remains required; no app-control adapter or updater acceptance is added."
+	},
+	"hostedFilenameSubtypeCorrection": {
+		"runId": "37783877938",
+		"commit": "bb5e4a630df67560bd7ea1ceadf987db40805ff2",
+		"rootCause": "Both lastScan leaders have session=launchPid, uid=1001, exact owned APPIMAGE/APPDIR/native exe and matchesAPPDIR=true, but filesystem=fuse.Wallpaper.AppImage is rejected by the former lowercase fuse.appimage/fuse allowlist. This immediate predicate mismatch is proven; it does not explain or validate unexercised downstream automation.",
+		"observedLeaders": { "readonly": 3876, "writable": 4145 },
+		"referenceSources": [
+			{
+				"url": "https://raw.githubusercontent.com/AppImage/type2-runtime/8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa/src/runtime/runtime.c",
+				"sha256": "e90a7685e1e11cd422bbc9cc0032c975ef9ca998e3c3708050c1c5134286f618",
+				"lines": "1040-1060,1754-1770",
+				"fact": "Runtime passes realpath(appimage_path) as FUSE argv[0], ro/offset options and mount directory, then calls fuse_parse_cmdline. Reference only: exact bundled runtime version is not identified."
+			},
+			{
+				"url": "https://raw.githubusercontent.com/libfuse/libfuse/d04687923194d906fe5ad82dcd546c9807bf15b6/lib/helper.c",
+				"sha256": "e5f510e9df691f399e3f05b0f1bbb6d8d64353c6fa5686e239f0bb1c2b29a65f",
+				"lines": "126-166",
+				"fact": "libfuse 2.9.9 add_default_subtype derives subtype from argv[0] basename when fsname/subtype options do not suppress the default. Reference behavior supports the filename rule; hosted reports establish the actual observed type, not this library version."
+			}
+		],
+		"capturedFixtures": [
+			{
+				"path": "fixtures/run-37783877938-readonly.json.txt",
+				"artifact": "native-linux-readonly-37783877938",
+				"archiveSha256": "4dabd8ad69673103d631baecda6f4d326c24c981de08c68ae1d4e1e80d8e614e",
+				"reportSha256": "17aa331a9d1520932a5cc73ba2d03a4e7baf34e00e5aac2ca80be9ba81f53945"
+			},
+			{
+				"path": "fixtures/run-37783877938-writable.json.txt",
+				"artifact": "native-linux-writable-37783877938",
+				"archiveSha256": "10f029992edfc95be23a401022d1c8c88c0c5ed2e1f707deb8de46062afc69f1",
+				"reportSha256": "e92d254e89f4ca3c46b2a50b589d780ce0d1c02b080d1484def2800a3c55c732"
+			}
+		],
+		"fixtureProvenance": "Byte-identical evidence.json copies from saved API-digest-verified archives; archive hashes reverified before copying. .json.txt preserves raw bytes outside JSON formatting. Captured failures/reasons/labels remain unchanged. Reports contain bounded parsed scoped mounts, not raw /proc files; tests explicitly reconstruct inert mountinfo/status/environ/cmdline and mock UID/session/exe/snapshot. No reconstructed bytes are represented as native evidence.",
+		"change": "Shared mounted_identity accepts only exact fuse. + expected image basename in addition to pre-existing fuse/fuse.AppImage compatibility types. Filename-derived comparison is case-sensitive; no wildcard fuse.*, squashfuse or sshfs additions. Existing APPIMAGE equality, executable equality, APPDIR task-tmp containment, UID and session guards are unchanged. identity_diagnostic still calls the shared predicate and never grants acceptance independently.",
+		"redGreen": "Before correction, the single captured-leader behavioral test failed assertTrue(mounted_identity(...)) for readonly and writable (2 subtest failures, exit 1). The minimal helper correction passed the identical test (exit 0). Full replay selects only each captured leader, rejects both WebKit processes and startup runtime, and preserves report acceptancePassed=false/nativeUpdaterInvocations=0.",
+		"regressions": "Exact/case-sensitive filename subtypes, other-image mismatch and derivation, retained generic types, foreign/mismatched mounts, APPIMAGE/executable/APPDIR escapes, one-pass octal whitespace/backslash decoding, all four UID slots, foreign sessions and final session recheck; diagnostics aligned with shared helper.",
+		"correctionHostedExecuted": false,
+		"nativeExecutedLocally": false,
+		"acceptancePassed": false,
+		"residual": "Feasibility remains exit 1 failed or 2 blocked, never zero. Fresh reviewed hosted proof of mount correlation is required. No WebKit adapter/native IPC/updater invocation/install/denial/replacement/relaunch or upgrade-preservation acceptance is added."
 	},
 	"verification": {
 		"red": "Observed failing regressions before fixes: 14 invalid manifest subcases; missing copy validation/automation environment; malformed mountinfo IndexError; extra GVariant ref_sink; absent bounded status/probe; unsafe roots in Python/Bun; absent session cleanup and lost pipe-close evidence.",
-		"pureTests": "34 Python tests and 2 Bun tests; helper/guard/pure filesystem/mocked-boundary evidence only",
+		"pureTests": "42 Python tests and 2 Bun tests; helper/guard/captured-observation replay/pure filesystem/mocked-boundary evidence only",
 		"nativeExecutedLocally": false,
 		"hostedExecuted": true,
-		"hostedOutcome": "Historical run 37780157341 failed in both Linux cases; diagnostics added after that run have not been hosted-executed. No acceptance passed.",
+		"hostedOutcome": "Runs 37780157341 and 37783877938 failed in both Linux cases. Second-run diagnostics establish the exact FUSE subtype rejection; its correction is pure-replay verified only, not hosted-executed. No acceptance passed.",
 		"commands": [
 			"python3 -B -m unittest discover -s scripts/native-updater/linux -p 'test_*.py'",
 			"bun test --isolate scripts/native-updater/linux"

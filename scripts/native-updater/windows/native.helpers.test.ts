@@ -29,6 +29,18 @@ function runHelpers(scenario: string) {
 }
 
 test.skipIf(process.platform !== "win32")(
+	"baseline MSI does not request auto-launch before fixture ownership",
+	() => {
+		const result = runHelpers("msi-install");
+		expect(result.error).toBeUndefined();
+		expect(result.stderr).toBe("");
+		expect(result.status).toBe(0);
+		expect(result.stdout).toContain("PASS baseline MSI omits auto-launch property");
+	},
+	45000,
+);
+
+test.skipIf(process.platform !== "win32")(
 	"NSIS discovery accepts the captured pair-quoted registration without changing raw values",
 	() => {
 		const result = runHelpers("nsis");
@@ -36,6 +48,18 @@ test.skipIf(process.platform !== "win32")(
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
 		expect(result.stdout).toContain("PASS NSIS captured pair-quoted registration");
+	},
+	45000,
+);
+
+test.skipIf(process.platform !== "win32")(
+	"coexistence discovery uses the secondary NSIS root and refuses it under the primary root",
+	() => {
+		const result = runHelpers("coexistence");
+		expect(result.error).toBeUndefined();
+		expect(result.stderr).toBe("");
+		expect(result.status).toBe(0);
+		expect(result.stdout).toContain("PASS coexistence secondary-root discovery");
 	},
 	45000,
 );

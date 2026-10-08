@@ -1,6 +1,6 @@
 param(
 	[Parameter(Mandatory=$true)][string]$NativeScript,
-	[Parameter(Mandatory=$true)][ValidateSet('reflection','properties','nsis')][string]$Scenario
+	[Parameter(Mandatory=$true)][ValidateSet('reflection','properties','nsis','coexistence','msi-install')][string]$Scenario
 )
 $ErrorActionPreference = 'Stop'
 # Parse only; never dot-source the driver, its guards, registry, COM or action switch.
@@ -19,7 +19,46 @@ foreach ($name in @('ComMethod','ComProperty')) {
 function AssertEqual($actual, $expected, [string]$label) {
 	if ($actual -cne $expected) { throw "$label expected <$expected>, got <$actual>" }
 }
-if ($Scenario -eq 'nsis') {
+if ($Scenario -eq 'msi-install') {
+	$dispatch = $ast.Find({ param($node) $node -is [Management.Automation.Language.SwitchStatementAst] }, $false)
+	$install = @($dispatch.Clauses | Where-Object { $_.Item1.Value -eq 'install' })
+	if ($install.Count -ne 1) { throw 'Expected one install branch' }
+	$body = $install[0].Item2
+	foreach ($command in $body.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] }, $true)) {
+		if ($command.GetCommandName() -notin @('OwnedFile','Join-Path','Start-Process')) { throw "Unexpected install command: $command" }
+	}
+	$root = 'D:\a\_temp\native-updater-acceptance\fixture with spaces\msi'
+	$p = @{ kind='msi'; artifactPath=($root + '\baseline-Wallpaper.Picker.UI_3.6.0_x64_en-US.msi') }
+	$script:fake = [pscustomobject]@{ ExitCode=0; Id=1234; waited=0 }
+	$script:fake | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value { param($milliseconds) $this.waited=$milliseconds; return $true }
+	$script:fake | Add-Member -MemberType ScriptMethod -Name Kill -Value { throw 'Unexpected installer timeout' }
+	# Intercept the actual command seam: never launch msiexec or query the filesystem.
+	function OwnedFile([string]$file) {
+		AssertEqual $file $p.artifactPath 'exact published baseline path'
+		return $file
+	}
+	function Start-Process([string]$FilePath, [string[]]$ArgumentList, [switch]$PassThru) {
+		AssertEqual $FilePath "$env:SystemRoot\System32\msiexec.exe" 'MSI executable'
+		if (-not $PassThru) { throw 'Installer process observation required' }
+		$script:capturedArguments = $ArgumentList
+		return $script:fake
+	}
+	$invoke = [scriptblock]::Create(($body.Statements | ForEach-Object { $_.Extent.Text }) -join "`n")
+	$result = & $invoke
+	# main.wxs at tauri-cli-v2.9.6 schedules AUTOLAUNCHAPP AND NOT Installed.
+	# Any nonempty property (including False or 0) satisfies this presence condition.
+	foreach ($argument in $script:capturedArguments) {
+		if ($argument -match '^AUTOLAUNCHAPP=(.+)$') { throw "Nonempty $argument schedules LaunchApplication before fixture ownership" }
+	}
+	$expected = @('/i', ('"' + $p.artifactPath + '"'), '/qn', '/norestart', '/L*v', ('"' + $root + '\baseline-msi.log"'))
+	AssertEqual ($script:capturedArguments -join '|') ($expected -join '|') 'quiet baseline MSI arguments'
+	AssertEqual $script:fake.waited 180000 'bounded baseline wait'
+	AssertEqual $result.exitCode 0 'baseline exit code'
+	AssertEqual $result.installerPid 1234 'baseline PID'
+	Write-Output 'PASS baseline MSI omits auto-launch property; exact artifact/log arguments and bounded wait'
+	return
+}
+if ($Scenario -in @('nsis','coexistence')) {
 	# Execute only the NSIS else block, never the MSI branch or any action switch.
 	$dispatch = $ast.Find({ param($node) $node -is [Management.Automation.Language.SwitchStatementAst] }, $false)
 	$discover = @($dispatch.Clauses | Where-Object { $_.Item1.Value -eq 'discover' })
@@ -50,6 +89,35 @@ if ($Scenario -eq 'nsis') {
 	$script:registration = $captured | ConvertFrom-Json
 	$root = 'D:\a\_temp\native-updater-acceptance\37780157341\nsis'
 	$p = @{ kind='nsis' }
+	if ($Scenario -eq 'coexistence') {
+		$primary = 'D:\a\_temp\native-updater-acceptance\37783877938\coexistence'
+		$secondary = $primary + '-secondary'
+		$secondaryInstall = $secondary + '\install\nsis'
+		$secondaryExe = $secondaryInstall + '\wallpaper-picker-ui.exe'
+		foreach ($quoted in @($false,$true)) {
+			$script:registration = $captured | ConvertFrom-Json
+			$script:registration.installLocation = $secondaryInstall
+			$script:registration.displayIcon = $secondaryExe
+			if ($quoted) {
+				$script:registration.installLocation = '"' + $secondaryInstall + '"'
+				$script:registration.displayIcon = '"' + $secondaryExe + '", 0'
+			}
+			$script:existing = @($secondaryExe)
+			$root = $secondary
+			$raw = $script:registration | ConvertTo-Json -Compress
+			AssertEqual (& $discovery).path $secondaryExe "secondary discovery quoted=$quoted"
+			AssertEqual ($script:registration | ConvertTo-Json -Compress) $raw 'secondary raw registration preserved'
+			$root = $primary
+			$rejected = $false
+			try { $null = & $discovery } catch {
+				if ($_.Exception.Message -notmatch 'outside owned installation') { throw }
+				$rejected = $true
+			}
+			if (-not $rejected) { throw 'Secondary registration accepted under primary root' }
+		}
+		Write-Output 'PASS coexistence secondary-root discovery and primary-root refusal'
+		return
+	}
 	$install = $root + '\install\nsis'
 	$exe = $install + '\wallpaper-picker-ui.exe'
 	$script:existing = @($exe)

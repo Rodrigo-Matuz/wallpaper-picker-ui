@@ -105,7 +105,15 @@ def mounted_identity(env, exe, mountinfo, image, temporary_root):
             continue
         # mountinfo escapes whitespace, backslashes and newlines as octal.
         mountpoint = re.sub(r"\\([0-7]{3})", lambda m: chr(int(m[1], 8)), fields[4])
-        if mountpoint == appdir and fields[separator + 1].lower() in ("fuse.appimage", "fuse"):
+        filesystem = fields[separator + 1]
+        # libfuse's default subtype is argv[0]'s basename; the hosted runtime
+        # reports fuse.Wallpaper.AppImage for the owned Wallpaper.AppImage copy.
+        # Preserve prior generic types, but never accept arbitrary fuse.* or
+        # case-fold the filename-derived subtype on a case-sensitive filesystem.
+        if mountpoint == appdir and (
+            filesystem.lower() in ("fuse.appimage", "fuse")
+            or filesystem == "fuse." + PurePosixPath(image).name
+        ):
             return True
     return False
 
