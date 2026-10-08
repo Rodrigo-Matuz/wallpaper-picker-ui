@@ -1,0 +1,70 @@
+[
+	{
+		"release": {
+			"tag_name": "v3.6.0",
+			"draft": false,
+			"prerelease": false,
+			"assets": [
+				{
+					"name": "Wallpaper.Picker.UI_3.6.0_x64-setup.exe",
+					"size": 3468243,
+					"digest": "sha256:defc8f9acedb26387b459704b578d8009ce25eac26e97b34894112e6393cdb9c",
+					"browser_download_url": "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.6.0/Wallpaper.Picker.UI_3.6.0_x64-setup.exe"
+				},
+				{
+					"name": "Wallpaper.Picker.UI_3.6.0_x64_en-US.msi",
+					"size": 5025792,
+					"digest": "sha256:04cecf9bed50a9613503b88acd2c37ff2d02e7c44ea64ea6c82258b463cb341d",
+					"browser_download_url": "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.6.0/Wallpaper.Picker.UI_3.6.0_x64_en-US.msi"
+				}
+			]
+		},
+		"feed": {
+			"version": "3.6.0",
+			"platforms": {
+				"windows-x86_64-nsis": {
+					"signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUWZxUEl0OU5wUzZtNVBDSHROTi9BTWpvdFppTVFJV25sNnJ1Zmx5enQ2NzVXUVBvN082YkYvL3NXcjFFUVVRaGZyVDNoNC84UElIdm93QUN2VFZxcFY0cCtpT1kzV2dBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMjI1Nzc1CWZpbGU6V2FsbHBhcGVyIFBpY2tlciBVSV8zLjYuMF94NjQtc2V0dXAuZXhlClBpeDZqT0o5R21Ud2V1MGdiRVZlTVZtdi9UTDgxajYxZFkzb3YrL1FKWkNkZTUyWVprOXF1L0VGMnFiSS9BYlZVSWh3YktTRnVhMlJsUnJtcWErRUN3PT0K",
+					"url": "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.6.0/Wallpaper.Picker.UI_3.6.0_x64-setup.exe"
+				},
+				"windows-x86_64-msi": {
+					"signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUWZxUEl0OU5wUy9nRHZySURIQzl3Q0ZoejA2YUd6ZFg0L2Z0bUUwaFp6UDdzSTdZRnI0NmVSSHgyVlJqNkJjcHl1TWtDQXlodk11L3IycmZhSkd4QVJEV1c1aXBZRUEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMjI1Nzc1CWZpbGU6V2FsbHBhcGVyIFBpY2tlciBVSV8zLjYuMF94NjRfZW4tVVMubXNpCkpoTzE2RGZSbGNsM0tXZ3oxWUF0QlVlK3dlV2pyQmJsek1oemZtLzZCNlpaVCtrL1JHd203bWxJWnlrWnVHcFZIamFlcmJ4dlBYNXp5UlQxZFhVV0FBPT0K",
+					"url": "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.6.0/Wallpaper.Picker.UI_3.6.0_x64_en-US.msi"
+				}
+			}
+		}
+	},
+	{
+		"release": {
+			"tag_name": "v3.6.1",
+			"draft": false,
+			"prerelease": false,
+			"assets": [
+				{
+					"name": "Wallpaper.Picker.UI_3.6.1_x64-setup.exe",
+					"size": 3465665,
+					"digest": "sha256:4ab02d030478c010144e05569412a7f1da57eaa5b9badaaca01d69931828191a",
+					"browser_download_url": "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.6.1/Wallpaper.Picker.UI_3.6.1_x64-setup.exe"
+				},
+				{
+					"name": "Wallpaper.Picker.UI_3.6.1_x64_en-US.msi",
+					"size": 5021696,
+					"digest": "sha256:cc3fb91b6857100e20d9adaf5a0fbb0d4897ea4575aa0bbefef26dc910e43a47",
+					"browser_download_url": "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.6.1/Wallpaper.Picker.UI_3.6.1_x64_en-US.msi"
+				}
+			]
+		},
+		"feed": {
+			"version": "3.6.1",
+			"platforms": {
+				"windows-x86_64-nsis": {
+					"signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUWZxUEl0OU5wUzBSLzAxT1lXSDRkTmJESW83amQ4eVYzMytnd0lIN2ZTYzM3YndIZjQ1WEg2WEZ1VDFKbnpENjJ6Y3p1Qk1kRDkxS2hreDBrV3lueXNzUzZUVGM1NUFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMjQyMzY1CWZpbGU6V2FsbHBhcGVyIFBpY2tlciBVSV8zLjYuMV94NjQtc2V0dXAuZXhlCmFqQmV4bmY0RkxCNmxJa3NTem9nQ3F6cjhOSUNQU3VWejM2VHZyenNNZnpsY2dHYU1zMTNXc3ladDBvZ0JGOUt0NFMzYkI4YzNpNFlZYVpFbWpsbkNBPT0K",
+					"url": "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.6.1/Wallpaper.Picker.UI_3.6.1_x64-setup.exe"
+				},
+				"windows-x86_64-msi": {
+					"signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUWZxUEl0OU5wUzJFRm83OXR2eGF0cHJFWU9SYTVXcktXT3dRWFQ1WGg2NmxlcXptL3VGcDJKQUR0TmdOeHlOdjNGU0picGtwcXhITjJ4azhGTDdublVtNHVNUDIzQUEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMjQyMzY1CWZpbGU6V2FsbHBhcGVyIFBpY2tlciBVSV8zLjYuMV94NjRfZW4tVVMubXNpCjJVUEVYVlNRWFNjNWsrRnVFb0xWWitBMExZejhlRHZKVEdkVndPaksyU0FtcVI2UzhiWlJSSU0yL0Q0ZFBwWjFnR2NleVB1a2RNdVhJdUpYMjE1V0R3PT0K",
+					"url": "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.6.1/Wallpaper.Picker.UI_3.6.1_x64_en-US.msi"
+				}
+			}
+		}
+	}
+]

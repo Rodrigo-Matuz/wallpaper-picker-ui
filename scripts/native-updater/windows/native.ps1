@@ -1,0 +1,174 @@
+param(
+	[Parameter(Mandatory=$true)][ValidateSet('machine','registrations','msi','discover','install','launch','processes','stop')][string]$Action,
+	[Parameter(Mandatory=$true)][string]$Payload
+)
+$ErrorActionPreference = 'Stop'
+# Defense in depth: every native entry point checks the runner and explicit opt-in.
+if ($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+	$env:RUNNER_OS -cne 'Windows' -or $env:WALLPAPER_PICKER_NATIVE_ACCEPTANCE -cne '1') {
+	throw 'Native operations refused outside opted-in disposable hosted Windows'
+}
+$p = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Payload)) | ConvertFrom-Json
+$root = [IO.Path]::GetFullPath($p.caseRoot).TrimEnd('\')
+$runnerTemp = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
+$allowed = [IO.Path]::Combine($runnerTemp, 'native-updater-acceptance').TrimEnd('\') + '\'
+if (-not $root.StartsWith($allowed, [StringComparison]::OrdinalIgnoreCase)) {
+	throw 'Case root must be strictly inside RUNNER_TEMP/native-updater-acceptance'
+}
+# Refuse reparse ancestors as well as the leaf: a normal leaf can sit beneath a junction.
+$current = $root
+while ($true) {
+	$item = Get-Item -LiteralPath $current -Force
+	if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+		throw 'Reparse/non-directory case-root ancestor refused'
+	}
+	if ($current.Equals($runnerTemp, [StringComparison]::OrdinalIgnoreCase)) { break }
+	$current = [IO.Path]::GetDirectoryName($current)
+}
+
+
+function OwnedFile([string]$file) {
+	$full = [IO.Path]::GetFullPath($file)
+	if (-not $full.StartsWith($root.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Artifact outside case root' }
+	if ((Get-Item -LiteralPath $full).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Reparse artifact refused' }
+	return $full
+}
+function Registrations {
+	$result = @()
+	foreach ($base in @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+		'HKCU:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+		'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+		'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')) {
+		if (-not (Test-Path $base)) { continue }
+		foreach ($key in Get-ChildItem $base) {
+			$r = Get-ItemProperty $key.PSPath
+			if ($r.DisplayName -match '(?i)wallpaper[ -]picker[ -]ui') {
+				$result += [ordered]@{ key=$key.Name; productCode=$key.PSChildName;
+					kind=$(if ($r.WindowsInstaller -eq 1) {'msi'} else {'nsis'});
+					version=[string]$r.DisplayVersion; installLocation=[string]$r.InstallLocation;
+					displayIcon=[string]$r.DisplayIcon; uninstallString=[string]$r.UninstallString }
+			}
+		}
+	}
+	return $result
+}
+function ComMethod($obj, [string]$name, [object[]]$args) {
+	return $obj.GetType().InvokeMember($name, [Reflection.BindingFlags]::InvokeMethod, $null, $obj, $args)
+}
+function ComProperty($obj, [string]$name, [object[]]$args) {
+	return $obj.GetType().InvokeMember($name, [Reflection.BindingFlags]::GetProperty, $null, $obj, $args)
+}
+function MsiProperties([string]$file) {
+	$installer = New-Object -ComObject WindowsInstaller.Installer
+	$db = ComMethod $installer 'OpenDatabase' @($file, 0)
+	$result = [ordered]@{}
+	foreach ($property in @('ProductCode','UpgradeCode','ProductVersion')) {
+		$query = 'SELECT `Value` FROM `Property` WHERE `Property`=' + "'$property'"
+		$view = ComMethod $db 'OpenView' @($query)
+		$null = ComMethod $view 'Execute' @()
+		$record = ComMethod $view 'Fetch' @()
+		if (-not $record) { throw "MSI lacks $property" }
+		$result[$property] = ComProperty $record 'StringData' @(1)
+		$null = ComMethod $view 'Close' @()
+	}
+	return $result
+}
+function Processes {
+	$result = @()
+	foreach ($process in @(Get-CimInstance Win32_Process -Filter "Name='wallpaper-picker-ui.exe'")) {
+		if (-not $process.ExecutablePath) { throw 'Cannot observe app executable path' }
+		$file = Get-Item -LiteralPath $process.ExecutablePath
+		$result += [ordered]@{ pid=[int]$process.ProcessId; parentPid=[int]$process.ParentProcessId;
+			path=$process.ExecutablePath; startedUtc=$process.CreationDate.ToUniversalTime().ToString('o');
+			peVersion=$file.VersionInfo.ProductVersion;
+			sha256=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+	}
+	return $result
+}
+
+$result = switch ($Action) {
+	'machine' {
+		@{ configBase=[Environment]::GetFolderPath('ApplicationData');
+			appData=([IO.Path]::Combine([Environment]::GetFolderPath('ApplicationData'), 'dev.matuz.wallpaper-picker-ui'));
+			localData=([IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'), 'dev.matuz.wallpaper-picker-ui')) }
+	}
+	'registrations' { @{ registrations=@(Registrations) } }
+	'msi' { MsiProperties (OwnedFile $p.artifactPath) }
+	'discover' {
+		if ($p.kind -eq 'msi') {
+			$installer = New-Object -ComObject WindowsInstaller.Installer
+			$local = ComProperty $installer 'ProductInfo' @($p.productCode, 'LocalPackage')
+			$db = ComMethod $installer 'OpenDatabase' @($local, 0)
+			$query = 'SELECT `File`.`FileName`, `Component`.`ComponentId` FROM `File`, `Component` WHERE `File`.`Component_` = `Component`.`Component`'
+			$view = ComMethod $db 'OpenView' @($query)
+			$null = ComMethod $view 'Execute' @()
+			$paths = @()
+			while ($record = ComMethod $view 'Fetch' @()) {
+				$name = ComProperty $record 'StringData' @(1)
+				if ($name -match '(^|\|)wallpaper-picker-ui\.exe$') {
+					$guid = ComProperty $record 'StringData' @(2)
+					$paths += ComProperty $installer 'ComponentPath' @($p.productCode, $guid)
+				}
+			}
+			$null = ComMethod $view 'Close' @()
+			if ($paths.Count -ne 1 -or -not (Test-Path -LiteralPath $paths[0] -PathType Leaf)) { throw 'MSI main executable cannot be uniquely observed' }
+			@{ path=$paths[0]; installedMsi=(MsiProperties $local) }
+		} else {
+			$r = @(Registrations | Where-Object { $_.kind -eq 'nsis' })
+			if ($r.Count -ne 1) { throw 'NSIS registration not unique' }
+			$candidates = @()
+			if ($r[0].installLocation) { $candidates += Join-Path $r[0].installLocation 'wallpaper-picker-ui.exe' }
+			$icon = $r[0].displayIcon -replace ',\s*-?\d+$',''
+			$icon = $icon.Trim('"')
+			if ([IO.Path]::GetFileName($icon) -ieq 'wallpaper-picker-ui.exe') { $candidates += $icon }
+			$paths = @($candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Sort-Object -Unique)
+			if ($paths.Count -ne 1) { throw 'NSIS main executable cannot be uniquely observed from registration' }
+			@{ path=$paths[0] }
+		}
+	}
+	'install' {
+		$file = OwnedFile $p.artifactPath
+		if ($p.kind -eq 'msi') {
+			$log = Join-Path $root 'baseline-msi.log'
+			$child = Start-Process -FilePath "$env:SystemRoot\System32\msiexec.exe" -ArgumentList @('/i', ('"' + $file + '"'), '/qn', '/norestart', '/L*v', ('"' + $log + '"'), 'AUTOLAUNCHAPP=False') -PassThru
+		} else {
+			$dir = Join-Path $root 'install\nsis'
+			# NSIS /D must be the final unquoted argument, per NSIS command-line contract.
+			$child = Start-Process -FilePath $file -ArgumentList "/S /D=$dir" -PassThru
+		}
+		if (-not $child.WaitForExit(180000)) { $child.Kill(); throw 'Owned baseline installer timeout' }
+		if ($child.ExitCode -ne 0) { throw "Baseline installer failed with exit $($child.ExitCode)" }
+		@{ exitCode=$child.ExitCode; installerPid=$child.Id }
+	}
+	'launch' {
+		if ([IO.Path]::GetFileName($p.exe) -ine 'wallpaper-picker-ui.exe') { throw 'Unexpected application binary' }
+		$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$($p.port) --remote-debugging-address=127.0.0.1"
+		$env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $root 'webview2'
+		# Inherited by ShellExecute/installer auto-relaunch; no manual second launch is allowed.
+		$child = Start-Process -FilePath $p.exe -PassThru
+		@{ pid=$child.Id; launchUtc=[DateTime]::UtcNow.ToString('o') }
+	}
+	'processes' { @{ processes=@(Processes) } }
+	'stop' {
+		$stopped = @()
+		foreach ($process in @(Processes)) {
+			if (@($p.paths) -icontains $process.path -and
+				[DateTime]::Parse($process.startedUtc) -ge [DateTime]::Parse($p.notBeforeUtc)) {
+				# Revalidate PID reuse against the process object immediately before termination.
+				$handle = Get-Process -Id $process.pid -ErrorAction SilentlyContinue
+				if (-not $handle) { continue }
+				try {
+					if ($handle.StartTime.ToUniversalTime() -ne [DateTime]::Parse($process.startedUtc).ToUniversalTime() -or
+						$handle.MainModule.FileName -ine $process.path) {
+						throw 'Owned process identity changed before termination'
+					}
+					Stop-Process -InputObject $handle -Force
+					if (-not $handle.WaitForExit(10000)) { throw 'Owned process termination timeout' }
+					$stopped += $process
+				} finally { $handle.Dispose() }
+			}
+		}
+		@{ stopped=$stopped }
+	}
+}
+$result | ConvertTo-Json -Depth 12 -Compress

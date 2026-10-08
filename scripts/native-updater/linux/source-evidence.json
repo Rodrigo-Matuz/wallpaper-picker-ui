@@ -1,0 +1,140 @@
+{
+	"schema": 1,
+	"scope": "Source/protocol investigation and pure regression tests only; no local native execution or completed Linux acceptance",
+	"publishedBaseline": "v3.6.0",
+	"candidate": "v3.6.1",
+	"locked": {
+		"tauri-plugin-updater": "2.9.0",
+		"tauri-runtime-wry": "2.9.3",
+		"wry": "0.53.5"
+	},
+	"findings": [
+		{
+			"source": "v3.6.0:src-tauri/Cargo.toml; .github/workflows/release.yml",
+			"fact": "Tauri features=[]; release action does not request devtools feature. Current 3.6.1 configuration likewise has no devtools feature."
+		},
+		{
+			"source": "wry-0.53.5/src/lib.rs:818-821",
+			"fact": "WebViewAttributes defaults devtools=true under debug_assertions and false otherwise."
+		},
+		{
+			"source": "tauri-runtime-wry-2.9.3/src/lib.rs:4957-4960",
+			"fact": "with_devtools call is compiled only under debug_assertions or feature=devtools."
+		},
+		{
+			"source": "wry-0.53.5/src/webkitgtk/mod.rs:440-443",
+			"fact": "enable-developer-extras is set only if attributes.devtools is true."
+		},
+		{
+			"source": "wry-0.53.5/src/webkitgtk/web_context.rs:58-60",
+			"fact": "Initial automation=false is overridden by Tauri set_allows_automation when TAURI_WEBVIEW_AUTOMATION=true. Initial defaults alone do not establish release automation is disabled."
+		},
+		{
+			"source": "src-tauri/src/get_update_support/mod.rs:118-146,163-173",
+			"fact": "AppImage classification correlates bundle marker, APPIMAGE/APPDIR, executable and ELF/type-2 bytes. readonly policy reason is app-image-read-only; writable reason native-validation-pending. All targets remain null."
+		},
+		{
+			"source": "tauri-plugin-updater-2.9.0/src/commands.rs:121-137",
+			"fact": "Finished event precedes successful awaited native download; downloaded-bytes resource is returned only after verification. No download is invoked by feasibility probe."
+		},
+		{
+			"source": "tauri-plugin-updater-2.9.0/src/updater.rs:268-273",
+			"fact": "Explicit target is used verbatim as json_target. Future native calls must use linux-x86_64-appimage, never generic Linux target."
+		},
+		{
+			"source": "https://github.com/tauri-apps/tauri/blob/tauri-runtime-wry-v2.9.3/crates/tauri-runtime-wry/src/lib.rs#L4555-L4577",
+			"fact": "create_webview checks TAURI_WEBVIEW_AUTOMATION == true, then set_allows_automation(is_first_context), without a debug_assertions or devtools compile gate."
+		},
+		{
+			"source": "https://github.com/tauri-apps/wry/blob/wry-v0.53.5/src/webkitgtk/web_context.rs#L287-L301; https://github.com/tauri-apps/wry/blob/wry-v0.53.5/src/webkitgtk/mod.rs#L385-L443",
+			"fact": "Automation-started sets wry application info and create-web-view returns the first created webview, not a new replacement. is-controlled-by-automation is separate from enable-developer-extras."
+		},
+		{
+			"source": "https://raw.githubusercontent.com/WebKit/WebKit/webkitgtk-2.48.0/Source/WebDriver/gtk/WebDriverServiceGtk.cpp; https://raw.githubusercontent.com/WebKit/WebKit/webkitgtk-2.48.0/Source/WebDriver/glib/SessionHostGlib.cpp",
+			"fact": "webkitgtk:browserOptions.targetAddress supplies targetAddr/targetPort. launchBrowser connects directly when targetIp is supplied. SessionHost filters targets for Automation and uses StartAutomationSession, not SetupInspectorClient. The unused pure attach payload uses /bin/false to fail closed if incompatible parsing ignores targetAddress; this probe never sends it."
+		},
+		{
+			"source": "https://raw.githubusercontent.com/WebKit/WebKit/webkitgtk-2.48.0/Source/WebDriver/WebDriverService.cpp",
+			"fact": "--host=<host> and --port=<port> are supported. GET /status reports service availability only. The optional probe checks task-session IPv4-loopback listener ownership before requesting status, disables proxies/redirects, bounds time/bytes and never POSTs /session."
+		},
+		{
+			"source": "https://docs.gtk.org/glib/method.Variant.byteswap.html",
+			"fact": "g_variant_byteswap returns a full, non-floating reference. Sinking it again leaks ownership. The fixed probe directly unrefs the returned full reference and retains documented pre-byteswap normal-form checking."
+		}
+	],
+	"protocolReferences": [
+		"https://raw.githubusercontent.com/WebKit/WebKit/webkitgtk-2.48.0/Source/WTF/wtf/glib/SocketConnection.cpp",
+		"https://raw.githubusercontent.com/WebKit/WebKit/webkitgtk-2.48.0/Source/JavaScriptCore/inspector/remote/glib/RemoteInspectorServer.cpp",
+		"https://trac.webkit.org/wiki/RemoteInspectorGTKandWPE?format=txt&version=1",
+		"https://blogs.igalia.com/carlosgc/2017/05/03/webkitgtk-remote-debugging-in-2-18/",
+		"https://raw.githubusercontent.com/WebKit/WebKit/webkitgtk-2.48.0/Source/JavaScriptCore/inspector/remote/glib/RemoteInspectorGlib.cpp"
+	],
+	"protocol": "Native TCP framing: network-order u32 body size, u8 endian flag, NUL-terminated message name, GVariant parameters. SetupInspectorClient=(ay); SetTargetList to client=(ta(tsssb)). Not CDP and not an assumed WebSocket /json endpoint. WebKitWebDriver GET /status is HTTP on a separate service port, never sent to the inspector TCP port.",
+	"runtimeVersionCaveat": "Actual AppImage-loaded WebKitGTK and hosted WebKitWebDriver may differ from reference 2.48.0. Availability does not establish compatibility/attachment. Hosted execution is required; protocol/setup/cleanup failures are nonzero. Missing inspector targets do not disprove independent automation.",
+	"command": "bun scripts/native-updater/linux/run.ts --case writable|readonly --manifest PATH",
+	"result": "Feasibility-only: exit 2 blocked/unexercised, exit 1 guard/setup/integrity/cleanup failure, never acceptance/pass. Native provenance/check/download/install/denial/replacement/relaunch and upgrade fixture preservation remain unexercised even if launch fixtures remain unchanged.",
+	"runnerRequirements": {
+		"platform": "Explicitly approved disposable GitHub-hosted Linux x86_64 nonroot runner; intended ubuntu-22.04; no local native execution",
+		"environment": {
+			"GITHUB_ACTIONS": "true",
+			"RUNNER_ENVIRONMENT": "github-hosted",
+			"RUNNER_OS": "Linux",
+			"WALLPAPER_PICKER_NATIVE_ACCEPTANCE": "1",
+			"RUNNER_TEMP": "Existing absolute literal nonroot directory, no dot/empty components, NUL or trailing slash"
+		},
+		"input": "Existing schema-1 artifact-fetcher manifest: repository Rodrigo-Matuz/wallpaper-picker-ui, exact linux-x86_64-appimage, baseline 3.6.0/candidate 3.6.1. caseRoot strictly below RUNNER_TEMP/native-updater-acceptance; inputs within caseRoot, exact published names/URLs, positive integer sizes <=512 MiB, lowercase SHA-256, signature metadata, sha256AndSizeVerified=true. Driver rehashes size/digest, rejects symlink paths and checks ELF/type-2 AppImage bytes. Output linux-writable/linux-readonly must not already exist.",
+		"tools": [
+			"Bun",
+			"python3",
+			"libglib-2.0.so.0",
+			"Xvfb with -displayfd",
+			"dbus-daemon",
+			"readable /proc session/fd/environ/exe/mountinfo/stat and /proc/net/tcp"
+		],
+		"ubuntuPackages": [
+			"libfuse2",
+			"xvfb",
+			"xauth",
+			"dbus-x11",
+			"ffmpeg",
+			"libwebkit2gtk-4.1-0",
+			"libayatana-appindicator3-1"
+		],
+		"fuse": "Accessible /dev/fuse with nonroot R_OK|W_OK and working mounted AppImage runtime; no extract-and-run fallback.",
+		"optionalWebDriverDiagnostic": "webkit2gtk-driver provides WebKitWebDriver on sanitized PATH. Missing driver is recorded available=false, not core setup failure. Future attachment requires a version-compatible driver, not merely ready /status.",
+		"isolation": "Python owns Xvfb/session DBus and task HOME/XDG/runtime/tmp, ignoring outer display/session wrappers. TAURI_WEBVIEW_AUTOMATION=true goes only to isolated child environment. No signing secrets, LD_PRELOAD, injected-bundle/executable overrides or host app data.",
+		"readonly": "Disposable image and parent 0555 and effectively nonwritable by nonroot; native updater denial still unexercised.",
+		"upload": "Upload caseRoot/linux-writable or linux-readonly recursively even on nonzero exit. Pre-output guard/manifest failures print stderr and may have no evidence directory; never infer acceptance from blocked diagnostics."
+	},
+	"additionalProductionChangesAuthorized": false,
+	"evidenceDirectory": "caseRoot/linux-writable or caseRoot/linux-readonly",
+	"sourceCommits": {
+		"v3.6.0": "731ef1e6ce2eb454c955ed90f5b717690809970e",
+		"v3.6.1": "dc0a9135ed5a97402eab8bfa04e4c7331c44407d"
+	},
+	"verdict": {
+		"sourceSupportedUnmodifiedReleaseControlRoute": true,
+		"publishedAppImageControlRuntimeVerified": false,
+		"acceptancePassed": false,
+		"fact": "The previous conclusion that disabled devtools prevents all release automation was incorrect. The baseline locks tauri-runtime-wry 2.9.3, whose TAURI_WEBVIEW_AUTOMATION=true opt-in is independent of debug/devtools. Wry supplies its first existing webview to automation; WebKitGTK targetAddress permits attachment without launching a replacement browser. This is a source-supported unmodified-release route, not actual AppImage runtime proof.",
+		"limitation": "This bounded probe requests that mode, observes mounted provenance/native inspector, and optionally GETs a separate task-owned WebKitWebDriver /status. No WebDriver session creation, window selection, JavaScript evaluation, native IPC, download, installation or relaunch is implemented. Missing WebPage inspector targets with devtools disabled do not disprove the independent Automation route; a listener/target list/ready status is not app control.",
+		"nextGate": "Hosted evidence must establish version-compatible targetAddress attachment to the observed AppImage-owned server and preserve the first existing webview without navigation/replacement before verifying packaged IPC identity. A control adapter and full updater acceptance are outside this bounded change. Never substitute MiniBrowser, a development webview or an extracted/rebuilt/patched executable."
+	},
+	"boundedCorrections": [
+		"Strict shared schema/repository/exact target/published asset names/URLs/signature metadata and verified bounded size; caseRoot strictly below RUNNER_TEMP/native-updater-acceptance and inputs within caseRoot.",
+		"Reject RUNNER_TEMP //, /./, dot/empty components, trailing separators and NUL in both entry guards before side effects.",
+		"Rehash disposable launch copy against verified baseline before native execution; preserve original inputs.",
+		"Terminate and verify all live members of each task-owned session independently of leader exit/process groups. Preserve signal/reap/pipe errors for failure evidence. Session escapes are not claimed covered.",
+		"Malformed mountinfo separator fails closed; corrected GVariant ownership; source-supported release automation environment; optional bounded WebDriver service diagnostic only."
+	],
+	"verification": {
+		"red": "Observed failing regressions before fixes: 14 invalid manifest subcases; missing copy validation/automation environment; malformed mountinfo IndexError; extra GVariant ref_sink; absent bounded status/probe; unsafe roots in Python/Bun; absent session cleanup and lost pipe-close evidence.",
+		"pureTests": "21 Python tests and 2 Bun tests; helper/guard/mocked-boundary evidence only",
+		"nativeExecutedLocally": false,
+		"hostedExecuted": false,
+		"commands": [
+			"python3 -B -m unittest discover -s scripts/native-updater/linux -p 'test_*.py'",
+			"bun test --isolate scripts/native-updater/linux"
+		]
+	}
+}
