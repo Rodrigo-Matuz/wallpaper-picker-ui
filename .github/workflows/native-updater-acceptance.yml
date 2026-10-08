@@ -3,6 +3,12 @@ name: Native updater acceptance
 # Native installers may execute only on disposable hosted runners, by explicit dispatch.
 on:
   workflow_dispatch:
+    inputs:
+      diagnostic_only:
+        description: "Windows attachment/read-only IPC diagnostics only (not acceptance)"
+        type: boolean
+        required: true
+        default: true
 
 permissions:
   contents: read
@@ -62,8 +68,9 @@ jobs:
           $root = Join-Path $env:RUNNER_TEMP "native-updater-acceptance/$env:GITHUB_RUN_ID/$env:CASE-secondary"
           python scripts/native-updater/artifacts/artifacts.py --target windows-x86_64-nsis --case-root $root
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Exercise packaged provenance and actual native updater behavior
+      - name: Probe packaged Windows attachment or acceptance (diagnostic default)
         env:
+          WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY: ${{ inputs.diagnostic_only && '1' || '0' }}
           MANIFEST: ${{ steps.artifacts.outputs.manifest }}
           SECONDARY_MANIFEST: ${{ steps.secondary.outputs.manifest }}
         run: |

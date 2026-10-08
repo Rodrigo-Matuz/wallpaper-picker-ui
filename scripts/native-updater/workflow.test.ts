@@ -91,6 +91,40 @@ test("Linux probe is explicitly feasibility-only with no wrapper or masked failu
 	expect(upload?.if).toBe("always()");
 });
 
+test("Windows dispatch defaults to explicit diagnostic-only mode without masking failure", () => {
+	const dispatch = workflow.on.workflow_dispatch as {
+		inputs?: {
+			diagnostic_only?: {
+				type: string;
+				default: boolean;
+				required: boolean;
+				description: string;
+			};
+		};
+	} | null;
+	expect(dispatch?.inputs?.diagnostic_only).toMatchObject({
+		type: "boolean",
+		default: true,
+		required: true,
+	});
+	expect(dispatch?.inputs?.diagnostic_only?.description).toContain("not acceptance");
+	const probe = workflow.jobs.windows.steps.find((step) =>
+		step.run?.includes("bun scripts/native-updater/windows/run.ts"),
+	);
+	expect(probe?.env?.WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY).toBe(
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: This is literal GitHub Actions syntax, not JavaScript interpolation.
+		"${{ inputs.diagnostic_only && '1' || '0' }}",
+	);
+	expect(probe?.name).toContain("diagnostic");
+	expect(probe?.env).not.toHaveProperty("GITHUB_TOKEN");
+	expect(probe?.run).not.toMatch(/\|\|\s*(true|:)|exit\s+0/);
+	expect(probe?.["continue-on-error"]).not.toBe(true);
+	const upload = workflow.jobs.windows.steps.find((step) =>
+		step.uses?.startsWith("actions/upload-artifact@"),
+	);
+	expect(upload?.if).toBe("always()");
+});
+
 test("Linux feasibility installs the WebKitWebDriver diagnostic binary", () => {
 	const setup = workflow.jobs.linux.steps.find((step) =>
 		step.run?.includes("sudo apt-get install"),

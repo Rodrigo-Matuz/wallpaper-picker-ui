@@ -8,6 +8,16 @@ if ($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hos
 	$env:RUNNER_OS -cne 'Windows' -or $env:WALLPAPER_PICKER_NATIVE_ACCEPTANCE -cne '1') {
 	throw 'Native operations refused outside opted-in disposable hosted Windows'
 }
+function NativeDiagnosticMode($value) {
+	if ($null -ne $value -and $value -cne '0' -and $value -cne '1') {
+		throw "WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY must be absent, '0' or '1'"
+	}
+	if ($value -ceq '1') { return 'diagnostic-only' }
+	return 'acceptance'
+}
+# Validate again before decoding paths or making any native query. The TS boundary rejects
+# supplied empty values too; Windows may erase an empty environment variable before launch.
+$nativeMode = NativeDiagnosticMode $env:WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY
 $p = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Payload)) | ConvertFrom-Json
 $root = [IO.Path]::GetFullPath($p.caseRoot).TrimEnd('\')
 $runnerTemp = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
@@ -117,6 +127,44 @@ function Processes {
 	return $result
 }
 
+# Keep exact compare values (including decimal ticks as strings) before refusal or termination.
+# Only task-owned eligible handles reach this helper. Evidence I/O must not alter stop semantics.
+function RecordStopComparison($comparison) {
+	try {
+		if ($p.stopInvocation -cnotmatch '^[a-f0-9]{32}$') { return }
+		# Never truncate a compare operand into a misleading value: mark oversized paths unknown.
+		foreach ($field in @('capturedPath','handlePath')) {
+			if ($null -ne $comparison[$field] -and $comparison[$field].Length -gt 32768) {
+				$comparison[$field + 'Length'] = $comparison[$field].Length
+				$comparison[$field] = $null
+				$comparison[$field + 'State'] = 'unknown-over-limit'
+			}
+		}
+		if (-not $script:stopComparisons) {
+			$script:stopComparisons = [ordered]@{ invocation=$p.stopInvocation; count=0; first=$comparison; latest=$comparison }
+		}
+		$script:stopComparisons.count = [Math]::Min(1000000, $script:stopComparisons.count + 1)
+		$script:stopComparisons.latest = $comparison
+		$json = $script:stopComparisons | ConvertTo-Json -Depth 6 -Compress
+		if (-not $script:stopComparisonStream) {
+			# Claim a new leaf exclusively; never follow/adopt an existing file or reparse target.
+			# Retain the exact handle through the stop action so later samples cannot switch files.
+			$script:stopComparisonStream = [IO.File]::Open([IO.Path]::Combine($root, 'stop-comparison.json'), [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+		}
+		$bytes = [Text.Encoding]::UTF8.GetBytes($json)
+		$script:stopComparisonStream.Position = 0
+		$script:stopComparisonStream.SetLength(0)
+		$script:stopComparisonStream.Write($bytes, 0, $bytes.Length)
+		$script:stopComparisonStream.Flush()
+		if (-not $script:stopComparisonClaimSent) {
+			# Out-of-band receipt is not part of the stop result; emitted only by the claimed writer.
+			[Console]::Out.WriteLine('WP_STOP_CLAIM:' + $p.stopInvocation)
+			$script:stopComparisonClaimSent = $true
+		}
+	} catch { # Missing/unwritable diagnostic evidence never authorizes termination or masks refusal.
+	}
+}
+
 $result = switch ($Action) {
 	'machine' {
 		@{ configBase=[Environment]::GetFolderPath('ApplicationData');
@@ -189,21 +237,53 @@ $result = switch ($Action) {
 	'processes' { @{ processes=@(Processes) } }
 	'stop' {
 		$stopped = @()
-		foreach ($process in @(Processes)) {
-			if (@($p.paths) -icontains $process.path -and
-				[DateTime]::Parse($process.startedUtc) -ge [DateTime]::Parse($p.notBeforeUtc)) {
-				# Revalidate PID reuse against the process object immediately before termination.
-				$handle = Get-Process -Id $process.pid -ErrorAction SilentlyContinue
-				if (-not $handle) { continue }
-				try {
-					if ($handle.StartTime.ToUniversalTime() -ne [DateTime]::Parse($process.startedUtc).ToUniversalTime() -or
-						$handle.MainModule.FileName -ine $process.path) {
-						throw 'Owned process identity changed before termination'
-					}
-					Stop-Process -InputObject $handle -Force
-					if (-not $handle.WaitForExit(10000)) { throw 'Owned process termination timeout' }
-					$stopped += $process
-				} finally { $handle.Dispose() }
+		try {
+			foreach ($process in @(Processes)) {
+				if (@($p.paths) -icontains $process.path -and
+					[DateTime]::Parse($process.startedUtc) -ge [DateTime]::Parse($p.notBeforeUtc)) {
+					# Revalidate PID reuse against the process object immediately before termination.
+					$handle = Get-Process -Id $process.pid -ErrorAction SilentlyContinue
+					if (-not $handle) { continue }
+					try {
+						$handleStart = $handle.StartTime
+						$handleStartedUtc = $handleStart.ToUniversalTime()
+						$capturedStart = [DateTime]::Parse($process.startedUtc)
+						$capturedStartedUtc = $capturedStart.ToUniversalTime()
+						$comparison = [ordered]@{
+							requestedPid=$process.pid; handlePid=$handle.Id;
+							capturedPath=$process.path; handlePath=$null; handlePathState='unknown';
+							capturedStartedUtc=$process.startedUtc; notBeforeUtc=$p.notBeforeUtc;
+							handleStartText=$handleStart.ToString('o'); handleStartKind=$handleStart.Kind.ToString();
+							capturedParsedText=$capturedStart.ToString('o'); capturedParsedKind=$capturedStart.Kind.ToString();
+							handleUtcText=$handleStartedUtc.ToString('o'); capturedUtcText=$capturedStartedUtc.ToString('o');
+							handleUtcTicks=$handleStartedUtc.Ticks.ToString([Globalization.CultureInfo]::InvariantCulture);
+							capturedUtcTicks=$capturedStartedUtc.Ticks.ToString([Globalization.CultureInfo]::InvariantCulture)
+						}
+						$handlePath = $null
+						try {
+							$handlePath = $handle.MainModule.FileName
+							$comparison.handlePath = $handlePath
+							$comparison.handlePathState = 'observed'
+						} catch {
+							RecordStopComparison $comparison
+							# Preserve the original short-circuit: time mismatch refuses without requiring path access.
+							if ($handleStartedUtc -eq $capturedStartedUtc) { throw }
+						}
+						RecordStopComparison $comparison
+						# Identical exact DateTime/path comparisons; no tolerance, rounding or normalization.
+						if ($handleStartedUtc -ne $capturedStartedUtc -or $handlePath -ine $process.path) {
+							throw 'Owned process identity changed before termination'
+						}
+						Stop-Process -InputObject $handle -Force
+						if (-not $handle.WaitForExit(10000)) { throw 'Owned process termination timeout' }
+						$stopped += $process
+					} finally { $handle.Dispose() }
+				}
+			}
+		} finally {
+			if ($script:stopComparisonStream) {
+				try { $script:stopComparisonStream.Dispose() } catch { # Never mask stop refusal with diagnostic I/O.
+				} finally { $script:stopComparisonStream = $null }
 			}
 		}
 		@{ stopped=$stopped }

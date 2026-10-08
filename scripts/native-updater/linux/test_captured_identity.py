@@ -11,6 +11,7 @@ import os
 import tempfile
 import unittest
 from contextlib import ExitStack
+from itertools import permutations
 from pathlib import Path
 from unittest.mock import patch
 
@@ -140,8 +141,39 @@ class CapturedIdentityTests(unittest.TestCase):
 
 
 class CapturedOwnedProcessTests(unittest.TestCase):
-    def replay(self, report, scan_name="lastScan", uid_slots=None, sessions=None):
+    def assert_reasons(self, diagnostics, expected):
+        processes = diagnostics["processes"]
+        pids = [item["pid"] for item in processes]
+        self.assertEqual(len(pids), len(set(pids)), "Duplicate diagnostic PID")
+        self.assertEqual(set(pids), set(expected), "Incomplete diagnostic PID set")
+        self.assertEqual({item["pid"]: item["reason"] for item in processes}, expected)
+
+    def replay(self, report, scan_name="lastScan", uid_slots=None, sessions=None, order=None,
+               events=None):
+        """Enumerate inert entries; all injected ownership calls are PID-specific."""
         scan = report["mountedIdentityDiagnostics"][scan_name]
+        events = [] if events is None else events
+        pids = [item["pid"] for item in scan["processes"]]
+        self.assertEqual(len(pids), len(set(pids)), "Duplicate captured PID")
+        if sessions is None:
+            # Both captures have one admitted lastScan leader; firstScan is
+            # startup runtime only. Rejected children never reach a final call.
+            sessions = {
+                pid: [scan["session"]] * (
+                    3 if scan_name == "lastScan" and pid == report["launchPid"] else 2
+                ) for pid in pids
+            }
+        self.assertEqual(set(sessions), set(pids), "Session queues must cover exactly this scan")
+        queues = {pid: list(values) for pid, values in sessions.items()}
+        leader = next(item for item in scan["processes"] if item["pid"] == report["launchPid"])
+
+        def getsid(pid):
+            self.assertIn(pid, queues, "Unknown session PID")
+            self.assertTrue(queues[pid], f"Excess session call for PID {pid}")
+            value = queues[pid].pop(0)
+            events.append(("session", pid, value))
+            return value
+
         root = os.environ.get("TMPDIR") or os.environ.get("RUNNER_TEMP")
         self.assertIsNotNone(root, "Set task-owned TMPDIR or RUNNER_TEMP")
         with tempfile.TemporaryDirectory(dir=root) as temporary:
@@ -163,70 +195,149 @@ class CapturedOwnedProcessTests(unittest.TestCase):
                 (entry / "cmdline").write_bytes(b"reconstructed-fixture-not-captured\0")
                 exes[str(entry / "exe")] = item["exe"]
             diagnostics = {}
+            original_read = feasibility.read_bounded
+
+            def read(path, limit):
+                self.assertEqual(path.parent.parent, proc, "Read outside inert proc fixture")
+                events.append(("read", int(path.parent.name), path.name))
+                return original_read(path, limit)
+
+            def readlink(path):
+                events.append(("exe", int(path.parent.name), exes[str(path)]))
+                return exes[str(path)]
+
+            def executable_snapshot(path):
+                events.append(("snapshot", str(path)))
+                return {"fixtureOnly": True, "notCaptured": True}
+
             with ExitStack() as stack:
+                if order is not None:
+                    self.assertEqual(set(order), set(pids))
+                    self.assertEqual(len(order), len(pids))
+                    original_iterdir = Path.iterdir
+
+                    def fixture_iterdir(path):
+                        if path == proc:
+                            return iter(proc / str(pid) for pid in order)
+                        return original_iterdir(path)
+
+                    # Change only enumeration of this actual inert proc root.
+                    stack.enter_context(patch.object(Path, "iterdir", fixture_iterdir))
                 stack.enter_context(patch("os.getuid", return_value=scan["uid"], create=True))
-                sid = stack.enter_context(patch("os.getsid", create=True))
-                sid.return_value = scan["session"]
-                if sessions is not None:
-                    sid.side_effect = sessions
-                stack.enter_context(patch("os.readlink", side_effect=lambda path: exes[str(path)]))
+                stack.enter_context(patch("os.getsid", side_effect=getsid, create=True))
+                stack.enter_context(patch.object(feasibility, "read_bounded", side_effect=read))
+                stack.enter_context(patch("os.readlink", side_effect=readlink))
                 snapshot = stack.enter_context(patch.object(
-                    feasibility, "snapshot", return_value={"fixtureOnly": True, "notCaptured": True}
+                    feasibility, "snapshot", side_effect=executable_snapshot
                 ))
                 # A fixture replay must never progress to native operations.
                 stack.enter_context(patch("subprocess.Popen", side_effect=AssertionError("native launch")))
                 stack.enter_context(patch("socket.socket", side_effect=AssertionError("socket")))
                 result = feasibility.owned_processes(
                     scan["session"], report["imageBefore"]["path"],
-                    scan["processes"][0]["environment"]["TMPDIR"],
+                    leader["environment"]["TMPDIR"],
                     diagnostics=diagnostics, proc_root=proc,
                 )
+                self.assertEqual(queues, {pid: [] for pid in pids}, "Unconsumed session calls")
                 return result, diagnostics, snapshot.call_args_list
 
     def test_owned_replay_selects_only_captured_leader_not_webkit_or_startup_runtime(self):
         for case in REPORT_DIGESTS:
             report = capture(case)
-            with self.subTest(case=case):
-                result, diagnostics, snapshots = self.replay(report)
-                self.assertEqual([item["pid"] for item in result], [report["launchPid"]])
-                self.assertEqual([item["reason"] for item in diagnostics["processes"]],
-                                 ["correlated", "executable-mismatch", "executable-mismatch"])
-                self.assertEqual([call.args[0] for call in snapshots], [Path(result[0]["exe"])])
-                result, diagnostics, snapshots = self.replay(report, "firstScan")
-                self.assertEqual(result, [])
-                self.assertEqual(diagnostics["processes"][0]["reason"], "appimage-mismatch")
-                self.assertEqual(snapshots, [])
-                self.assertFalse(report["acceptancePassed"])
-                self.assertEqual(report["nativeUpdaterInvocations"], 0)
+            scans = report["mountedIdentityDiagnostics"]
+            pids = [item["pid"] for item in scans["lastScan"]["processes"]]
+            leader = next(item for item in scans["lastScan"]["processes"]
+                          if item["pid"] == report["launchPid"])
+            expected = {pid: "correlated" if pid == leader["pid"] else "executable-mismatch"
+                        for pid in pids}
+            startup_pids = [item["pid"] for item in scans["firstScan"]["processes"]]
+            self.assertEqual(startup_pids, [report["launchPid"]])
+            for order in permutations(pids):
+                with self.subTest(case=case, order=order):
+                    result, diagnostics, snapshots = self.replay(report, order=order)
+                    self.assertEqual([item["pid"] for item in result], [report["launchPid"]])
+                    self.assert_reasons(diagnostics, expected)
+                    self.assertEqual(result[0]["exe"], leader["exe"])
+                    self.assertEqual([call.args for call in snapshots], [(Path(leader["exe"]),)])
+                    result, diagnostics, snapshots = self.replay(
+                        report, "firstScan", order=startup_pids
+                    )
+                    self.assertEqual(result, [])
+                    self.assert_reasons(
+                        diagnostics, {pid: "appimage-mismatch" for pid in startup_pids}
+                    )
+                    self.assertEqual(snapshots, [])
+                    self.assertFalse(report["acceptancePassed"])
+                    self.assertEqual(report["nativeUpdaterInvocations"], 0)
 
     def test_filename_subtype_cannot_override_any_uid_slot_or_foreign_session(self):
         report = capture("writable")
+        scan = report["mountedIdentityDiagnostics"]["lastScan"]
+        pids = [item["pid"] for item in scan["processes"]]
         for slot in range(4):
             uids = ["1001"] * 4
             uids[slot] = "2002"
             with self.subTest(slot=slot):
-                result, diagnostics, snapshots = self.replay(report, uid_slots=uids)
+                events = []
+                result, diagnostics, snapshots = self.replay(
+                    report, uid_slots=uids,
+                    sessions={pid: [scan["session"]] for pid in pids}, events=events
+                )
                 self.assertEqual(result, [])
                 self.assertEqual(snapshots, [])
+                self.assert_reasons(
+                    diagnostics, {pid: "uid-mismatch-or-unavailable" for pid in pids}
+                )
+                self.assertEqual({event[0] for event in events}, {"session", "read"})
+                self.assertEqual(
+                    {event[2] for event in events if event[0] == "read"}, {"status"}
+                )
                 for item in diagnostics["processes"]:
-                    self.assertEqual(item["reason"], "uid-mismatch-or-unavailable")
                     self.assertNotIn("environment", item)
                     self.assertNotIn("exe", item)
                     self.assertNotIn("scopedMounts", item)
-        result, diagnostics, snapshots = self.replay(report, sessions=lambda pid: 999)
+        events = []
+        result, diagnostics, snapshots = self.replay(
+            report, sessions={pid: [999] for pid in pids}, events=events
+        )
         self.assertEqual(result, [])
         self.assertEqual(diagnostics["processes"], [])
         self.assertEqual(snapshots, [])
+        self.assertEqual({event[0] for event in events}, {"session"})
 
     def test_filename_subtype_cannot_override_session_recheck_after_sensitive_reads(self):
-        report = capture("readonly")
-        session = report["launchPid"]
-        result, diagnostics, snapshots = self.replay(
-            report, sessions=[session, session, 999, 999, 999]
-        )
-        self.assertEqual(result, [])
-        self.assertEqual(diagnostics["processes"][0]["reason"], "session-changed")
-        self.assertEqual(len(snapshots), 1)
+        for case in REPORT_DIGESTS:
+            report = capture(case)
+            session = report["launchPid"]
+            processes = report["mountedIdentityDiagnostics"]["lastScan"]["processes"]
+            pids = [item["pid"] for item in processes]
+            leader = next(item for item in processes if item["pid"] == session)
+            sessions = {pid: [session, session, 999] if pid == session else [session, session]
+                        for pid in pids}
+            expected = {pid: "session-changed" if pid == session else "executable-mismatch"
+                        for pid in pids}
+            for order in permutations(pids):
+                with self.subTest(case=case, order=order):
+                    events = []
+                    result, diagnostics, snapshots = self.replay(
+                        report, sessions=sessions, order=order, events=events
+                    )
+                    self.assertEqual(result, [])
+                    self.assert_reasons(diagnostics, expected)
+                    self.assertEqual([call.args for call in snapshots], [(Path(leader["exe"]),)])
+                    leader_events = [event for event in events
+                                     if event[0] == "snapshot" or event[1] == session]
+                    self.assertEqual(leader_events, [
+                        ("session", session, session),
+                        ("read", session, "status"),
+                        ("session", session, session),
+                        ("read", session, "environ"),
+                        ("exe", session, leader["exe"]),
+                        ("read", session, "mountinfo"),
+                        ("snapshot", str(Path(leader["exe"]))),
+                        ("read", session, "cmdline"),
+                        ("session", session, 999),
+                    ])
 
 
 if __name__ == "__main__":

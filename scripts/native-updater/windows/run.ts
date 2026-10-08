@@ -10,7 +10,9 @@ import {
 	type ProcessIdentity,
 	type Registration,
 } from "./assertions";
-import { assertLoopback, Cdp } from "./cdp";
+import { AttachmentDiagnostics, attachmentErrorKind, mainWebview } from "./attachment";
+import { Cdp } from "./cdp";
+import { stopWithComparisons } from "./cleanup-diagnostics";
 import {
 	type Artifact,
 	assertHostedWindows,
@@ -22,6 +24,19 @@ import {
 } from "./guards";
 import { verifyCaseRoot } from "./ownership";
 import { downloadExpression, installExpression, validRid } from "./protocol";
+
+export { AttachmentDiagnostics, attachmentErrorKind, mainWebview } from "./attachment";
+export { parseStopComparisons, readStopComparisons } from "./cleanup-diagnostics";
+export type NativeMode = "acceptance" | "diagnostic-only";
+
+/** Parse the explicit mode before file/native work; never coerce Boolean-looking strings. */
+export function resolveNativeMode(value: string | undefined): NativeMode {
+	requireThat(
+		value === undefined || value === "0" || value === "1",
+		"WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY must be absent, '0' or '1'",
+	);
+	return value === "1" ? "diagnostic-only" : "acceptance";
+}
 
 interface MsiIdentity {
 	ProductCode: string;
@@ -41,6 +56,9 @@ interface DownloadState {
 }
 interface Report {
 	schemaVersion: 1;
+	mode: NativeMode;
+	acceptancePassed: boolean;
+	updaterInvocations: { check: number; download: number; install: number; relaunch: number };
 	case: string;
 	platform: "windows";
 	status: "running" | "passed" | "failed";
@@ -62,8 +80,13 @@ const digest = async (file: string) =>
 
 class Native {
 	constructor(readonly root: string) {}
-	async call<T>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
+	async call<T>(
+		action: string,
+		payload: Record<string, unknown> = {},
+		consumeOutput?: (stdout: string) => string,
+	): Promise<T> {
 		assertHostedWindows(process.env, process.platform);
+		resolveNativeMode(process.env.WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY);
 		const input = Buffer.from(JSON.stringify({ ...payload, caseRoot: this.root })).toString(
 			"base64",
 		);
@@ -90,8 +113,9 @@ class Native {
 				new Response(child.stderr).text(),
 				child.exited,
 			]);
+			const resultText = consumeOutput ? consumeOutput(stdout) : stdout;
 			requireThat(code === 0, `Native ${action} failed (${code}): ${stderr.slice(0, 4000)}`);
-			return JSON.parse(stdout.trim().replace(/^\uFEFF/, "")) as T;
+			return JSON.parse(resultText.trim().replace(/^\uFEFF/, "")) as T;
 		} finally {
 			clearTimeout(timer);
 		}
@@ -107,6 +131,43 @@ class Native {
 interface PollTiming {
 	now?: () => number;
 	pause?: () => Promise<void>;
+}
+
+/** A diagnostic completes its read-only boundary by refusing the acceptance continuation. */
+export class DiagnosticOnlyComplete extends Error {
+	constructor() {
+		super(
+			"Diagnostic-only attachment/read-only IPC complete; packaged updater acceptance skipped",
+		);
+	}
+}
+
+/** Exactly one read-only support IPC; diagnostic completion refuses every acceptance continuation. */
+export async function readSupportGate(options: {
+	client: Pick<Cdp, "evaluate">;
+	kind: Installer;
+	mode: NativeMode;
+	onSupport: (support: unknown) => void;
+	diagnostics?: AttachmentDiagnostics;
+}) {
+	try {
+		const support = await options.client.evaluate(
+			"window.__TAURI_INTERNALS__.invoke('get_update_support')",
+		);
+		options.onSupport(support);
+		assertSupport(support, options.kind);
+		options.diagnostics?.record("support", {
+			outcome: "passed",
+			reason: "expected packaged policy; null production target",
+		});
+	} catch (error) {
+		options.diagnostics?.record("support", {
+			outcome: "failed",
+			errorKind: attachmentErrorKind(error),
+		});
+		throw error;
+	}
+	if (options.mode === "diagnostic-only") throw new DiagnosticOnlyComplete();
 }
 
 async function poll<T>(
@@ -267,45 +328,6 @@ async function freePort(): Promise<number> {
 	return port;
 }
 
-async function mainWebview(port: number, clients: Cdp[]): Promise<Cdp> {
-	const url = `http://127.0.0.1:${port}/json/list`;
-	assertLoopback(url, "http:");
-	return poll("packaged main WebView2 CDP", 60000, async () => {
-		let pages: { type: string; url: string; webSocketDebuggerUrl: string }[];
-		try {
-			const response = await fetch(url, {
-				redirect: "error",
-				signal: AbortSignal.timeout(2000),
-			});
-			if (!response.ok) return;
-			pages = (await response.json()) as typeof pages;
-		} catch {
-			return;
-		}
-		for (const page of pages) {
-			if (
-				page.type !== "page" ||
-				!/^(tauri:\/\/localhost|https?:\/\/tauri\.localhost)(\/|$)/.test(page.url)
-			)
-				continue;
-			assertLoopback(page.webSocketDebuggerUrl, "ws:");
-			const client = await Cdp.connect(page.webSocketDebuggerUrl);
-			try {
-				const main = await client.evaluate<boolean>(
-					"Boolean(window.__TAURI_INTERNALS__?.invoke && window.__TAURI_INTERNALS__?.metadata?.currentWebview?.label === 'main')",
-				);
-				if (main) {
-					clients.push(client);
-					return client;
-				}
-			} catch {
-				/* Loading page is not evidence of a working IPC boundary. */
-			}
-			client.close();
-		}
-	});
-}
-
 async function verifyArtifact(m: Manifest, artifact: Artifact) {
 	const root = await realpath(m.caseRoot);
 	const resolved = await realpath(artifact.artifactPath);
@@ -336,6 +358,9 @@ function msiPair(before: MsiIdentity, after: MsiIdentity) {
 export async function run(args: string[]): Promise<Report> {
 	const report: Report = {
 		schemaVersion: 1,
+		mode: "acceptance",
+		acceptancePassed: false,
+		updaterInvocations: { check: 0, download: 0, install: 0, relaunch: 0 },
 		case: "unknown",
 		platform: "windows",
 		status: "running",
@@ -351,7 +376,10 @@ export async function run(args: string[]): Promise<Report> {
 	const ownedExecutables: string[] = [];
 	const ownedFixtures: string[] = [];
 	const debugPorts: number[] = [];
+	const attachment = new AttachmentDiagnostics();
+	let attachmentStarted = false;
 	const save = async () => {
+		if (attachmentStarted) report.evidence.attachment = attachment.snapshot();
 		if (root)
 			await writeFile(join(root, "report.json"), `${JSON.stringify(report, null, 4)}\n`);
 	};
@@ -372,7 +400,8 @@ export async function run(args: string[]): Promise<Report> {
 		}
 	};
 	try {
-		// Deliberately first: no file reads/writes, registry queries, sockets or subprocesses before guard.
+		// Pure mode validation and host approval precede all file/native/socket/subprocess work.
+		report.mode = resolveNativeMode(process.env.WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY);
 		assertHostedWindows(process.env, process.platform);
 		const flags = new Map<string, string>();
 		requireThat(
@@ -603,14 +632,19 @@ export async function run(args: string[]): Promise<Report> {
 			pre.peVersion === "3.6.0" || pre.peVersion === "3.6.0.0",
 			"Baseline executable PE version mismatch",
 		);
+		attachmentStarted = true;
 		const client = await step("connect packaged main webview", () =>
-			mainWebview(port, clients),
+			mainWebview(port, clients, { diagnostics: attachment, fetch, connect: Cdp.connect }),
 		);
-		const support = await client.evaluate(
-			"window.__TAURI_INTERNALS__.invoke('get_update_support')",
-		);
-		report.evidence.preSupport = support;
-		assertSupport(support, kind);
+		await readSupportGate({
+			client,
+			kind,
+			mode: report.mode,
+			diagnostics: attachment,
+			onSupport: (support) => {
+				report.evidence.preSupport = support;
+			},
+		});
 		const nativeDirs = await client.evaluate<{ config: string; appData: string }>(
 			"Promise.all([window.__TAURI_INTERNALS__.invoke('plugin:path|resolve_directory', {directory: 3}), window.__TAURI_INTERNALS__.invoke('plugin:path|resolve_directory', {directory: 14})]).then(([config,appData]) => ({config,appData}))",
 		);
@@ -638,6 +672,7 @@ export async function run(args: string[]): Promise<Report> {
 				"no native updater operation attempted",
 			);
 		} else {
+			report.updaterInvocations.check++;
 			const metadata = await step("plugin check with exact installer target", () =>
 				client.evaluate<unknown>(
 					`window.__TAURI_INTERNALS__.invoke('plugin:updater|check', ${JSON.stringify({ target: m.target, timeout: 30000, allowDowngrades: false })})`,
@@ -646,6 +681,7 @@ export async function run(args: string[]): Promise<Report> {
 			);
 			report.evidence.checkMetadata = metadata;
 			assertMetadata(metadata, m.target, m.candidate);
+			report.updaterInvocations.download++;
 			await step("start split native download", () =>
 				client.evaluate(downloadExpression(metadata.rid)),
 			);
@@ -682,6 +718,7 @@ export async function run(args: string[]): Promise<Report> {
 			const requestedUtc = iso();
 			report.evidence.installRequestedUtc = requestedUtc;
 			await save();
+			report.updaterInvocations.install++;
 			const handoff = await step(
 				"request native install and independently observe exit/relaunch",
 				() =>
@@ -702,7 +739,11 @@ export async function run(args: string[]): Promise<Report> {
 			report.evidence.postProcess = post;
 			client.close();
 			const reopened = await step("connect automatically reopened packaged webview", () =>
-				mainWebview(port, clients),
+				mainWebview(port, clients, {
+					diagnostics: attachment,
+					fetch,
+					connect: Cdp.connect,
+				}),
 			);
 			const postSupport = await reopened.evaluate(
 				"window.__TAURI_INTERNALS__.invoke('get_update_support')",
@@ -749,8 +790,10 @@ export async function run(args: string[]): Promise<Report> {
 			await verifyArtifact(m, m.candidate);
 		}
 		report.status = "passed";
+		report.acceptancePassed = report.mode === "acceptance";
 	} catch (error) {
 		report.status = "failed";
+		if (error instanceof DiagnosticOnlyComplete) report.evidence.diagnosticCompleted = true;
 		report.errors.push(error instanceof Error ? error.message : String(error));
 	} finally {
 		for (const client of clients) client.close();
@@ -763,9 +806,21 @@ export async function run(args: string[]): Promise<Report> {
 					ports: debugPorts,
 					notBeforeUtc: report.startedUtc,
 					stop: async (payload) => {
-						const result = await n.call("stop", payload);
-						report.evidence.cleanupTermination = result;
-						return result;
+						return stopWithComparisons(
+							n.root,
+							async (stopInvocation, consume) => {
+								const result = await n.call(
+									"stop",
+									{ ...payload, stopInvocation },
+									consume,
+								);
+								report.evidence.cleanupTermination = result;
+								return result;
+							},
+							(evidence) => {
+								report.evidence.cleanupComparisons = evidence;
+							},
+						);
 					},
 					processes: async () => {
 						const processes = await n.processes();
@@ -781,6 +836,7 @@ export async function run(args: string[]): Promise<Report> {
 				});
 			} catch (error) {
 				report.status = "failed";
+				report.acceptancePassed = false;
 				report.errors.push(
 					`Owned cleanup failed (fixtures may be retained): ${String(error)}`,
 				);
@@ -795,5 +851,5 @@ export async function run(args: string[]): Promise<Report> {
 if (import.meta.main) {
 	const report = await run(process.argv.slice(2));
 	console.log(JSON.stringify(report, null, 4));
-	process.exitCode = report.status === "passed" ? 0 : 1;
+	process.exitCode = report.status === "passed" && report.acceptancePassed ? 0 : 1;
 }

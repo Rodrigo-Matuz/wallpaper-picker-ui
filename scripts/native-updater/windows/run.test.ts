@@ -5,6 +5,175 @@ import { Cdp } from "./cdp";
 import * as driver from "./run";
 import { run } from "./run";
 
+test("diagnostic mode accepts only literal 1, 0 or absence before native actions", () => {
+	expect(typeof driver.resolveNativeMode).toBe("function");
+	expect(driver.resolveNativeMode(undefined)).toBe("acceptance");
+	expect(driver.resolveNativeMode("0")).toBe("acceptance");
+	expect(driver.resolveNativeMode("1")).toBe("diagnostic-only");
+	for (const value of ["", "true", "false", "01", " 1", "1 ", "2"])
+		expect(() => driver.resolveNativeMode(value)).toThrow(
+			"WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY",
+		);
+});
+
+for (const mode of ["diagnostic-only", "acceptance"] as const) {
+	test(`read-only support gate ${mode} cannot proceed to updater operations when skipped`, async () => {
+		expect(typeof driver.readSupportGate).toBe("function");
+		const support = {
+			mode: "manual-only",
+			platform: "windows",
+			architecture: "x86_64",
+			installer: "msi",
+			target: null,
+			reason: "native-validation-pending",
+		};
+		const expressions: string[] = [];
+		let observed: unknown;
+		let updaterCalls = 0;
+		const boundary = driver
+			.readSupportGate({
+				mode,
+				kind: "msi",
+				client: {
+					evaluate: async <T>(expression: string): Promise<T> => {
+						expressions.push(expression);
+						return support as T;
+					},
+				},
+				onSupport: (value: unknown) => {
+					observed = value;
+				},
+			})
+			.then(() => {
+				updaterCalls++;
+			});
+		if (mode === "diagnostic-only")
+			await expect(boundary).rejects.toThrow("acceptance skipped");
+		else await boundary;
+		expect(observed).toEqual(support);
+		expect(expressions).toEqual(["window.__TAURI_INTERNALS__.invoke('get_update_support')"]);
+		expect(updaterCalls).toBe(mode === "diagnostic-only" ? 0 : 1);
+	});
+}
+
+for (const value of ["true", "", " 1"]) {
+	test(`invalid mode ${JSON.stringify(value)} is rejected without manifest/native work`, async () => {
+		const env = {
+			GITHUB_ACTIONS: "true",
+			RUNNER_ENVIRONMENT: "github-hosted",
+			RUNNER_OS: "Windows",
+			WALLPAPER_PICKER_NATIVE_ACCEPTANCE: "1",
+			WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY: value,
+		};
+		const previous = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
+		try {
+			Object.assign(process.env, env);
+			const report = await run([
+				"--case",
+				"msi",
+				"--manifest",
+				"C:/never-read/manifest.json",
+			]);
+			expect(report.errors[0]).toContain("WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY");
+			expect(report.status).toBe("failed");
+			expect(report.acceptancePassed).toBe(false);
+			expect(report.updaterInvocations).toEqual({
+				check: 0,
+				download: 0,
+				install: 0,
+				relaunch: 0,
+			});
+			expect(report.steps).toEqual([]);
+			expect(report.evidence).toEqual({});
+		} finally {
+			for (const [key, prior] of Object.entries(previous)) {
+				if (prior === undefined) delete process.env[key];
+				else process.env[key] = prior;
+			}
+		}
+	});
+}
+
+test("driver gates read-only diagnostics before any updater/path IPC and reports honest acceptance", async () => {
+	const source = await readFile(new URL("./run.ts", import.meta.url), "utf8");
+	const start = source.indexOf("export async function run(");
+	const body = source.slice(start);
+	expect(body.indexOf("report.mode = resolveNativeMode(")).toBeLessThan(
+		body.indexOf("const flags ="),
+	);
+	expect(body.indexOf("await readSupportGate({")).toBeGreaterThan(
+		body.indexOf('step("connect packaged main webview"'),
+	);
+	expect(body.indexOf("await readSupportGate({")).toBeLessThan(
+		body.indexOf("const nativeDirs ="),
+	);
+	expect(body).toContain('report.acceptancePassed = report.mode === "acceptance"');
+	expect(source).toContain('report.status === "passed" && report.acceptancePassed');
+});
+
+test("read-only support failures remain failures and become bounded attachment evidence", async () => {
+	const diagnostics = new driver.AttachmentDiagnostics();
+	const support = {
+		mode: "manual-only",
+		platform: "windows",
+		architecture: "x86_64",
+		installer: "msi",
+		target: null,
+		reason: "native-validation-pending",
+	};
+	await expect(
+		driver.readSupportGate({
+			mode: "diagnostic-only",
+			kind: "msi",
+			diagnostics,
+			client: { evaluate: async <T>(): Promise<T> => support as T },
+			onSupport: () => {},
+		}),
+	).rejects.toBeInstanceOf(driver.DiagnosticOnlyComplete);
+	await expect(
+		driver.readSupportGate({
+			mode: "diagnostic-only",
+			kind: "msi",
+			diagnostics,
+			client: {
+				evaluate: async (): Promise<never> => {
+					throw new Error("Webview exception: secret IPC detail");
+				},
+			},
+			onSupport: () => {},
+		}),
+	).rejects.toThrow("secret IPC detail");
+	expect(diagnostics.snapshot().support?.first.outcome).toBe("passed");
+	expect(diagnostics.snapshot().support?.latest.errorKind).toBe("webview-exception");
+	expect(diagnostics.snapshot().support?.count).toBe(2);
+	expect(JSON.stringify(diagnostics.snapshot())).not.toContain("secret");
+});
+
+test("requested diagnostic reports stay diagnostic-only even when the host guard refuses", async () => {
+	const keys = ["GITHUB_ACTIONS", "WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY"] as const;
+	const previous = keys.map((key) => process.env[key]);
+	try {
+		delete process.env.GITHUB_ACTIONS;
+		process.env.WALLPAPER_PICKER_NATIVE_DIAGNOSTIC_ONLY = "1";
+		const report = await run([]);
+		expect(report.mode).toBe("diagnostic-only");
+		expect(report.acceptancePassed).toBe(false);
+		expect(report.status).toBe("failed");
+		expect(report.errors[0]).toMatch(/Native acceptance/);
+		expect(report.updaterInvocations).toEqual({
+			check: 0,
+			download: 0,
+			install: 0,
+			relaunch: 0,
+		});
+	} finally {
+		for (const [index, key] of keys.entries()) {
+			if (previous[index] === undefined) delete process.env[key];
+			else process.env[key] = previous[index];
+		}
+	}
+});
+
 const processIdentity: ProcessIdentity = {
 	pid: 42,
 	path: "C:\\owned\\wallpaper-picker-ui.exe",
@@ -72,7 +241,17 @@ test("native termination uses a revalidated process object and bounded exit veri
 	const source = await readFile(new URL("./native.ps1", import.meta.url), "utf8");
 	const stop = source.slice(source.indexOf("\t'stop' {"));
 	expect(stop).toContain("Get-Process -Id $process.pid");
-	expect(stop).toContain("$handle.StartTime.ToUniversalTime()");
+	expect(stop).toContain("$handleStart = $handle.StartTime");
+	expect(stop).toContain("$handleStartedUtc = $handleStart.ToUniversalTime()");
+	expect(stop).toContain("$capturedStart = [DateTime]::Parse($process.startedUtc)");
+	expect(stop).toContain("$capturedStartedUtc = $capturedStart.ToUniversalTime()");
+	expect(stop).toContain(
+		"$handleStartedUtc -ne $capturedStartedUtc -or $handlePath -ine $process.path",
+	);
+	expect(stop).toContain("@($p.paths) -icontains $process.path");
+	expect(stop).toContain(
+		"[DateTime]::Parse($process.startedUtc) -ge [DateTime]::Parse($p.notBeforeUtc)",
+	);
 	expect(stop).toContain("$handle.MainModule.FileName");
 	expect(stop).toContain("Stop-Process -InputObject $handle -Force");
 	expect(stop).toContain("$handle.WaitForExit(10000)");
