@@ -1,0 +1,9 @@
+{
+	"key": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Wallpaper Picker UI",
+	"productCode": "Wallpaper Picker UI",
+	"kind": "nsis",
+	"version": "3.6.0",
+	"installLocation": "\"D:\\a\\_temp\\native-updater-acceptance\\37780157341\\nsis\\install\\nsis\"",
+	"displayIcon": "\"D:\\a\\_temp\\native-updater-acceptance\\37780157341\\nsis\\install\\nsis\\wallpaper-picker-ui.exe\"",
+	"uninstallString": "\"D:\\a\\_temp\\native-updater-acceptance\\37780157341\\nsis\\install\\nsis\\uninstall.exe\""
+}

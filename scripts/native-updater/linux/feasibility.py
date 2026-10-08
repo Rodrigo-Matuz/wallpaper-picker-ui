@@ -25,6 +25,14 @@ import traceback
 import urllib.request
 from pathlib import Path
 
+from diagnostics import (
+    MAX_ENVIRONMENT_BYTES,
+    MAX_MOUNTINFO_BYTES,
+    MAX_PROCESSES,
+    MAX_STATUS_BYTES,
+    bounded_text,
+    identity_diagnostic,
+)
 from helpers import (
     assert_guard,
     decode_frames,
@@ -68,23 +76,95 @@ def snapshot(path):
     }
 
 
-def owned_processes(session, image, temporary_root):
+def read_bounded(path, limit):
+    with path.open("rb") as stream:
+        data = stream.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError("proc-field-size-limit")
+    return data.decode(errors="replace")
+
+
+def diagnostic_entries(proc_root, diagnostics):
+    try:
+        yield from proc_root.iterdir()
+    except OSError as error:
+        diagnostics["enumerationError"] = {"errorType": type(error).__name__, "errno": error.errno}
+        raise
+
+
+def owned_processes(session, image, temporary_root, diagnostics=None, proc_root=Path("/proc")):
+    """Only read process detail after session ownership, then verify all UID slots.
+
+    proc_root is a pure fixture seam; the guarded hosted entrypoint uses /proc.
+    Diagnostic data never grants identity or bypasses mounted_identity.
+    """
     result = []
-    for entry in Path("/proc").iterdir():
+    scan = {"session": session, "uid": os.getuid(), "processes": [], "ownedOmitted": 0}
+    if diagnostics is not None:
+        diagnostics.update(scan)
+    for entry in diagnostic_entries(proc_root, diagnostics if diagnostics is not None else scan):
         if not entry.name.isdigit():
             continue
+        # No detail or identifiers from a foreign session are recorded.
         try:
             pid = int(entry.name)
             if os.getsid(pid) != session:
                 continue
-            env = dict(
-                item.split("=", 1)
-                for item in (entry / "environ").read_bytes().decode(errors="replace").split("\0")
-                if "=" in item
+        except (OSError, ValueError):
+            continue
+        item = {"pid": pid, "stage": "status"}
+        if len(scan["processes"]) < MAX_PROCESSES:
+            scan["processes"].append(item)
+        else:
+            # Bound retained diagnostics, not the unchanged correlation search.
+            scan["ownedOmitted"] += 1
+            if diagnostics is not None:
+                diagnostics["ownedOmitted"] = scan["ownedOmitted"]
+        try:
+            status = dict(
+                line.split(":", 1)
+                for line in read_bounded(entry / "status", MAX_STATUS_BYTES).splitlines()
+                if ":" in line
             )
+            uids = status.get("Uid", "").split()
+            if len(uids) != 4 or any(value != str(scan["uid"]) for value in uids):
+                # Do not collect environ/exe/mounts for a foreign/unknown UID.
+                item["reason"] = "uid-mismatch-or-unavailable"
+                continue
+            item["stage"] = "session-recheck"
+            if os.getsid(pid) != session:
+                item["reason"] = "session-changed"
+                continue
+            item["uid"] = scan["uid"]
+            item["state"] = status.get("State", "").split()[0]
+            item["ppid"] = int(status.get("PPid", ""))
+            item["stage"] = "environ"
+            env = dict(
+                field.split("=", 1)
+                for field in read_bounded(entry / "environ", MAX_ENVIRONMENT_BYTES).split("\0")
+                if "=" in field
+            )
+            item["environment"] = {
+                key: bounded_text(env[key])
+                for key in ("APPIMAGE", "APPDIR", "TMPDIR")
+                if key in env
+            }
+            item["stage"] = "exe"
             exe = os.readlink(entry / "exe")
-            mounts = (entry / "mountinfo").read_text()
+            item["exe"] = bounded_text(exe)
+            item["stage"] = "mountinfo"
+            mounts = read_bounded(entry / "mountinfo", MAX_MOUNTINFO_BYTES)
+            item.update(identity_diagnostic(env, exe, mounts, str(image), str(temporary_root)))
             if mounted_identity(env, exe, mounts, str(image), str(temporary_root)):
+                item["stage"] = "executable-snapshot"
+                executable = snapshot(Path(exe))
+                item["stage"] = "cmdline"
+                cmdline = read_bounded(entry / "cmdline", MAX_STATUS_BYTES)
+                # Recheck session ownership after the reads (process exit/reuse race).
+                item["stage"] = "session-recheck"
+                if os.getsid(pid) != session:
+                    item["reason"] = "session-changed"
+                    continue
                 result.append(
                     {
                         "pid": pid,
@@ -92,13 +172,50 @@ def owned_processes(session, image, temporary_root):
                         "APPIMAGE": env["APPIMAGE"],
                         "APPDIR": env["APPDIR"],
                         "mountinfo": mounts,
-                        "executable": snapshot(Path(exe)),
-                        "cmdline": (entry / "cmdline").read_bytes().decode(errors="replace"),
+                        "executable": executable,
+                        "cmdline": cmdline,
                     }
                 )
-        except (OSError, ValueError):
-            continue
+            item["stage"] = "complete"
+        except (OSError, ValueError, IndexError) as error:
+            # Avoid raw exception paths/environment values; preserve reason/stage/errno.
+            item["reason"] = "proc-read-or-snapshot-failed"
+            item["errorType"] = type(error).__name__
+            item["errno"] = getattr(error, "errno", None)
+            if isinstance(error, ValueError) and str(error) == "proc-field-size-limit":
+                item["reason"] = "proc-field-size-limit"
     return result
+
+
+def wait_for_mounted_identity(app, image, temporary_root, evidence):
+    """Retain bounded first/latest task-owned observations before cleanup."""
+    diagnostics = {
+        "purpose": "rejection diagnostics only, not native acceptance",
+        "scanCount": 0,
+        "deadlineSeconds": 45,
+        "maxRecordedProcessesPerScan": MAX_PROCESSES,
+    }
+    evidence["mountedIdentityDiagnostics"] = diagnostics
+    deadline = time.monotonic() + 45
+    while time.monotonic() < deadline:
+        scan = {}
+        try:
+            observed = owned_processes(app.pid, image, temporary_root, diagnostics=scan)
+        finally:
+            # Keep even partial enumeration on setup/read failure, before session cleanup.
+            scan["leaderReturncode"] = app.poll()
+            diagnostics["scanCount"] += 1
+            diagnostics.setdefault("firstScan", scan)
+            diagnostics["lastScan"] = scan
+        if observed:
+            evidence["mountedProcesses"] = observed
+            return
+        if scan["leaderReturncode"] is not None:
+            raise RuntimeError(
+                f"AppImage exited before mounted identity: {scan['leaderReturncode']}"
+            )
+        time.sleep(0.25)
+    raise TimeoutError("No task-owned correlated FUSE-mounted native executable")
 
 
 def variant_description(payload, signature, little_endian):
@@ -492,17 +609,7 @@ def main(argv=None):
         env["WEBKIT_INSPECTOR_SERVER"] = f"127.0.0.1:{port}"
         app = start([str(image)], "app")  # genuine mounted AppImage, no extract flags
         evidence["launchPid"] = app.pid
-        deadline = time.monotonic() + 45
-        while time.monotonic() < deadline:
-            observed = owned_processes(app.pid, image, output / "tmp")
-            if observed:
-                evidence["mountedProcesses"] = observed
-                break
-            if app.poll() is not None:
-                raise RuntimeError(f"AppImage exited before mounted identity: {app.returncode}")
-            time.sleep(0.25)
-        if "mountedProcesses" not in evidence:
-            raise TimeoutError("No task-owned correlated FUSE-mounted native executable")
+        wait_for_mounted_identity(app, image, output / "tmp", evidence)
         inspector_probe(port, app.pid, evidence, time.monotonic() + 15)
         webdriver_status_probe(start, evidence)
         # Listening socket/target list or WebDriver /status does NOT establish app control/IPC/install/relaunch.

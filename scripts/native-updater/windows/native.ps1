@@ -52,11 +52,12 @@ function Registrations {
 	}
 	return $result
 }
-function ComMethod($obj, [string]$name, [object[]]$args) {
-	return $obj.GetType().InvokeMember($name, [Reflection.BindingFlags]::InvokeMethod, $null, $obj, $args)
+# Do not name this parameter $args: PowerShell replaces it with unbound arguments.
+function ComMethod($obj, [string]$name, [object[]]$arguments) {
+	return $obj.GetType().InvokeMember($name, [Reflection.BindingFlags]::InvokeMethod, $null, $obj, $arguments)
 }
-function ComProperty($obj, [string]$name, [object[]]$args) {
-	return $obj.GetType().InvokeMember($name, [Reflection.BindingFlags]::GetProperty, $null, $obj, $args)
+function ComProperty($obj, [string]$name, [object[]]$arguments) {
+	return $obj.GetType().InvokeMember($name, [Reflection.BindingFlags]::GetProperty, $null, $obj, $arguments)
 }
 function MsiProperties([string]$file) {
 	$installer = New-Object -ComObject WindowsInstaller.Installer
@@ -72,6 +73,25 @@ function MsiProperties([string]$file) {
 		$null = ComMethod $view 'Close' @()
 	}
 	return $result
+}
+# Tauri's NSIS template writes a single pair of literal quotes around these paths:
+# tauri-cli 2.9.6, crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi.
+# Decode only that syntax, never Trim('"') or command-line escaping. Keep raw registrations intact.
+function NsisRegistrationPath([string]$value, [string]$caseRoot) {
+	if ($value.Length -ge 2 -and $value.StartsWith('"') -and $value.EndsWith('"')) {
+		$value = $value.Substring(1, $value.Length - 2)
+	}
+	if ($value -notmatch '^[a-zA-Z]:\\' -or $value.Contains('"') -or
+		$value -match '[<>|?*\x00-\x1f]' -or $value.Substring(2).Contains(':')) {
+		throw 'Malformed absolute NSIS registration path'
+	}
+	$full = [IO.Path]::GetFullPath($value)
+	$install = [IO.Path]::GetFullPath([IO.Path]::Combine($caseRoot, 'install\nsis')).TrimEnd('\')
+	if (-not $full.TrimEnd('\').Equals($install, [StringComparison]::OrdinalIgnoreCase) -and
+		-not $full.StartsWith($install + '\', [StringComparison]::OrdinalIgnoreCase)) {
+		throw 'NSIS registration path outside owned installation'
+	}
+	return $full
 }
 function Processes {
 	$result = @()
@@ -117,10 +137,15 @@ $result = switch ($Action) {
 			$r = @(Registrations | Where-Object { $_.kind -eq 'nsis' })
 			if ($r.Count -ne 1) { throw 'NSIS registration not unique' }
 			$candidates = @()
-			if ($r[0].installLocation) { $candidates += Join-Path $r[0].installLocation 'wallpaper-picker-ui.exe' }
+			if ($r[0].installLocation) {
+				$location = NsisRegistrationPath $r[0].installLocation $root
+				$candidates += [IO.Path]::Combine($location, 'wallpaper-picker-ui.exe')
+			}
 			$icon = $r[0].displayIcon -replace ',\s*-?\d+$',''
-			$icon = $icon.Trim('"')
-			if ([IO.Path]::GetFileName($icon) -ieq 'wallpaper-picker-ui.exe') { $candidates += $icon }
+			if ($icon) {
+				$icon = NsisRegistrationPath $icon $root
+				if ([IO.Path]::GetFileName($icon) -ieq 'wallpaper-picker-ui.exe') { $candidates += $icon }
+			}
 			$paths = @($candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Sort-Object -Unique)
 			if ($paths.Count -ne 1) { throw 'NSIS main executable cannot be uniquely observed from registration' }
 			@{ path=$paths[0] }

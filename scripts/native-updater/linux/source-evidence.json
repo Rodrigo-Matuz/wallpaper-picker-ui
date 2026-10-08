@@ -118,7 +118,7 @@
 		"acceptancePassed": false,
 		"fact": "The previous conclusion that disabled devtools prevents all release automation was incorrect. The baseline locks tauri-runtime-wry 2.9.3, whose TAURI_WEBVIEW_AUTOMATION=true opt-in is independent of debug/devtools. Wry supplies its first existing webview to automation; WebKitGTK targetAddress permits attachment without launching a replacement browser. This is a source-supported unmodified-release route, not actual AppImage runtime proof.",
 		"limitation": "This bounded probe requests that mode, observes mounted provenance/native inspector, and optionally GETs a separate task-owned WebKitWebDriver /status. No WebDriver session creation, window selection, JavaScript evaluation, native IPC, download, installation or relaunch is implemented. Missing WebPage inspector targets with devtools disabled do not disprove the independent Automation route; a listener/target list/ready status is not app control.",
-		"nextGate": "Hosted evidence must establish version-compatible targetAddress attachment to the observed AppImage-owned server and preserve the first existing webview without navigation/replacement before verifying packaged IPC identity. A control adapter and full updater acceptance are outside this bounded change. Never substitute MiniBrowser, a development webview or an extracted/rebuilt/patched executable."
+		"nextGate": "First rerun the hosted writable/readonly feasibility probe and inspect bounded owned-process rejection diagnostics to identify the mounted-identity timeout; its root cause is still unknown. Only after strict mounted identity is established can hosted evidence establish version-compatible targetAddress attachment to the observed AppImage-owned server and preserve the first existing webview without navigation/replacement before verifying packaged IPC identity. A control adapter and full updater acceptance are outside this bounded change. Never substitute MiniBrowser, a development webview or an extracted/rebuilt/patched executable."
 	},
 	"boundedCorrections": [
 		"Strict shared schema/repository/exact target/published asset names/URLs/signature metadata and verified bounded size; caseRoot strictly below RUNNER_TEMP/native-updater-acceptance and inputs within caseRoot.",
@@ -127,11 +127,32 @@
 		"Terminate and verify all live members of each task-owned session independently of leader exit/process groups. Preserve signal/reap/pipe errors for failure evidence. Session escapes are not claimed covered.",
 		"Malformed mountinfo separator fails closed; corrected GVariant ownership; source-supported release automation environment; optional bounded WebDriver service diagnostic only."
 	],
+	"hostedMountedIdentityInvestigation": {
+		"runId": "37780157341",
+		"reviewedArtifacts": [
+			{
+				"name": "native-linux-writable-37780157341",
+				"zipSha256": "b26e1081082977f8a95c83cfe5286dece4c1d1401dbd1acbaf8f1ed0b1e30e93"
+			},
+			{
+				"name": "native-linux-readonly-37780157341",
+				"zipSha256": "beaa81bf37802ca59e5e2523eae4453811744c6e7435ab8b057c3dcbc0c1f967"
+			}
+		],
+		"observed": "Both retained evidence.json/failure.log files report mounted-identity timeout, uid=1001, nativeUpdaterInvocations=0, acceptancePassed=false and unchanged original artifacts/probe image/launch fixtures. App logs contain only an AT-SPI accessibility DBus warning. The local evidence index marks both archive digests verifiedAgainstApiDigest=true.",
+		"rootCause": "Unknown: no rejected process environment/executable/mount or proc-read reason was retained. The warning alone does not explain the timeout; no correlation defect is demonstrated.",
+		"change": "Diagnostics only: retain first/latest scans and scan count before cleanup, leader returncode, bounded session-owned process status with strict all-slot UID check, allowlisted APPIMAGE/APPDIR/TMPDIR, exe, rejection stage/reason/errno, and only task-tmp mount rows. Keep mounted_identity unchanged; diagnostic limits never skip later correlation candidates.",
+		"bounds": "32 retained processes per scan, 16 task-tmp mount rows per process, 4096 characters per recorded path/value; bounded proc reads: status/cmdline 16 KiB, environ 128 KiB, mountinfo 1 MiB. Keep only first/latest scans, not every poll. Foreign-session detail is never read; foreign/unknown UID prevents environ/exe/mount reads.",
+		"pureRegression": "Observed RED then GREEN for missing diagnostic collector, missing bounded timeout retention, lost allowlisted environment on exe failure, diagnostic cap hiding later candidates, session change before sensitive reads, and missing enumeration-error evidence. Additional fixture tests cover strict rejection reasons, malformed/escaped mount rows, size bounds, foreign session/UID exclusion, leader exit and acceptance remaining false.",
+		"diagnosticsHostedExecuted": false,
+		"nextRealProbe": "After review, rerun the approved GitHub-hosted writable/readonly feasibility cases against genuine published 3.6.0 with this collector. Inspect mountedIdentityDiagnostics.firstScan/lastScan, stage/reason/errno, environment, exe and scopedMounts before proposing any correlation change. Exit 1 failed or 2 blocked remains required; no app-control adapter or updater acceptance is added."
+	},
 	"verification": {
 		"red": "Observed failing regressions before fixes: 14 invalid manifest subcases; missing copy validation/automation environment; malformed mountinfo IndexError; extra GVariant ref_sink; absent bounded status/probe; unsafe roots in Python/Bun; absent session cleanup and lost pipe-close evidence.",
-		"pureTests": "21 Python tests and 2 Bun tests; helper/guard/mocked-boundary evidence only",
+		"pureTests": "34 Python tests and 2 Bun tests; helper/guard/pure filesystem/mocked-boundary evidence only",
 		"nativeExecutedLocally": false,
-		"hostedExecuted": false,
+		"hostedExecuted": true,
+		"hostedOutcome": "Historical run 37780157341 failed in both Linux cases; diagnostics added after that run have not been hosted-executed. No acceptance passed.",
 		"commands": [
 			"python3 -B -m unittest discover -s scripts/native-updater/linux -p 'test_*.py'",
 			"bun test --isolate scripts/native-updater/linux"
