@@ -149,7 +149,7 @@ describe("isolated updater controller", () => {
 			detectSupport: async () => ({ ...eligibleSupport, platform, installer, target }),
 		});
 		await controller.checkForUpdates();
-		expect(check).toHaveBeenCalledWith({ target, timeout: 15000, allowDowngrades: false });
+		expect(check).toHaveBeenCalledWith({ target, timeout: 15000 });
 	});
 	test.each([
 		["null body", null, "2026-10-02", undefined, "2026-10-02"],
@@ -442,7 +442,7 @@ describe("isolated updater controller", () => {
 		await controller.checkForUpdates();
 		expect(check).toHaveBeenCalledTimes(2);
 	});
-	test("reactively checks an exact target without allowing downgrades", async () => {
+	test("reactively checks an exact target with only supported SDK options", async () => {
 		const { controller, check } = setup();
 		expect(typeof controller.checkForUpdates).toBe("function");
 		const statuses: string[] = [];
@@ -455,7 +455,6 @@ describe("isolated updater controller", () => {
 		expect(check).toHaveBeenCalledWith({
 			target: "windows-x86_64-nsis",
 			timeout: 15000,
-			allowDowngrades: false,
 		});
 		expect(get(controller.state)).toMatchObject({
 			status: "up-to-date",

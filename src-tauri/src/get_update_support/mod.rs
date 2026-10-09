@@ -1,4 +1,4 @@
-//! Read-only installation policy for the manual updater.
+//! Read-only installation policy for the in-app updater.
 //! No target is authorized until packaged native upgrade tests pass.
 
 use serde::Serialize;

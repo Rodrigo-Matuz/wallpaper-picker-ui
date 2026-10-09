@@ -485,7 +485,6 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 				const update = await dependencies.check({
 					target,
 					timeout: 15000,
-					allowDowngrades: false,
 				});
 				// Take ownership before reading getters: malformed metadata still requires cleanup.
 				pending = update;

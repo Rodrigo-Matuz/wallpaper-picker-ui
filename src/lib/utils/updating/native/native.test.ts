@@ -13,7 +13,6 @@ const bytesRid = 21;
 const checkOptions = {
 	target: "windows-x86_64-nsis",
 	timeout: 15000,
-	allowDowngrades: false,
 } as const;
 
 const support = {
@@ -54,6 +53,8 @@ function nativeFixture() {
 	const attempts: number[] = [];
 	const failures = new Map<number, unknown[]>();
 	const commands: string[] = [];
+	const installOptions: unknown[] = [];
+	const installFailures: unknown[] = [];
 	const logSignals: (() => void)[] = [];
 	const reports = [0, 1].map(() => new Promise<void>((resolve) => logSignals.push(resolve)));
 	let acquired = false;
@@ -91,9 +92,11 @@ function nativeFixture() {
 			return bytesRid;
 		}
 		if (command === "plugin:updater|install") {
+			installOptions.push(payload.restartAfterInstall);
 			expect(payload?.updateRid).toBe(updateRid);
 			expect(payload?.bytesRid).toBe(bytesRid);
 			expect(live.has(updateRid)).toBe(true);
+			if (installFailures.length) throw installFailures.shift();
 			expect(live.delete(bytesRid)).toBe(true);
 			return;
 		}
@@ -114,6 +117,8 @@ function nativeFixture() {
 		attempts,
 		failures,
 		commands,
+		installOptions,
+		installFailures,
 		reports,
 		async acquire() {
 			const update = await check(checkOptions);
@@ -141,6 +146,47 @@ async function withNativeFixture(run: (native: ReturnType<typeof nativeFixture>)
 
 if (process.env.WALLPAPER_PICKER_UPDATER_NATIVE_TESTS === "1") {
 	describe("private locked-SDK native resource boundary", () => {
+		test("explicitly denies config-level downgrades", async () => {
+			const configPath = new URL("../../../../../src-tauri/tauri.conf.json", import.meta.url);
+			const config = await Bun.file(fileURLToPath(configPath)).json();
+			expect(config.plugins.updater.allowDowngrades).toBe(false);
+		});
+
+		test("requests installer restart explicitly through the bound SDK method", async () => {
+			await withNativeFixture(async (native) => {
+				const resource = createNativeUpdateResource(await native.acquire());
+				const download = resource.download;
+				const install = resource.install;
+				if (!download || !install) throw new Error("Expected bound SDK lifecycle methods");
+				await download(() => {}, { timeout: 600000 });
+				await install();
+				expect(native.installOptions).toEqual([true]);
+				await resource.close();
+				expect(native.attempts).toEqual([updateRid]);
+				expect([...native.live]).toEqual([]);
+			});
+		});
+
+		test("installer launch rejection retains bytes until confirmed cleanup", async () => {
+			await withNativeFixture(async (native) => {
+				const failure = new Error("Native installer launch failed");
+				native.installFailures.push(failure);
+				const resource = createNativeUpdateResource(await native.acquire());
+				if (!resource.download || !resource.install)
+					throw new Error("Expected bound SDK lifecycle methods");
+				await resource.download(() => {}, { timeout: 600000 });
+				await expect(resource.install()).rejects.toBe(failure);
+				expect(native.installOptions).toEqual([true]);
+				expect([...native.live]).toEqual([updateRid, bytesRid]);
+				expect(native.attempts).toEqual([]);
+				await resource.close();
+				await resource.close();
+				expect(native.attempts).toEqual([bytesRid, updateRid]);
+				expect([...native.live]).toEqual([]);
+				expect(native.commands).not.toContain("plugin:updater|download_and_install");
+			});
+		});
+
 		test("resumes native Update cleanup after bytes are already released", async () => {
 			const config = await import("$api/config/read/read");
 			const { defaultConfig } = await import("$api/config/defaults");

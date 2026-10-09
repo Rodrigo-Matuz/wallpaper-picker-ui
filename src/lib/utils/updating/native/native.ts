@@ -2,7 +2,7 @@ import type { Resource } from "@tauri-apps/api/core";
 import type { Update } from "@tauri-apps/plugin-updater";
 import type { NativeUpdateResource } from "$types/updateTypes";
 
-// Locked updater 2.9.0 declares this field private in TS but owns it as a JS property.
+// Locked updater 2.13.2 still owns downloadedBytes as a private TS / concrete JS property.
 // Its close() does not clear successfully closed bytes before closing the update resource.
 interface LockedUpdateResources {
 	downloadedBytes?: Pick<Resource, "close">;
@@ -17,6 +17,7 @@ export function createNativeUpdateResource(update: Update): NativeUpdateResource
 	const metadata: NativeUpdateResource = update;
 	const resources = update as unknown as LockedUpdateResources;
 	const closeUpdate = update.close.bind(update);
+	const installUpdate = update.install.bind(update);
 	let released = false;
 	return Object.freeze({
 		get currentVersion() {
@@ -32,7 +33,8 @@ export function createNativeUpdateResource(update: Update): NativeUpdateResource
 			return metadata.date;
 		},
 		download: update.download.bind(update),
-		install: update.install.bind(update),
+		// Preserve installer-managed reopen on Windows; Linux still uses controller relaunch.
+		install: () => installUpdate({ restartAfterInstall: true }),
 		async close() {
 			if (released) return;
 			const bytes = resources.downloadedBytes;

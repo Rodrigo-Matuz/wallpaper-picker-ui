@@ -94,7 +94,6 @@ export interface NativeUpdateResource extends Omit<AvailableUpdate, "body" | "da
 export interface UpdaterCheckOptions {
 	readonly target: UpdaterTarget;
 	readonly timeout: number;
-	readonly allowDowngrades: false;
 }
 
 export interface UpdaterDependencies {
@@ -104,7 +103,7 @@ export interface UpdaterDependencies {
 	readonly now?: () => number;
 	/** Internal HTTP request bound, not an AbortSignal or full lifecycle cancellation guarantee. */
 	readonly downloadTimeoutMs?: number;
-	/** Missing/false safety gate disables installation; Settings must wire real pending-work safeguards. */
+	/** Missing/false safety gate disables installation; the app must wire real pending-work safeguards. */
 	readonly prepareInstall?: () => Promise<boolean>;
 	readonly relaunch?: () => Promise<void>;
 	readonly reportError?: (details: {
