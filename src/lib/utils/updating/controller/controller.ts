@@ -110,7 +110,7 @@ function approvedCheckTarget(support: UpdateSupport): UpdaterTarget | null {
 		(support.reason === "native-validation-pending" ||
 			(support.platform === "linux" &&
 				support.installer === "appimage" &&
-				support.reason === "appimage-read-only"))
+				support.reason === "app-image-read-only"))
 	)
 		return target;
 	return null;
@@ -448,7 +448,12 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 		confirmed: boolean;
 		version: string;
 	}): Promise<UpdateActionResult> {
-		if (active) return activeKind === "install" ? active : Promise.resolve("busy");
+		if (active)
+			return activeKind === "install" &&
+				confirmation?.confirmed === true &&
+				confirmation.version === activeVersion
+				? active
+				: Promise.resolve("busy");
 		const update = pending;
 		const install = update?.install;
 		const relaunch = dependencies.relaunch;
@@ -460,6 +465,8 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 			confirmation.version !== snapshot.availableUpdate?.version
 		)
 			return Promise.resolve("not-available");
+		// Capture consent before any await or subscriber publication; callers may mutate the object.
+		const version = confirmation.version;
 		let phase: UpdateFailurePhase = "support";
 		const operation = Promise.resolve()
 			.then(async () => {
@@ -470,6 +477,8 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 					await discardPendingAsManualOnly();
 					return "not-available" as const;
 				}
+				// Metadata is a frozen copy; the owned resource must still match the captured consent.
+				if (update.version !== version) throw new Error("Update version changed");
 				phase = "install";
 				if (!(await reserveInstall())) {
 					publish({ status: "ready-to-install", installBlocked: true });
@@ -484,6 +493,8 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 					return "not-available" as const;
 				}
 				phase = "install";
+				// Reservation and policy refresh await external work; recheck consent under the held lease.
+				if (update.version !== version) throw new Error("Update version changed");
 				if (support.platform === "windows") {
 					publish({ status: "installer-handoff" });
 					await install.call(update);
@@ -508,6 +519,7 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 				return "failed" as const;
 			})
 			.finally(finishOperation);
+		activeVersion = version;
 		return beginOperation(operation, "install", { status: "installing", failure: null });
 	}
 

@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { get } from "svelte/store";
+import { readOnlyAppImageWire } from "../native-wire.fixture";
 import { createUpdaterController } from "./controller";
 
 const policy = {
@@ -47,6 +48,40 @@ function deferred<T>() {
 }
 
 describe("metadata-only resource ownership", () => {
+	test.each([
+		true,
+		false,
+	])("Rust read-only wire contract (native spelling: %s) never grants installation", async (nativeSpelling) => {
+		const f = fixture();
+		const wire = readOnlyAppImageWire();
+		f.detectSupport.mockImplementation(async () =>
+			nativeSpelling ? wire : { ...wire, reason: "appimage-read-only" },
+		);
+		expect(await f.controller.checkForUpdates()).toBe("completed");
+		expect(f.check).toHaveBeenCalledTimes(nativeSpelling ? 1 : 0);
+		if (nativeSpelling)
+			expect(f.check).toHaveBeenCalledWith({ target: wire.checkTarget, timeout: 15000 });
+		expect(get(f.controller.state)).toMatchObject({
+			status: nativeSpelling ? "available" : "manual-only",
+			availableUpdate: nativeSpelling ? { version: "3.7.0" } : null,
+			support: { target: null },
+			canDownload: false,
+			canInstall: false,
+			canUpdate: false,
+		});
+		expect(await f.controller.downloadUpdate()).toBe("not-available");
+		expect(await f.controller.installAndRestart({ confirmed: true, version: "3.7.0" })).toBe(
+			"not-available",
+		);
+		expect(await f.controller.updateAndRestart({ confirmed: true, version: "3.7.0" })).toBe(
+			"not-available",
+		);
+		expect(f.resource.download).not.toHaveBeenCalled();
+		expect(f.resource.install).not.toHaveBeenCalled();
+		expect(f.prepareInstall).not.toHaveBeenCalled();
+		expect(f.relaunch).not.toHaveBeenCalled();
+		if (nativeSpelling) await f.controller.dismissAvailableUpdate();
+	});
 	test("quarantines failed changed-target disposal and retries cleanup before support or feed work", async () => {
 		const f = fixture();
 		f.detectSupport.mockResolvedValueOnce(policy).mockResolvedValueOnce({

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { currentLanguage, t } from "$lang/index";
 import type { NativeUpdateResource, UpdaterCheckOptions } from "$types/updateTypes";
 import { createUpdaterController } from "$utils/updating/controller/controller";
+import { readOnlyAppImageWire } from "$utils/updating/native-wire.fixture";
 import { createUpdaterSession } from "$utils/updating/session/session";
 import HomeNotice from "./home-notice.svelte";
 import Panel from "./panel.svelte";
@@ -207,13 +208,7 @@ describe("check-only installed flow (native boundary mocked, not packaged accept
 		expectNoInstallation(f);
 	});
 	it("retains availability for a validated read-only AppImage without offering installation", async () => {
-		const f = fixture({
-			...checkOnlySupport,
-			platform: "linux",
-			installer: "appimage",
-			checkTarget: "linux-x86_64-appimage",
-			reason: "appimage-read-only",
-		});
+		const f = fixture(readOnlyAppImageWire());
 		expect(await f.controller.checkForUpdates()).toBe("completed");
 		expect(f.check).toHaveBeenCalledWith({ target: "linux-x86_64-appimage", timeout: 15000 });
 		expect(get(f.controller.state)).toMatchObject({
@@ -286,13 +281,7 @@ describe("check-only installed flow (native boundary mocked, not packaged accept
 			installer: "appimage",
 			checkTarget: "linux-x86_64-appimage",
 		},
-		{
-			...checkOnlySupport,
-			platform: "linux",
-			installer: "appimage",
-			checkTarget: "linux-x86_64-appimage",
-			reason: "appimage-read-only",
-		},
+		readOnlyAppImageWire(),
 	])("checks once on startup and retains newer metadata/notice without installation authority %#", async (policy) => {
 		const f = fixture(policy);
 		await f.session.start(readiness);

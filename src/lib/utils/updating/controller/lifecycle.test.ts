@@ -47,6 +47,164 @@ function fixture(overrides: Partial<UpdaterDependencies> = {}) {
 
 describe("split updater lifecycle", () => {
 	test.each([
+		["reservation", false],
+		["reservation", true],
+		["leased refresh", false],
+		["leased refresh", true],
+	] as const)("split install rejects resource mutation during %s (cleanup rejects: %s)", async (timing, cleanupRejects) => {
+		const release = mock(() => {});
+		const prepareInstall = mock(async () => ({ release }));
+		const relaunch = mock(async () => {});
+		const { controller, update, detectSupport, check } = fixture({ prepareInstall, relaunch });
+		await controller.checkForUpdates();
+		await controller.downloadUpdate();
+		const gate = deferred<void>();
+		const started = deferred<void>();
+		if (timing === "reservation") {
+			prepareInstall.mockImplementationOnce(async () => {
+				started.resolve();
+				await gate.promise;
+				return { release };
+			});
+		} else {
+			detectSupport.mockResolvedValueOnce(support).mockImplementationOnce(async () => {
+				started.resolve();
+				await gate.promise;
+				return support;
+			});
+		}
+		const cleanupReleaseCounts: number[] = [];
+		update.close.mockImplementationOnce(async () => {
+			cleanupReleaseCounts.push(release.mock.calls.length);
+			if (cleanupRejects) throw new Error("resource close failed");
+		});
+		const failureReleaseCounts: number[] = [];
+		const unsubscribe = controller.state.subscribe((state) => {
+			if (state.status === "error") failureReleaseCounts.push(release.mock.calls.length);
+		});
+		const consent = { confirmed: true, version: "3.6.0" };
+		const action = controller.installAndRestart(consent);
+		try {
+			await started.promise;
+			update.version = "3.7.0";
+			// Changing both objects to agree cannot replace the original confirmed intent.
+			consent.version = "3.7.0";
+			gate.resolve();
+			expect(await action).toBe("failed");
+			expect(update.install).not.toHaveBeenCalled();
+			expect(relaunch).not.toHaveBeenCalled();
+			expect(prepareInstall).toHaveBeenCalledTimes(1);
+			expect(release).toHaveBeenCalledTimes(1);
+			expect(update.close).toHaveBeenCalledTimes(1);
+			expect(cleanupReleaseCounts).toEqual([1]);
+			expect(failureReleaseCounts.length).toBeGreaterThan(0);
+			expect(failureReleaseCounts.every((count) => count === 1)).toBe(true);
+			expect(get(controller.state)).toMatchObject({
+				status: "error",
+				busy: null,
+				availableUpdate: null,
+				canInstall: false,
+				canRetry: true,
+				failure: cleanupRejects
+					? { phase: "cleanup", category: "cleanup-failed" }
+					: { phase: "install", category: "install-failed" },
+			});
+			expect(await controller.retry()).toBe("completed");
+			expect(update.close).toHaveBeenCalledTimes(cleanupRejects ? 2 : 1);
+			expect(check).toHaveBeenCalledTimes(2);
+			expect(update.download).toHaveBeenCalledTimes(1);
+			expect(update.install).not.toHaveBeenCalled();
+		} finally {
+			unsubscribe();
+			gate.resolve();
+			await action;
+		}
+	});
+	test.each([
+		"before call",
+		"during first refresh",
+	])("split install rejects resource version mutation %s before admission", async (timing) => {
+		const release = mock(() => {});
+		const prepareInstall = mock(async () => ({ release }));
+		const relaunch = mock(async () => {});
+		const { controller, update, detectSupport } = fixture({ prepareInstall, relaunch });
+		await controller.checkForUpdates();
+		await controller.downloadUpdate();
+		if (timing === "before call") update.version = "3.7.0";
+		else {
+			detectSupport.mockImplementationOnce(async () => {
+				update.version = "3.7.0";
+				return support;
+			});
+		}
+		expect(await controller.installAndRestart({ confirmed: true, version: "3.6.0" })).toBe(
+			"failed",
+		);
+		expect(prepareInstall).not.toHaveBeenCalled();
+		expect(release).not.toHaveBeenCalled();
+		expect(update.install).not.toHaveBeenCalled();
+		expect(relaunch).not.toHaveBeenCalled();
+		expect(update.close).toHaveBeenCalledTimes(1);
+		expect(get(controller.state)).toMatchObject({
+			status: "error",
+			busy: null,
+			availableUpdate: null,
+			failure: { phase: "support", category: "support-unavailable" },
+			canInstall: false,
+			canRetry: true,
+		});
+	});
+	test.each([
+		["missing", undefined],
+		["unconfirmed", { confirmed: false, version: "3.6.0" }],
+		["different version", { confirmed: true, version: "3.7.0" }],
+	] as const)("active split install rejects %s consent instead of joining", async (_label, invalidConsent) => {
+		const release = mock(() => {});
+		const prepareInstall = mock(async () => ({ release }));
+		const { controller, update } = fixture({ prepareInstall });
+		await controller.checkForUpdates();
+		await controller.downloadUpdate();
+		const gate = deferred<void>();
+		const started = deferred<void>();
+		update.install.mockImplementation(() => {
+			started.resolve();
+			return gate.promise;
+		});
+		const consent = { confirmed: true, version: "3.6.0" };
+		let reentrant: ReturnType<typeof controller.installAndRestart> | undefined;
+		const unsubscribe = controller.state.subscribe((state) => {
+			if (state.status === "installing" && !reentrant)
+				reentrant = controller.installAndRestart({ confirmed: true, version: "3.6.0" });
+		});
+		const action = controller.installAndRestart(consent);
+		try {
+			const rejected = controller.installAndRestart(invalidConsent);
+			expect(rejected).not.toBe(action);
+			expect(await rejected).toBe("busy");
+			expect(reentrant).toBe(action);
+			// The caller's mutable object must not retarget the registered intent.
+			consent.version = "3.7.0";
+			consent.confirmed = false;
+			expect(controller.installAndRestart({ confirmed: true, version: "3.6.0" })).toBe(
+				action,
+			);
+			expect(await controller.installAndRestart(consent)).toBe("busy");
+			await started.promise;
+			expect(controller.installAndRestart({ confirmed: true, version: "3.6.0" })).toBe(
+				action,
+			);
+		} finally {
+			unsubscribe();
+			gate.resolve();
+			await action;
+		}
+		expect(await action).toBe("completed");
+		expect(update.install).toHaveBeenCalledTimes(1);
+		expect(prepareInstall).toHaveBeenCalledTimes(1);
+		expect(update.close).not.toHaveBeenCalled();
+		expect(release).not.toHaveBeenCalled();
+	});
+	test.each([
 		0,
 		-1,
 		Number.NaN,
