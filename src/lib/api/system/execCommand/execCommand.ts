@@ -3,6 +3,7 @@ import { get } from "svelte/store";
 import { toast } from "svelte-sonner";
 import { fetchConfig } from "$api/config/read/read";
 import { t } from "$lang/index";
+import { applicationWork, InstallationReservedError } from "$utils/applicationWork/applicationWork";
 import { log } from "$utils/logger/logger";
 
 /** DOCS:
@@ -23,7 +24,10 @@ import { log } from "$utils/logger/logger";
  * ```
  */
 export async function sendCommand(videoPath: string): Promise<void> {
+	let release: (() => void) | undefined;
 	try {
+		// Own config lookup, native handoff and diagnostics; never alter the user's command.
+		release = applicationWork.beginWork();
 		const userCommand = (await fetchConfig()).command;
 
 		if (!userCommand || !userCommand.trim()) {
@@ -50,6 +54,8 @@ export async function sendCommand(videoPath: string): Promise<void> {
 		});
 	} catch (error) {
 		toast.error(get(t)("toast.command.failed"));
+		// A denied action must not read/repair config just to log its denial.
+		if (error instanceof InstallationReservedError) return;
 
 		await log({
 			level: "error",
@@ -59,5 +65,7 @@ export async function sendCommand(videoPath: string): Promise<void> {
 				error: `Video: ${videoPath}`,
 			},
 		});
+	} finally {
+		release?.();
 	}
 }

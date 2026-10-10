@@ -2,6 +2,7 @@
 import ArrowLeft from "@lucide/svelte/icons/arrow-left";
 import ArrowUpRight from "@lucide/svelte/icons/arrow-up-right";
 import DevProfile from "$components/devProfile";
+import UpdaterPanel from "$components/updating/panel.svelte";
 import contributorsConfig from "$config/contributors.json";
 import { t } from "$lang/index";
 import type { Contributor } from "$types/devProfileTypes";
@@ -41,6 +42,8 @@ const projectSourceUrl = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui";
                 <p class="mt-1 font-mono text-xs text-foreground">{__APP_VERSION__}</p>
             </div>
         </header>
+
+        <UpdaterPanel />
 
         <section aria-labelledby="contributors-heading" class="grid items-start gap-6 py-8 md:grid-cols-[180px_minmax(0,1fr)] md:gap-10 md:py-10">
             <div>

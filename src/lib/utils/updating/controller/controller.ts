@@ -1,6 +1,7 @@
 import { readonly, writable } from "svelte/store";
 import type {
 	AvailableUpdate,
+	InstallReservation,
 	NativeUpdateResource,
 	UpdateActionResult,
 	UpdateDownloadEvent,
@@ -175,6 +176,8 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 		canRetry: false,
 		canDownload: false,
 		canInstall: false,
+		canUpdate: false,
+		installBlocked: false,
 	});
 	const store = writable(snapshot);
 
@@ -185,12 +188,39 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 
 	let active: Promise<UpdateActionResult> | null = null;
 	let activeKind: UpdaterSnapshot["busy"] = null;
+	let activeVersion: string | null = null;
 	// Sole native owner, including resources quarantined after a rejected close.
 	let pending: NativeUpdateResource | null = null;
 	// Irreversible Linux install success: recovery must never install again. Not Windows handoff.
 	let installed = false;
+	let reservation: InstallReservation | null = null;
+
+	/** DOCS: Validate the actual adapter result; boolean approval cannot hold an admission barrier. */
+	async function reserveInstall(): Promise<boolean> {
+		const candidate = await dependencies.prepareInstall?.();
+		if (
+			typeof candidate !== "object" ||
+			candidate === null ||
+			typeof candidate.release !== "function"
+		)
+			return false;
+		reservation = candidate;
+		return true;
+	}
+
+	/** DOCS: Release before failure publication; cleanup quarantine must not keep the app locked. */
+	function releaseReservation() {
+		const lease = reservation;
+		reservation = null;
+		try {
+			lease?.release();
+		} catch (error) {
+			reportErrorSafely("cleanup", normalizeUpdaterError(error));
+		}
+	}
 
 	function fail(raw: unknown, phase: UpdateFailurePhase) {
+		releaseReservation();
 		const error = normalizeUpdaterError(raw);
 		const category = failureCategory(phase, error.message);
 		publish({
@@ -222,6 +252,17 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 	/** DOCS: Derives UI capabilities without weakening the guards on the explicit actions. */
 	function availableActions() {
 		return {
+			canUpdate:
+				!installed &&
+				["available", "ready-to-install"].includes(snapshot.status) &&
+				typeof pending?.install === "function" &&
+				(snapshot.status === "ready-to-install" ||
+					typeof pending?.download === "function") &&
+				typeof dependencies.prepareInstall === "function" &&
+				!!snapshot.support &&
+				(snapshot.support.platform === "windows" ||
+					typeof dependencies.relaunch === "function") &&
+				approvedTarget(snapshot.support) !== null,
 			canCheck: !installed && !["manual-only", "installer-handoff"].includes(snapshot.status),
 			canRetry: snapshot.status === "error" || snapshot.status === "restart-required",
 			canDownload:
@@ -230,6 +271,7 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 				!!snapshot.support &&
 				approvedTarget(snapshot.support) !== null,
 			canInstall:
+				!snapshot.installBlocked &&
 				snapshot.status === "ready-to-install" &&
 				typeof pending?.install === "function" &&
 				typeof dependencies.prepareInstall === "function" &&
@@ -244,6 +286,7 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 	function finishOperation() {
 		active = null;
 		activeKind = null;
+		activeVersion = null;
 		publish({ busy: null, ...availableActions() });
 	}
 
@@ -259,12 +302,14 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 		active = operation;
 		activeKind = kind;
 		publish({
+			installBlocked: false,
 			...changes,
 			busy: kind,
 			canCheck: false,
 			canRetry: false,
 			canDownload: false,
 			canInstall: false,
+			canUpdate: false,
 		});
 		return operation;
 	}
@@ -363,7 +408,7 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 	}
 
 	/** DOCS:
-	 * Requires consent for this exact version and strict true from the application's safety gate.
+	 * Requires consent for this exact version and an exclusive application admission reservation.
 	 * Gate denial retains the verified resource. Windows hands off to its installer; Linux records
 	 * successful replacement before cleanup/relaunch so later recovery never repeats installation.
 	 * @param confirmation - Explicit user consent and the currently verified available version.
@@ -389,17 +434,26 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 		const operation = Promise.resolve()
 			.then(async () => {
 				const previousTarget = snapshot.support && approvedTarget(snapshot.support);
-				const support = await refreshSupport();
+				let support = await refreshSupport();
 				if (previousTarget === null || approvedTarget(support) !== previousTarget) {
 					phase = "cleanup";
 					await discardPendingAsManualOnly();
 					return "not-available" as const;
 				}
 				phase = "install";
-				if ((await dependencies.prepareInstall?.()) !== true) {
-					publish({ status: "ready-to-install" });
+				if (!(await reserveInstall())) {
+					publish({ status: "ready-to-install", installBlocked: true });
 					return "not-available" as const;
 				}
+				phase = "support";
+				support = await refreshSupport();
+				if (approvedTarget(support) !== previousTarget) {
+					releaseReservation();
+					phase = "cleanup";
+					await discardPendingAsManualOnly();
+					return "not-available" as const;
+				}
+				phase = "install";
 				if (support.platform === "windows") {
 					publish({ status: "installer-handoff" });
 					await install.call(update);
@@ -427,19 +481,129 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 		return beginOperation(operation, "install", { status: "installing", failure: null });
 	}
 
+	/** DOCS:
+	 * One version-labelled consent holds one operation lock through download verification and install.
+	 * The exact shared promise is registered before synchronous subscriber publication.
+	 * @param confirmation - Consent for the displayed version, never for a later candidate.
+	 * @returns Joined update promise; Windows completion is installer handoff, not acceptance proof.
+	 */
+	function updateAndRestart(confirmation: {
+		confirmed: true;
+		version: string;
+	}): Promise<UpdateActionResult> {
+		if (active)
+			return activeKind === "update" &&
+				confirmation?.confirmed === true &&
+				confirmation.version === activeVersion
+				? active
+				: Promise.resolve("busy");
+		const update = pending;
+		const install = update?.install;
+		if (
+			!snapshot.canUpdate ||
+			!update ||
+			typeof install !== "function" ||
+			confirmation?.confirmed !== true ||
+			confirmation.version !== snapshot.availableUpdate?.version
+		)
+			return Promise.resolve("not-available");
+		const version = confirmation.version;
+		const previousTarget = snapshot.support && approvedTarget(snapshot.support);
+		const needsDownload = snapshot.status === "available";
+		const download = update.download;
+		const relaunch = dependencies.relaunch;
+		let phase: UpdateFailurePhase = "support";
+		const operation = Promise.resolve()
+			.then(async () => {
+				let support = await refreshSupport();
+				if (previousTarget === null || approvedTarget(support) !== previousTarget) {
+					phase = "cleanup";
+					await discardPendingAsManualOnly();
+					return "not-available" as const;
+				}
+				if (needsDownload) {
+					phase = "download";
+					if (update.version !== version) throw new Error("Update version changed");
+					if (typeof download !== "function")
+						throw new Error("Download adapter is unavailable");
+					await download.call(
+						update,
+						(event) => {
+							if (active !== operation || snapshot.status !== "downloading") return;
+							const progress = nextDownloadProgress(snapshot.progress, event);
+							if (progress) publish({ progress });
+						},
+						{ timeout: downloadTimeout },
+					);
+					publish({ status: "ready-to-install" });
+					phase = "support";
+					support = await refreshSupport();
+					if (approvedTarget(support) !== previousTarget) {
+						phase = "cleanup";
+						await discardPendingAsManualOnly();
+						return "not-available" as const;
+					}
+				}
+				if (update.version !== version) throw new Error("Update version changed");
+				phase = "install";
+				if (!(await reserveInstall())) {
+					publish({ status: "ready-to-install", installBlocked: true });
+					return "not-available" as const;
+				}
+				phase = "support";
+				support = await refreshSupport();
+				if (approvedTarget(support) !== previousTarget) {
+					releaseReservation();
+					phase = "cleanup";
+					await discardPendingAsManualOnly();
+					return "not-available" as const;
+				}
+				phase = "install";
+				if (update.version !== version) throw new Error("Update version changed");
+				if (support.platform === "windows") {
+					publish({ status: "installer-handoff" });
+					await install.call(update);
+					return "completed" as const;
+				}
+				publish({ status: "installing" });
+				await install.call(update);
+				installed = true;
+				phase = "cleanup";
+				await releasePending();
+				phase = "restart";
+				publish({ status: "restarting" });
+				if (!relaunch) throw new Error("Relaunch adapter is unavailable");
+				await relaunch();
+				return "completed" as const;
+			})
+			.catch(async (error: unknown) => {
+				fail(error, phase);
+				if (phase !== "cleanup" && !installed) await releasePendingReportingFailure();
+				return "failed" as const;
+			})
+			.finally(finishOperation);
+		activeVersion = version;
+		return beginOperation(operation, "update", {
+			status: needsDownload ? "downloading" : "installing",
+			failure: null,
+			progress: needsDownload ? createDownloadProgress(0, null) : snapshot.progress,
+		});
+	}
+
 	/** DOCS: Called only after successful Linux installation; retries cleanup/safety/relaunch, not install. */
 	function restartOnly(): Promise<UpdateActionResult> {
 		const relaunch = dependencies.relaunch;
 		if (typeof relaunch !== "function") return Promise.resolve("not-available");
-		let phase: UpdateFailurePhase = "cleanup";
+		let phase: UpdateFailurePhase = "restart";
 		const operation = Promise.resolve()
 			.then(async () => {
-				await releasePending();
-				phase = "restart";
-				if ((await dependencies.prepareInstall?.()) !== true) {
-					publish({ status: "restart-required" });
+				if (!(await reserveInstall())) {
+					publish({ status: "restart-required", installBlocked: true });
 					return "not-available" as const;
 				}
+				phase = "cleanup";
+				await releasePending();
+				phase = "restart";
 				await relaunch();
 				return "completed" as const;
 			})
@@ -516,6 +680,7 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 		checkForUpdates,
 		downloadUpdate,
 		installAndRestart,
+		updateAndRestart,
 		retry,
 		dismissAvailableUpdate,
 	};

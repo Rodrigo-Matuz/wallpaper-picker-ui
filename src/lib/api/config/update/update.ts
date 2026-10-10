@@ -1,17 +1,12 @@
 import { BaseDirectory, writeFile } from "@tauri-apps/plugin-fs";
 import { ensureConfig } from "$api/config/ensure/ensure";
-import { fetchConfig, setConfigCache } from "$api/config/read/read";
+import { type ConfigMutationOwner, queueConfigMutation } from "$api/config/mutationOrdering";
+import { fetchConfig, readConfigForDiagnostics, setConfigCache } from "$api/config/read/read";
 import type { ConfigInterArgs } from "$types/configTypes";
 import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { ensureDir } from "$utils/ensureDirs";
 import { log } from "$utils/logger/logger";
 import { CONFIG_FILE_PATH, CONFIG_ROOT_DIR } from "$utils/paths";
-
-/**
- * Serializes config writes so concurrent `updateConfig` calls cannot
- * interleave their read-modify-write cycles and lose each other's changes.
- */
-let writeQueue: Promise<void> = Promise.resolve();
 
 /** DOCS:
  * Updates the application's configuration file by merging the new configuration values with the existing ones.
@@ -23,32 +18,35 @@ let writeQueue: Promise<void> = Promise.resolve();
  *
  * @param newConfig - Partial configuration values to merge into the current config.
  *
- * @returns Resolves after the update attempt and logging; resolution does not prove
- *          persistence because read/write failures are logged without rejection.
+ * @returns True only after a confirmed write. Reported read/write failures return false;
+ *          prerequisite/logging rejections retain their existing rejection semantics.
  *
  * @example
  * ```ts
  * await updateConfig({ debugMode: true, darkMode: true });
  * ```
  */
-export async function updateConfig(newConfig: Partial<ConfigInterArgs>): Promise<void> {
+export async function updateConfig(newConfig: Partial<ConfigInterArgs>): Promise<boolean> {
 	const release = applicationWork.beginWork();
 	try {
-		await ensureDir(CONFIG_ROOT_DIR, BaseDirectory.Config);
-		await ensureConfig();
-
-		const run = writeQueue.then(() => performUpdate(newConfig));
-		writeQueue = run.catch(() => {});
-		// Await the queued write and its logging before releasing passive accounting.
-		return await run;
+		// Own queued execution and logging until settlement, including reported failures.
+		return await queueConfigMutation(async (owner) => {
+			await ensureDir(CONFIG_ROOT_DIR, BaseDirectory.Config, readConfigForDiagnostics);
+			await ensureConfig();
+			return await performUpdate(newConfig, owner);
+		});
 	} finally {
 		release();
 	}
 }
 
-async function performUpdate(newConfig: Partial<ConfigInterArgs>): Promise<void> {
+async function performUpdate(
+	newConfig: Partial<ConfigInterArgs>,
+	owner: ConfigMutationOwner,
+): Promise<boolean> {
+	let persisted = false;
 	try {
-		const currentConfig = await fetchConfig();
+		const currentConfig = await fetchConfig(owner);
 
 		const updatedConfig: ConfigInterArgs = {
 			...currentConfig,
@@ -64,30 +62,41 @@ async function performUpdate(newConfig: Partial<ConfigInterArgs>): Promise<void>
 
 			// Keep the in-memory cache in sync with what was just written.
 			setConfigCache(updatedConfig);
+			persisted = true;
 
-			await log({
-				level: "positive",
-				callStack: new Error(),
-				message: "Configuration updated successfully",
-			});
+			await log(
+				{
+					level: "positive",
+					callStack: new Error(),
+					message: "Configuration updated successfully",
+				},
+				() => fetchConfig(owner),
+			);
 		} catch (error) {
-			await log({
+			await log(
+				{
+					level: "error",
+					callStack: error instanceof Error ? error : new Error("Unknown error"),
+					message: {
+						context: "Failed to write configuration file",
+						error,
+					},
+				},
+				() => fetchConfig(owner),
+			);
+		}
+	} catch (error) {
+		await log(
+			{
 				level: "error",
 				callStack: error instanceof Error ? error : new Error("Unknown error"),
 				message: {
-					context: "Failed to write configuration file",
+					context: "Failed to read configuration file",
 					error,
 				},
-			});
-		}
-	} catch (error) {
-		await log({
-			level: "error",
-			callStack: error instanceof Error ? error : new Error("Unknown error"),
-			message: {
-				context: "Failed to read configuration file",
-				error,
 			},
-		});
+			() => fetchConfig(owner),
+		);
 	}
+	return persisted;
 }

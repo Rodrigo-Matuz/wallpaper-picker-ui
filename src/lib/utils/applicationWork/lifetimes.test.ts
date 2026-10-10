@@ -30,7 +30,12 @@ mock.module("@tauri-apps/api/core", () => ({ invoke }));
 mock.module("@tauri-apps/api/path", () => ({ appDataDir, basename }));
 mock.module("$utils/ensureDirs", () => ({ ensureDir }));
 mock.module("$utils/logger/logger", () => ({ log }));
-mock.module("$api/config/read/read", () => ({ fetchConfig, setConfigCache, clearConfigCache }));
+mock.module("$api/config/read/read", () => ({
+	fetchConfig,
+	setConfigCache,
+	clearConfigCache,
+	readConfigForDiagnostics: async () => defaultConfig,
+}));
 mock.module("$api/system/fetchVideos/fetchVideos", () => ({ fetchVideos }));
 mock.module("$lang/index", () => ({ t: writable((key: string) => key) }));
 mock.module("svelte-sonner", () => ({ toast: { warning: mock(() => {}) } }));

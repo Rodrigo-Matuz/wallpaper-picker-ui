@@ -124,7 +124,7 @@ describe("split updater lifecycle", () => {
 		await second;
 	});
 	test("synchronous subscribers join download and install promises", async () => {
-		const { controller, update } = fixture({ prepareInstall: async () => true });
+		const { controller, update } = fixture({ prepareInstall: async () => ({ release() {} }) });
 		await controller.checkForUpdates();
 		let downloadReentered = false;
 		let installReentered = false;
@@ -159,7 +159,7 @@ describe("split updater lifecycle", () => {
 	])("%s policy cannot run lifecycle actions directly", async (mode) => {
 		const relaunch = mock(async () => {});
 		const { controller, update, check } = fixture({
-			prepareInstall: async () => true,
+			prepareInstall: async () => ({ release() {} }),
 			relaunch,
 			detectSupport: async () => ({ ...support, mode }),
 		});
@@ -182,7 +182,7 @@ describe("split updater lifecycle", () => {
 			await missing.controller.installAndRestart({ confirmed: true, version: "3.6.0" }),
 		).toBe("not-available");
 		expect(missing.update.install).not.toHaveBeenCalled();
-		const denied = fixture({ prepareInstall: async () => false });
+		const denied = fixture({ prepareInstall: async () => null });
 		await denied.controller.checkForUpdates();
 		await denied.controller.downloadUpdate();
 		expect(
@@ -193,7 +193,9 @@ describe("split updater lifecycle", () => {
 		expect(get(denied.controller.state).status).toBe("ready-to-install");
 	});
 	test("changed installer identity before installation discards the ready resource", async () => {
-		const { controller, update, detectSupport } = fixture({ prepareInstall: async () => true });
+		const { controller, update, detectSupport } = fixture({
+			prepareInstall: async () => ({ release() {} }),
+		});
 		await controller.checkForUpdates();
 		await controller.downloadUpdate();
 		detectSupport.mockResolvedValueOnce({
@@ -211,7 +213,7 @@ describe("split updater lifecycle", () => {
 	test("installation rejection requires a new check and download, not blind install retry", async () => {
 		const relaunch = mock(async () => {});
 		const { controller, update, check } = fixture({
-			prepareInstall: async () => true,
+			prepareInstall: async () => ({ release() {} }),
 			relaunch,
 		});
 		await controller.checkForUpdates();
@@ -275,7 +277,7 @@ describe("split updater lifecycle", () => {
 		expect(update.download).toHaveBeenCalledWith(expect.any(Function), { timeout: 120000 });
 	});
 	test("dismissal disables all lifecycle actions while cleanup is in flight", async () => {
-		const { controller, update } = fixture({ prepareInstall: async () => true });
+		const { controller, update } = fixture({ prepareInstall: async () => ({ release() {} }) });
 		await controller.checkForUpdates();
 		await controller.downloadUpdate();
 		const closing = deferred<void>();
@@ -299,7 +301,7 @@ describe("split updater lifecycle", () => {
 	test("post-install cleanup rejection stays quarantined until explicit restart retry", async () => {
 		const relaunch = mock(async () => {});
 		const { controller, update, check } = fixture({
-			prepareInstall: async () => true,
+			prepareInstall: async () => ({ release() {} }),
 			relaunch,
 			detectSupport: async () => ({
 				...support,
@@ -332,7 +334,7 @@ describe("split updater lifecycle", () => {
 		const relaunch = mock(async () => {});
 		relaunch.mockRejectedValueOnce("relaunch failed");
 		const { controller, update, check } = fixture({
-			prepareInstall: async () => true,
+			prepareInstall: async () => ({ release() {} }),
 			relaunch,
 			detectSupport: async () => ({
 				...support,
@@ -372,7 +374,7 @@ describe("split updater lifecycle", () => {
 	});
 	test("confirmed Windows installation is handoff, never frontend relaunch", async () => {
 		const relaunch = mock(async () => {});
-		const prepareInstall = mock(async () => true);
+		const prepareInstall = mock(async () => ({ release() {} }));
 		const { controller, update } = fixture({ prepareInstall, relaunch });
 		const installing = deferred<void>();
 		const started = deferred<void>();

@@ -1,22 +1,24 @@
-/** DOCS:
- * Creates passive application-owned work accounting, without subscriber callbacks.
- * Counts represent operation lifetimes (including queued/nested calls), not file counts
- * or successful persistence. A snapshot is frozen and never changes after it is read.
- *
- * These read-only counts are NOT race-free installation authorization: another
- * operation can start immediately after a read. Deliberately unwired from prepareInstall
- * until an exclusive reservation and corresponding UI handling exist.
- *
- * @returns An isolated tracker. beginWork/beginDirtyInput return idempotent releases;
- *          query methods have no side effects and getSnapshot returns a frozen copy.
- * @example
- * const release = tracker.beginWork();
- * try { await operation(); } finally { release(); }
+import { readonly, writable } from "svelte/store";
+
+/** DOCS: Typed admission denial; UI handlers must report it rather than float rejection. */
+export class InstallationReservedError extends Error {
+	constructor() {
+		super("Installation is reserved");
+		this.name = "InstallationReservedError";
+	}
+}
+
+/** DOCS: Creates isolated lifetime accounting; frozen count snapshots remain passive.
+ * Only tryReserveInstall authorizes installation. Its read-only store is for UI gating.
+ * @returns Work/draft owners and an exclusive, idempotently releasable reservation.
  */
 export function createApplicationWorkTracker() {
 	const counts = { pendingWork: 0, dirtyInputs: 0 };
+	let reserved = false;
+	const reservationState = writable(false);
 
 	function acquire(key: keyof typeof counts): () => void {
+		if (reserved) throw new InstallationReservedError();
 		counts[key]++;
 		let released = false;
 		return () => {
@@ -26,15 +28,32 @@ export function createApplicationWorkTracker() {
 		};
 	}
 
+	/** Reserve synchronously before publishing; count snapshots are not authorization. */
+	function tryReserveInstall(): null | { release(): void } {
+		if (reserved || counts.pendingWork || counts.dirtyInputs) return null;
+		reserved = true;
+		reservationState.set(true);
+		let released = false;
+		return Object.freeze({
+			release() {
+				if (released) return;
+				released = true;
+				reserved = false;
+				reservationState.set(false);
+			},
+		});
+	}
+
 	return Object.freeze({
 		beginWork: () => acquire("pendingWork"),
-		// One token per dirty component, released only on reliable reset or unmount.
 		beginDirtyInput: () => acquire("dirtyInputs"),
 		hasPendingWork: () => counts.pendingWork > 0,
 		hasDirtyInputs: () => counts.dirtyInputs > 0,
 		getSnapshot: () => Object.freeze({ ...counts }),
+		tryReserveInstall,
+		installationReserved: readonly(reservationState),
 	});
 }
 
-/** Passive accounting shared by application operations; not an updater safety gate. */
+/** Application-wide work owners and exclusive installation admission barrier. */
 export const applicationWork = createApplicationWorkTracker();

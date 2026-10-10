@@ -2,6 +2,9 @@
 import SettingRow from "$components/settings/Row/row.svelte";
 import * as Select from "$components/ui/select";
 import { currentLanguage, languages, setLanguage } from "$lib/lang/index";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
+
+const installationReserved = applicationWork.installationReserved;
 
 export let name = "SettingsName";
 export let shortDescription = "Short Description";
@@ -14,7 +17,7 @@ $: triggerLabel = languages[$currentLanguage]?.name ?? selectorPlaceholder;
 
 <SettingRow {name} {shortDescription} {hintDescription}>
     {#snippet children(labelId, descriptionId)}
-        <Select.Root type="single" value={$currentLanguage} onValueChange={(value) => { if (value) setLanguage(value); }}>
+        <Select.Root disabled={$installationReserved} type="single" value={$currentLanguage} onValueChange={(value) => { if (value) setLanguage(value); }}>
             <Select.Trigger class="min-h-11 w-full min-w-0 rounded-none border-foreground/15 bg-background sm:w-48" aria-labelledby={labelId} aria-describedby={descriptionId}>
                 <span class="truncate">{triggerLabel}</span>
             </Select.Trigger>

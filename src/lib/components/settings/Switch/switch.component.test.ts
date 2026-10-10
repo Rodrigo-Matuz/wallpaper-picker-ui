@@ -2,7 +2,35 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/sv
 import { afterEach, describe, expect, it, vi } from "vitest";
 import SettingsSwitch from "./switch.svelte";
 
-afterEach(cleanup);
+const { errorToast } = vi.hoisted(() => ({ errorToast: vi.fn() }));
+vi.mock("svelte-sonner", () => ({ toast: { error: errorToast } }));
+afterEach(() => {
+	cleanup();
+	vi.clearAllMocks();
+});
+
+it("reports rejected initial switch reads without floating a UI rejection", async () => {
+	render(SettingsSwitch, {
+		name: "Dark Mode",
+		fetchValue: async () => {
+			throw new Error("read denied");
+		},
+		onToggle: async () => {},
+	});
+	await waitFor(() => expect(errorToast).toHaveBeenCalledTimes(1));
+});
+
+it("restores the persisted switch value after a reported failure", async () => {
+	render(SettingsSwitch, {
+		name: "New Wallpapers",
+		fetchValue: async () => false,
+		onToggle: async () => false,
+	});
+	const toggle = screen.getByRole("switch", { name: "New Wallpapers" });
+	await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("false"));
+	await fireEvent.click(toggle);
+	await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("false"));
+});
 
 describe("SettingsSwitch", () => {
 	it("loads the saved value and persists subsequent toggles", async () => {

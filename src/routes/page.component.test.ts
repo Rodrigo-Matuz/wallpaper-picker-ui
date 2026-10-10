@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { writable } from "svelte/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { updateConfig } from "$api/config/update/update";
 import { thumbnails, thumbnailsGenerated, totalVideos } from "$api/thumbnails/handle";
 import HomePage from "./+page.svelte";
 
@@ -28,6 +29,12 @@ afterEach(() => {
 });
 
 describe("Home footer", () => {
+	it("does not persist language merely while loading the stored configuration", async () => {
+		vi.mocked(updateConfig).mockClear();
+		render(HomePage);
+		await screen.findByPlaceholderText("Search Wallpapers...");
+		expect(updateConfig).not.toHaveBeenCalled();
+	});
 	it("appears only when the filtered wallpaper grid has no items", async () => {
 		thumbnails.set({ "data:image/png;base64,": "/wallpapers/forest.mp4" });
 		render(HomePage);

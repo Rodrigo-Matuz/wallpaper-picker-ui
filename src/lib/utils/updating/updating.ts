@@ -27,6 +27,10 @@ const nativeAdapter: UpdaterDependencies = {
 		const update = await check(options);
 		return update ? createNativeUpdateResource(update) : null;
 	},
+	prepareInstall: async () => {
+		const { applicationWork } = await import("$utils/applicationWork/applicationWork");
+		return applicationWork.tryReserveInstall();
+	},
 	relaunch: async () => {
 		const { relaunch } = await import("@tauri-apps/plugin-process");
 		await relaunch();

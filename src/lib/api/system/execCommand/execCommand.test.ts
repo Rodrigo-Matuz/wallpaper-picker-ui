@@ -1,5 +1,65 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { writable } from "svelte/store";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
+
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((done) => {
+		resolve = done;
+	});
+	return { promise, resolve };
+}
+
+test("command ownership spans lookup, native settlement and final diagnostics", async () => {
+	const lookup = deferred<{ command: string }>();
+	const native = deferred<string>();
+	const invoked = deferred<void>();
+	const diagnostics = deferred<void>();
+	const logged = deferred<void>();
+	fetchConfig.mockImplementationOnce(() => lookup.promise);
+	invoke.mockImplementationOnce(() => {
+		invoked.resolve();
+		return native.promise;
+	});
+	log.mockImplementationOnce(() => {
+		logged.resolve();
+		return diagnostics.promise;
+	});
+	const operation = sendCommand("/videos/a.mp4");
+	try {
+		expect(applicationWork.tryReserveInstall()).toBeNull();
+		lookup.resolve({ command: "user shell $VP" });
+		await invoked.promise;
+		expect(applicationWork.tryReserveInstall()).toBeNull();
+		native.resolve("ok");
+		await logged.promise;
+		expect(applicationWork.getSnapshot().pendingWork).toBe(1);
+		diagnostics.resolve();
+		await operation;
+		expect(applicationWork.hasPendingWork()).toBe(false);
+	} finally {
+		lookup.resolve({ command: "" });
+		native.resolve("ok");
+		diagnostics.resolve();
+		await operation;
+	}
+});
+
+test("installation reservation denies command admission with existing translated failure", async () => {
+	const reservation = applicationWork.tryReserveInstall();
+	expect(reservation).not.toBeNull();
+	log.mockRejectedValueOnce(new Error("logger unavailable"));
+	try {
+		await sendCommand("/videos/a.mp4");
+		expect(fetchConfig).not.toHaveBeenCalled();
+		expect(invoke).not.toHaveBeenCalled();
+		expect(errorToast).toHaveBeenCalledWith("toast.command.failed");
+	} finally {
+		reservation?.release();
+		log.mockReset();
+		log.mockImplementation(async () => {});
+	}
+});
 
 const invoke = mock(async (_command: string, _args: object) => "ok");
 const fetchConfig = mock(async () => ({ command: "mpv $VP" }));

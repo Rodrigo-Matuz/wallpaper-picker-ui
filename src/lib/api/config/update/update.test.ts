@@ -29,7 +29,7 @@ test("tracks config work before prerequisites and through both queued writes and
 		await secondWrite.promise;
 	});
 	const first = updateConfig({ command: "first" });
-	let second: Promise<void> | undefined;
+	let second: Promise<boolean> | undefined;
 	try {
 		expect(applicationWork.getSnapshot().pendingWork).toBe(1);
 		directory.resolve();
@@ -72,7 +72,11 @@ const writeFile = mock(async (_path: string, _data: Uint8Array, _options: object
 const fetchConfig = mock(async () => ({ ...defaultConfig }));
 const setConfigCache = mock((_config: typeof defaultConfig) => {});
 mock.module("$api/config/ensure/ensure", () => ({ ensureConfig }));
-mock.module("$api/config/read/read", () => ({ fetchConfig, setConfigCache }));
+mock.module("$api/config/read/read", () => ({
+	fetchConfig,
+	setConfigCache,
+	readConfigForDiagnostics: async () => defaultConfig,
+}));
 mock.module("$utils/ensureDirs", () => ({ ensureDir }));
 mock.module("$utils/logger/logger", () => ({ log }));
 mock.module("@tauri-apps/plugin-fs", () => ({ BaseDirectory, writeFile }));
@@ -96,7 +100,11 @@ describe("updateConfig", () => {
 			newWallpapers: false,
 		});
 		await updateConfig({ darkMode: false });
-		expect(ensureDir).toHaveBeenCalledWith("WallpaperPickerUI", BaseDirectory.Config);
+		expect(ensureDir).toHaveBeenCalledWith(
+			"WallpaperPickerUI",
+			BaseDirectory.Config,
+			expect.any(Function),
+		);
 		expect(ensureConfig).toHaveBeenCalledTimes(1);
 		const [path, bytes, options] = writeFile.mock.calls[0];
 		expect(path).toBe("WallpaperPickerUI/config.json");
@@ -140,9 +148,10 @@ describe("updateConfig", () => {
 
 	test("failed writes do not update cache; later queued writes still run", async () => {
 		writeFile.mockRejectedValueOnce(new Error("disk full"));
-		await updateConfig({ darkMode: false });
+		const failed = await updateConfig({ darkMode: false });
+		expect(failed).toBe(false);
 		expect(setConfigCache).not.toHaveBeenCalled();
-		await updateConfig({ command: "mpv $VP" });
+		expect(await updateConfig({ command: "mpv $VP" })).toBe(true);
 		expect(writeFile).toHaveBeenCalledTimes(2);
 		expect(setConfigCache).toHaveBeenCalledTimes(1);
 		expect(log).toHaveBeenCalledWith(
@@ -150,6 +159,7 @@ describe("updateConfig", () => {
 				level: "error",
 				message: expect.objectContaining({ context: "Failed to write configuration file" }),
 			}),
+			expect.any(Function),
 		);
 	});
 

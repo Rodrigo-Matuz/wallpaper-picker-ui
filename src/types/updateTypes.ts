@@ -66,7 +66,7 @@ export interface UpdaterSnapshot {
 		| "installer-handoff"
 		| "restarting"
 		| "restart-required";
-	readonly busy: "check" | "dismiss" | "download" | "install" | "restart" | null;
+	readonly busy: "check" | "dismiss" | "download" | "install" | "restart" | "update" | null;
 	readonly progress: UpdateProgress | null;
 	readonly currentVersion: string;
 	readonly support: UpdateSupport | null;
@@ -77,6 +77,8 @@ export interface UpdaterSnapshot {
 	readonly canRetry: boolean;
 	readonly canDownload: boolean;
 	readonly canInstall: boolean;
+	readonly canUpdate: boolean;
+	readonly installBlocked: boolean;
 }
 
 /** The native resource is owned privately by one controller, never by a component. */
@@ -96,6 +98,11 @@ export interface UpdaterCheckOptions {
 	readonly timeout: number;
 }
 
+/** Exclusive application admission lease; retained until exit on successful handoff/relaunch. */
+export interface InstallReservation {
+	release(): void;
+}
+
 export interface UpdaterDependencies {
 	readonly currentVersion: string;
 	readonly detectSupport: () => Promise<unknown>;
@@ -103,8 +110,8 @@ export interface UpdaterDependencies {
 	readonly now?: () => number;
 	/** Internal HTTP request bound, not an AbortSignal or full lifecycle cancellation guarantee. */
 	readonly downloadTimeoutMs?: number;
-	/** Missing/false safety gate disables installation; the app must wire real pending-work safeguards. */
-	readonly prepareInstall?: () => Promise<boolean>;
+	/** Missing/denying adapters fail closed; a boolean is never installation authorization. */
+	readonly prepareInstall?: () => Promise<InstallReservation | null>;
 	readonly relaunch?: () => Promise<void>;
 	readonly reportError?: (details: {
 		phase: UpdateFailurePhase;

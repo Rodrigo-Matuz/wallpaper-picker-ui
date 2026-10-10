@@ -10,6 +10,7 @@ import { log } from "./logger/logger";
  *
  * @param dirName - Name of the directory to ensure.
  * @param baseDir - Tauri base directory in which the directory should exist.
+ * @param readConfig - Optional safe diagnostic reader for queue-owned config prerequisites.
  *
  * @returns Resolves once the directory check and creation (if necessary) are complete.
  *
@@ -22,7 +23,11 @@ import { log } from "./logger/logger";
  * await ensureDir("WallpaperPickerUI", BaseDirectory.Config);
  * ```
  */
-export async function ensureDir(dirName: string, baseDir: BaseDirectory): Promise<void> {
+export async function ensureDir(
+	dirName: string,
+	baseDir: BaseDirectory,
+	readConfig?: Parameters<typeof log>[1],
+): Promise<void> {
 	try {
 		const dirExists = await exists(dirName, { baseDir });
 
@@ -30,13 +35,16 @@ export async function ensureDir(dirName: string, baseDir: BaseDirectory): Promis
 			await mkdir(dirName, { baseDir });
 		}
 	} catch (error) {
-		await log({
-			level: "error",
-			callStack: error instanceof Error ? error : new Error(),
-			message: {
-				context: `Failed to ensure '${dirName}' directory`,
-				error,
+		await log(
+			{
+				level: "error",
+				callStack: error instanceof Error ? error : new Error(),
+				message: {
+					context: `Failed to ensure '${dirName}' directory`,
+					error,
+				},
 			},
-		});
+			readConfig,
+		);
 	}
 }

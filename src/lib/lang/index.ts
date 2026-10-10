@@ -1,5 +1,7 @@
-import { derived, writable } from "svelte/store";
+import { derived, get, writable } from "svelte/store";
+import { toast } from "svelte-sonner";
 import { updateConfig } from "$api/config/update/update";
+import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { type LanguageRegistry, resolveTranslation } from "./translate/translate";
 
 /** DOCS:
@@ -59,22 +61,36 @@ export const currentLanguage = writable<string>("eng");
 /** DOCS:
  * Updates the active application language.
  *
- * If the provided language code exists, the language store is updated
- * and the selection is persisted to the configuration file.
+ * If the provided language code exists, persist it before publishing to the store.
+ * Initialization should set currentLanguage directly, without persistence.
  *
  * Invalid or unknown language codes are ignored.
  *
  * @param lang - Language code to activate (e.g. "eng", "pt-br").
+ * @returns True after confirmed persistence; false on failure, denial or unknown code.
  *
  * @example
  * ```ts
  * setLanguage("pt-br");
  * ```
  */
-export function setLanguage(lang: string) {
-	if (!languages[lang]) return;
-	currentLanguage.set(lang);
-	updateConfig({ language: lang });
+export async function setLanguage(lang: string): Promise<boolean> {
+	if (!languages[lang]) return false;
+	let release: (() => void) | undefined;
+	try {
+		release = applicationWork.beginWork();
+		if (!(await updateConfig({ language: lang }))) {
+			toast.error(get(t)("toast.settings.failed"));
+			return false;
+		}
+		currentLanguage.set(lang);
+		return true;
+	} catch {
+		toast.error(get(t)("toast.settings.failed"));
+		return false;
+	} finally {
+		release?.();
+	}
 }
 
 /** DOCS:

@@ -3,11 +3,12 @@ import { FolderSearch2, Settings } from "@lucide/svelte";
 import { onMount } from "svelte";
 import { goto } from "$app/navigation";
 import Display from "$components/display";
+import { runThumbnailAction } from "$components/display/thumbnailAction";
 import Navbar from "$components/navbar";
-import { fetchConfig } from "$lib/api/config/read/read";
+import HomeNotice from "$components/updating/home-notice.svelte";
 import { selectFolder } from "$lib/api/system/selectFolder/selectFolder";
-import { handleThumbnails } from "$lib/api/thumbnails/handle";
-import { currentLanguage, setLanguage, t } from "$lib/lang/index";
+import { t } from "$lib/lang/index";
+import { initializeApplicationSession } from "$utils/updating/session/runtime";
 
 let searchQuery = $state("");
 let loading = $state(true);
@@ -16,11 +17,7 @@ let visibleWallpapers = $state(0);
 
 onMount(async () => {
 	try {
-		const config = await fetchConfig();
-		setLanguage(config.language);
-		$currentLanguage = config.language;
-	} catch (error) {
-		console.error("Failed to load config", error);
+		await initializeApplicationSession();
 	} finally {
 		loading = false;
 	}
@@ -33,6 +30,7 @@ const handleInputChange = (event: Event) => {
 </script>
 
 {#if !loading}
+    <HomeNotice />
     <div class="flex flex-col min-h-screen">
         <div class="flex-1">
             <Navbar
@@ -40,7 +38,7 @@ const handleInputChange = (event: Event) => {
                 leftOnClick={async () => {
                     const folderPath = await selectFolder();
                     if (folderPath) {
-                        await handleThumbnails(true);
+                        await runThumbnailAction(true);
                     }
                 }}
                 disableInput={false}

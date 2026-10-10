@@ -28,6 +28,16 @@ afterEach(() => {
 });
 
 describe("About page", () => {
+	it("mounts the updater panel near the installed version", () => {
+		vi.stubGlobal("__APP_VERSION__", "3.5.0-test");
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(() => new Promise(() => {})),
+		);
+		render(AboutPage);
+		expect(screen.getByRole("heading", { name: "Updates" })).toBeTruthy();
+		expect(screen.getByRole("link", { name: "Releases on GitHub" })).toBeTruthy();
+	});
 	it("renders every configured contributor without depending on a hardcoded owner", async () => {
 		vi.stubGlobal("__APP_VERSION__", "3.5.0-test");
 		vi.stubGlobal(

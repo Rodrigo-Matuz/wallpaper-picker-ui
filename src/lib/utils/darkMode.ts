@@ -1,6 +1,10 @@
 import { setMode } from "mode-watcher";
+import { get } from "svelte/store";
+import { toast } from "svelte-sonner";
 import { fetchConfig } from "$api/config/read/read";
 import { updateConfig } from "$api/config/update/update";
+import { t } from "$lang/index";
+import { applicationWork, InstallationReservedError } from "$utils/applicationWork/applicationWork";
 import { log } from "./logger/logger";
 
 /**
@@ -8,26 +12,31 @@ import { log } from "./logger/logger";
  *
  * Reads the current configuration to determine the active color mode.
  * If dark mode is enabled, switches to light mode; otherwise, enables dark mode.
- * The new mode is applied immediately via `setMode` and persisted to the
- * application configuration.
+ * The new mode is applied via `setMode` only after confirmed persistence.
  *
  * Any errors encountered during the process are caught and logged.
  *
- * @returns Resolves once the color mode has been updated and persisted.
+ * @returns True after persistence and publication; false on reported failure/denial.
+ *          Existing diagnostic failures may still reject; Settings consumes rejections.
  *
  * @example
  * ```ts
  * await darkMode();
  * ```
  */
-export const toggleDarkMode = async (): Promise<void> => {
+export const toggleDarkMode = async (): Promise<boolean> => {
+	let release: (() => void) | undefined;
 	try {
+		release = applicationWork.beginWork();
 		const config = await fetchConfig();
 		const isDarkMode = config.darkMode;
 
 		const newMode = isDarkMode ? "light" : "dark";
+		if (!(await updateConfig({ darkMode: !isDarkMode }))) {
+			toast.error(get(t)("toast.settings.failed"));
+			return false;
+		}
 		setMode(newMode);
-		await updateConfig({ darkMode: !isDarkMode });
 
 		await log({
 			level: "info",
@@ -37,7 +46,10 @@ export const toggleDarkMode = async (): Promise<void> => {
 				error: newMode,
 			},
 		});
+		return true;
 	} catch (error) {
+		toast.error(get(t)("toast.settings.failed"));
+		if (error instanceof InstallationReservedError) return false;
 		await log({
 			level: "error",
 			message: {
@@ -46,5 +58,8 @@ export const toggleDarkMode = async (): Promise<void> => {
 			},
 			callStack: error instanceof Error ? error : new Error("Unknown error"),
 		});
+		return false;
+	} finally {
+		release?.();
 	}
 };

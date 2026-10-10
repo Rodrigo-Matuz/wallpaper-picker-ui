@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
+import { readConfigForDiagnostics } from "$api/config/read/read";
 import { defaultConfig } from "../defaults";
 
 const exists = mock(async () => false);
@@ -23,7 +24,11 @@ afterEach(() => {
 describe("ensureConfig", () => {
 	test("creates missing config with defaults in config base directory", async () => {
 		await ensureConfig();
-		expect(ensureDir).toHaveBeenCalledWith("WallpaperPickerUI", BaseDirectory.Config);
+		expect(ensureDir).toHaveBeenCalledWith(
+			"WallpaperPickerUI",
+			BaseDirectory.Config,
+			readConfigForDiagnostics,
+		);
 		expect(exists).toHaveBeenCalledWith("WallpaperPickerUI/config.json", {
 			baseDir: BaseDirectory.Config,
 		});
@@ -40,6 +45,9 @@ describe("ensureConfig", () => {
 	test("logs write failure without throwing", async () => {
 		writeFile.mockRejectedValueOnce(new Error("permission denied"));
 		await ensureConfig();
-		expect(log).toHaveBeenCalledWith(expect.objectContaining({ level: "error" }));
+		expect(log).toHaveBeenCalledWith(
+			expect.objectContaining({ level: "error" }),
+			expect.any(Function),
+		);
 	});
 });

@@ -66,8 +66,8 @@ describe("fetchConfig", () => {
 			diagnostics.resolve();
 			await writeStarted.promise;
 			expect(applicationWork.hasPendingWork()).toBe(true);
-			// Cache hits do not establish repair completion or durable persistence.
-			expect(await fetchConfig()).toEqual(defaultConfig);
+			// A repair must not publish an unpersisted fallback as cached configuration.
+			expect(peekConfig()).toBeNull();
 			expect(applicationWork.hasPendingWork()).toBe(true);
 			write.resolve();
 			await finalLogStarted.promise;
@@ -117,6 +117,7 @@ describe("fetchConfig", () => {
 				level: "error",
 				message: expect.objectContaining({ context: expect.stringContaining("corrupted") }),
 			}),
+			expect.any(Function),
 		);
 		expect(await fetchConfig()).toEqual(defaultConfig);
 		expect(readTextFile).toHaveBeenCalledTimes(1);
@@ -126,12 +127,14 @@ describe("fetchConfig", () => {
 		readTextFile.mockResolvedValueOnce("not JSON");
 		writeFile.mockRejectedValueOnce(new Error("disk full"));
 		expect(await fetchConfig()).toEqual(defaultConfig);
+		expect(peekConfig()).toBeNull();
 		expect(log).toHaveBeenCalledWith(
 			expect.objectContaining({
 				message: expect.objectContaining({
 					context: "Failed to repair configuration file with defaults",
 				}),
 			}),
+			expect.any(Function),
 		);
 	});
 

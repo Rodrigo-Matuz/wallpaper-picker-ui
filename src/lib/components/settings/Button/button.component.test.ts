@@ -2,7 +2,19 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/svelte";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import SettingsButton from "./button.svelte";
 
-afterEach(cleanup);
+const { errorToast } = vi.hoisted(() => ({ errorToast: vi.fn() }));
+vi.mock("svelte-sonner", () => ({ toast: { error: errorToast } }));
+
+afterEach(() => {
+	cleanup();
+	vi.clearAllMocks();
+});
+
+it("reports a settings action's false persistence result", async () => {
+	render(SettingsButton, { buttonName: "DELETE", buttonOnClick: async () => false });
+	await fireEvent.click(screen.getByRole("button", { name: "DELETE" }));
+	expect(errorToast).toHaveBeenCalledTimes(1);
+});
 
 describe("SettingsButton", () => {
 	it.each([

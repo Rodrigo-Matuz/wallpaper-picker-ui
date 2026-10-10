@@ -1,7 +1,9 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { get } from "svelte/store";
+import { toast } from "svelte-sonner";
 import { updateConfig } from "$api/config/update/update";
 import { t } from "$lang/index";
+import { applicationWork, InstallationReservedError } from "$utils/applicationWork/applicationWork";
 import { log } from "$utils/logger/logger";
 
 /** DOCS:
@@ -21,7 +23,10 @@ import { log } from "$utils/logger/logger";
  * ```
  */
 export async function selectFolder(): Promise<string> {
+	let release: (() => void) | undefined;
 	try {
+		// The native dialog is pending application work, not just its eventual write.
+		release = applicationWork.beginWork();
 		const selected = await open({
 			directory: true,
 			title: get(t)("home.folder.dialog.title"),
@@ -39,13 +44,15 @@ export async function selectFolder(): Promise<string> {
 				},
 			});
 
-			await updateConfig({
-				wallpapersPath: folderPath,
-			});
+			const persisted = await updateConfig({ wallpapersPath: folderPath });
+			if (!persisted) throw new Error("Selected folder was not persisted");
 		}
 
 		return folderPath;
 	} catch (error) {
+		toast.error(get(t)("toast.folder.failed"));
+		// Denial is UI-only: diagnostics must not attempt config repair during installation.
+		if (error instanceof InstallationReservedError) return "";
 		await log({
 			level: "error",
 			callStack: new Error(),
@@ -56,5 +63,7 @@ export async function selectFolder(): Promise<string> {
 		});
 
 		return "";
+	} finally {
+		release?.();
 	}
 }

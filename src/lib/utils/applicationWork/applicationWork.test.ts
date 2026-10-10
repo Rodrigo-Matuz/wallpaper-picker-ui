@@ -1,5 +1,53 @@
 import { expect, test } from "bun:test";
+import { get } from "svelte/store";
 import { createApplicationWorkTracker } from "./applicationWork";
+
+test("reserves only an idle tracker and publishes a read-only reservation until idempotent release", () => {
+	const tracker = createApplicationWorkTracker();
+	const work = tracker.beginWork();
+	expect(tracker.tryReserveInstall()).toBeNull();
+	work();
+	const dirty = tracker.beginDirtyInput();
+	expect(tracker.tryReserveInstall()).toBeNull();
+	dirty();
+	const reservation = tracker.tryReserveInstall();
+	expect(reservation).not.toBeNull();
+	expect(get(tracker.installationReserved)).toBe(true);
+	expect("set" in tracker.installationReserved).toBe(false);
+	expect(tracker.tryReserveInstall()).toBeNull();
+	reservation?.release();
+	reservation?.release();
+	expect(get(tracker.installationReserved)).toBe(false);
+	expect(tracker.getSnapshot()).toEqual({ pendingWork: 0, dirtyInputs: 0 });
+	expect(tracker.tryReserveInstall()).not.toBeNull();
+});
+
+test("denies work and draft admission even in synchronous reservation subscribers", () => {
+	const tracker = createApplicationWorkTracker();
+	let observations = 0;
+	const unsubscribe = tracker.installationReserved.subscribe((reserved) => {
+		if (!reserved) return;
+		observations++;
+		expect(() => tracker.beginWork()).toThrow("Installation is reserved");
+		expect(() => tracker.beginDirtyInput()).toThrow("Installation is reserved");
+		expect(tracker.tryReserveInstall()).toBeNull();
+	});
+	const reservation = tracker.tryReserveInstall();
+	try {
+		expect(observations).toBe(1);
+		expect(tracker.getSnapshot()).toEqual({ pendingWork: 0, dirtyInputs: 0 });
+		reservation?.release();
+		const next = tracker.tryReserveInstall();
+		reservation?.release(); // An old owner cannot unlock a newer reservation.
+		expect(() => tracker.beginWork()).toThrow("Installation is reserved");
+		next?.release();
+		const work = tracker.beginWork();
+		work();
+	} finally {
+		unsubscribe();
+		reservation?.release();
+	}
+});
 
 test("dirty owners release independently without affecting pending work", () => {
 	const tracker = createApplicationWorkTracker();

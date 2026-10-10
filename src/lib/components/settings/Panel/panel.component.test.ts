@@ -1,20 +1,21 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { applicationWork } from "$utils/applicationWork/applicationWork";
+import { commandDraft } from "../Input/commandDraft";
 import SettingsPage from "./panel.svelte";
 
 vi.stubGlobal("__APP_VERSION__", "test");
 
 const { clearConfig, clearThumbnails, fetchConfig, updateConfig, toggleDarkMode } = vi.hoisted(
 	() => ({
-		clearConfig: vi.fn(async () => {}),
+		clearConfig: vi.fn(async () => true),
 		clearThumbnails: vi.fn(async () => {}),
 		fetchConfig: vi.fn(async () => ({
 			command: "mpvpaper $VP",
 			darkMode: true,
 			newWallpapers: true,
 		})),
-		updateConfig: vi.fn(async (_value: unknown) => {}),
+		updateConfig: vi.fn(async (_value: unknown) => true),
 		toggleDarkMode: vi.fn(async () => {}),
 	}),
 );
@@ -28,10 +29,43 @@ vi.mock("$lib/utils/darkMode", () => ({ toggleDarkMode }));
 
 afterEach(() => {
 	cleanup();
+	commandDraft.discard("");
 	vi.clearAllMocks();
 });
 
 describe("Settings page", () => {
+	it("disables all mutation controls during installation reservation and restores them on release", async () => {
+		const reservation = applicationWork.tryReserveInstall();
+		expect(reservation).not.toBeNull();
+		try {
+			render(SettingsPage);
+			await waitFor(() =>
+				expect(
+					(screen.getByRole("textbox", { name: "Command" }) as HTMLInputElement).value,
+				).toBe("mpvpaper $VP"),
+			);
+			for (const control of [
+				screen.getByRole("textbox"),
+				...screen.getAllByRole("switch"),
+				screen.getByRole("button", { name: "Select Language" }),
+				screen.getByRole("button", { name: "SAVE" }),
+				screen.getByRole("button", { name: "CLEAR" }),
+				screen.getByRole("button", { name: "DELETE" }),
+			]) {
+				expect((control as HTMLButtonElement).disabled).toBe(true);
+			}
+			await fireEvent.click(screen.getByRole("button", { name: "CLEAR" }));
+			expect(clearThumbnails).not.toHaveBeenCalled();
+			reservation?.release();
+			await waitFor(() =>
+				expect(
+					(screen.getByRole("button", { name: "CLEAR" }) as HTMLButtonElement).disabled,
+				).toBe(false),
+			);
+		} finally {
+			reservation?.release();
+		}
+	});
 	it("config deletion does not discard the command draft or claim a confirmed reset", async () => {
 		const view = render(SettingsPage);
 		const field = screen.getByRole("textbox", { name: "Command" }) as HTMLInputElement;
@@ -43,7 +77,7 @@ describe("Settings page", () => {
 		expect(field.value).toBe("unsaved draft");
 		expect(applicationWork.hasDirtyInputs()).toBe(true);
 		view.unmount();
-		expect(applicationWork.hasDirtyInputs()).toBe(false);
+		expect(applicationWork.hasDirtyInputs()).toBe(true);
 	});
 	it("groups all six settings under labelled sections with a working section index", async () => {
 		render(SettingsPage);

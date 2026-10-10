@@ -2,15 +2,11 @@
 import { CirclePlay } from "@lucide/svelte";
 import { onMount } from "svelte";
 import { sendCommand } from "$api/system/execCommand/execCommand";
-import {
-	handleThumbnails,
-	thumbnails,
-	thumbnailsGenerated,
-	totalVideos,
-} from "$api/thumbnails/handle";
+import { thumbnails, thumbnailsGenerated, totalVideos } from "$api/thumbnails/handle";
 import { Progress } from "$components/ui/progress";
 import { t } from "$lib/lang/index";
 import { normalizeForSearch } from "$lib/utils/search/search";
+import { runThumbnailAction } from "./thumbnailAction";
 
 export let searchQuery: string = "";
 export let onVisibleCountChange: (count: number) => void = () => {};
@@ -22,7 +18,7 @@ onMount(() => {
 		value = count;
 	});
 
-	handleThumbnails();
+	void runThumbnailAction();
 
 	return () => unsubscribe();
 });

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { fetchConfig } from "$api/config/read/read";
+import type { ConfigInterArgs } from "$types/configTypes";
 import type { LoggerInterArgs, StructuredLogMessage } from "$types/loggerTypes";
 
 /** DOCS:
@@ -19,6 +20,7 @@ import type { LoggerInterArgs, StructuredLogMessage } from "$types/loggerTypes";
  * @param args.level - Log level ("info" | "warn" | "error" | "positive"). Defaults to "info".
  * @param args.message - Message payload (string, Error, structured object, or arbitrary data).
  * @param args.callStack - Error instance used to extract file and line information.
+ * @param readConfig - Internal diagnostic read boundary: an owned read or a local recovery fallback.
  *
  * @returns Resolves once the log message has been sent to the backend.
  *
@@ -46,8 +48,12 @@ import type { LoggerInterArgs, StructuredLogMessage } from "$types/loggerTypes";
  * }
  * ```
  */
-export async function log({ level = "info", message, callStack }: LoggerInterArgs): Promise<void> {
-	const debugMode = (await fetchConfig()).debugMode;
+export async function log(
+	{ level = "info", message, callStack }: LoggerInterArgs,
+	readConfig: () => Promise<ConfigInterArgs> = fetchConfig,
+): Promise<void> {
+	// Recovery supplies only its own diagnostic fallback; ordinary reads must wait.
+	const debugMode = (await readConfig()).debugMode;
 	if (!debugMode) return;
 
 	/* -------- stack location extraction -------- */
