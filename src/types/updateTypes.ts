@@ -6,6 +6,8 @@ export interface UpdateSupport {
 	readonly architecture: string;
 	readonly installer: "nsis" | "msi" | "appimage" | "deb" | "rpm" | "nix" | null;
 	readonly target: UpdaterTarget | null;
+	/** Exact metadata-check target only; never grants download or installation authority. */
+	readonly checkTarget?: UpdaterTarget | null;
 	readonly reason: string;
 }
 

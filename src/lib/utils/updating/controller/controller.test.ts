@@ -96,7 +96,7 @@ describe("isolated updater controller", () => {
 			availableUpdate: null,
 			canRetry: true,
 		});
-		expect(detectSupport).toHaveBeenCalledTimes(1);
+		expect(detectSupport).toHaveBeenCalledTimes(2);
 		expect(await controller.retry()).toBe("completed");
 		expect(update.close).toHaveBeenCalledTimes(2);
 		expect(check).toHaveBeenCalledTimes(2);
@@ -287,7 +287,7 @@ describe("isolated updater controller", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(update.close).toHaveBeenCalledTimes(1);
-		expect(detectSupport).toHaveBeenCalledTimes(1);
+		expect(detectSupport).toHaveBeenCalledTimes(2);
 		expect(check).toHaveBeenCalledTimes(1);
 		closing.resolve();
 		expect(await recheck).toBe("completed");

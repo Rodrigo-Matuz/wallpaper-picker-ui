@@ -63,7 +63,11 @@ function update() {
 			{#if $snapshotStore.canUpdate}
 				<p id="update-consent" class="mt-4 max-w-xl">{translate("updater.consent")}</p>
 				<button type="button" onclick={update} aria-describedby="update-consent" class="mt-3 min-h-11 border border-success/40 px-4 font-mono text-xs text-success transition-colors hover:bg-success/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-success">{translate($snapshotStore.installBlocked ? "updater.action.resume" : "updater.action.update").replace("{version}", candidate.version)}</button>
+			{:else if !$snapshotStore.busy && ($snapshotStore.status === "available" || $snapshotStore.status === "ready-to-install")}
+				<p class="mt-4 max-w-xl">{translate("updater.guidance.manual")}</p>
 			{/if}
+		{:else if ($snapshotStore.status === "up-to-date" || $snapshotStore.failure?.phase === "check") && support?.mode === "manual-only"}
+			<p class="mt-4 max-w-xl">{translate("updater.guidance.manual")}</p>
 		{:else if !statusKey && !$snapshotStore.failure}
 			<p>{translate(guidanceKey)}</p>
 		{/if}

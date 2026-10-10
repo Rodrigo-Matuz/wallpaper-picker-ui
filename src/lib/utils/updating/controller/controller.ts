@@ -42,7 +42,10 @@ function readSupport(raw: unknown): UpdateSupport {
 		typeof value.reason !== "string" ||
 		(value.installer !== null &&
 			(typeof value.installer !== "string" || !installers.includes(value.installer))) ||
-		(value.target !== null && ![...targets.values()].includes(value.target as UpdaterTarget))
+		(value.target !== null && ![...targets.values()].includes(value.target as UpdaterTarget)) ||
+		("checkTarget" in value &&
+			value.checkTarget !== null &&
+			![...targets.values()].includes(value.checkTarget as UpdaterTarget))
 	)
 		return invalid;
 	return Object.freeze({
@@ -51,6 +54,9 @@ function readSupport(raw: unknown): UpdateSupport {
 		architecture: value.architecture,
 		installer: value.installer as UpdateSupport["installer"],
 		target: value.target as UpdateSupport["target"],
+		...("checkTarget" in value
+			? { checkTarget: value.checkTarget as UpdateSupport["checkTarget"] }
+			: {}),
 		reason: value.reason,
 	});
 }
@@ -80,10 +86,34 @@ function approvedTarget(support: UpdateSupport): UpdaterTarget | null {
 		support.reason !== "supported" ||
 		support.architecture !== "x86_64" ||
 		support.target === null ||
+		("checkTarget" in support && support.checkTarget !== support.target) ||
 		targets.get(`${support.platform}/${support.installer}`) !== support.target
 	)
 		return null;
 	return support.target;
+}
+
+/** DOCS: Availability is independent of installation; absent wire targets only allow legacy approval. */
+function approvedCheckTarget(support: UpdateSupport): UpdaterTarget | null {
+	if (!("checkTarget" in support)) return approvedTarget(support);
+	const target = support.checkTarget;
+	if (
+		!target ||
+		support.architecture !== "x86_64" ||
+		targets.get(`${support.platform}/${support.installer}`) !== target
+	)
+		return null;
+	if (approvedTarget(support) === target) return target;
+	if (
+		support.mode === "manual-only" &&
+		support.target === null &&
+		(support.reason === "native-validation-pending" ||
+			(support.platform === "linux" &&
+				support.installer === "appimage" &&
+				support.reason === "appimage-read-only"))
+	)
+		return target;
+	return null;
 }
 
 /** DOCS: Heuristic UI diagnostics only; these categories never authorize native operations. */
@@ -640,7 +670,7 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 				await releasePending();
 				phase = "support";
 				const support = await refreshSupport();
-				const target = approvedTarget(support);
+				const target = approvedCheckTarget(support);
 				if (target === null) {
 					publish({ status: "manual-only" });
 					return "completed" as const;
@@ -652,6 +682,16 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 				});
 				// Take ownership before reading getters: malformed metadata still requires cleanup.
 				pending = update;
+				if (update) {
+					phase = "support";
+					const refreshedSupport = await refreshSupport();
+					if (approvedCheckTarget(refreshedSupport) !== target) {
+						phase = "cleanup";
+						await discardPendingAsManualOnly();
+						return "not-available" as const;
+					}
+				}
+				phase = "check";
 				publish({
 					status: update ? "available" : "up-to-date",
 					availableUpdate: update ? readMetadata(update) : null,
@@ -661,7 +701,7 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 			})
 			.catch(async (error: unknown) => {
 				fail(error, phase);
-				if (phase === "check" && pending) {
+				if ((phase === "check" || phase === "support") && pending) {
 					await releasePendingReportingFailure();
 				}
 				return "failed" as const;

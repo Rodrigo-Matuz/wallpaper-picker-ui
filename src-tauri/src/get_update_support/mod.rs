@@ -1,5 +1,5 @@
-//! Read-only installation policy for the in-app updater.
-//! No target is authorized until packaged native upgrade tests pass.
+//! Read-only check provenance and installation policy for the in-app updater.
+//! No installation target is authorized until packaged native upgrade tests pass.
 
 use serde::Serialize;
 use std::fs;
@@ -52,6 +52,8 @@ pub struct UpdateSupport {
     pub platform: &'static str,
     pub architecture: &'static str,
     pub installer: Option<InstallerKind>,
+    /// Metadata-check target only; never authorizes download or installation.
+    pub check_target: Option<&'static str>,
     pub target: Option<&'static str>,
     pub reason: SupportReason,
 }
@@ -66,8 +68,8 @@ struct InstallationContext {
     appdir: Option<PathBuf>,
 }
 
-/// Returns installation-method guidance without checking, downloading, or installing.
-/// All methods remain manual-only until the packaged native acceptance gate passes.
+/// Returns check provenance and guidance without checking, downloading, or installing.
+/// All installation remains denied until the packaged native acceptance gate passes.
 #[tauri::command]
 pub async fn get_update_support(app: tauri::AppHandle) -> Result<UpdateSupport, String> {
     let context = collect_native_context(&app.env());
@@ -106,11 +108,19 @@ fn policy(
         platform: context.platform,
         architecture: context.architecture,
         installer,
+        check_target: None,
         // Identification alone does not establish safe replacement/relaunch.
-        // Keep every target disabled until the native acceptance gate passes.
+        // Keep every installation target disabled until native acceptance passes.
         target: None,
         reason,
     }
+}
+
+/// Checking does not certify Windows registration/coexistence or safe replacement.
+/// Keep installation denial independent of the exact metadata target.
+fn check_policy(mut support: UpdateSupport, check_target: &'static str) -> UpdateSupport {
+    support.check_target = Some(check_target);
+    support
 }
 
 // Correlate the embedded bundle marker with the actual launch path. Neither
@@ -160,16 +170,20 @@ fn validated_appimage_policy(
             SupportReason::NixManaged,
         );
     }
-    // Writable mode bits are only a hint, not an ACL/effective-user or rename test.
-    policy(
-        context,
-        SupportMode::ManualOnly,
-        Some(InstallerKind::AppImage),
-        if read_only {
-            SupportReason::AppImageReadOnly
-        } else {
-            SupportReason::NativeValidationPending
-        },
+    // Checking metadata does not certify effective-user/ACL access or safe rename.
+    // Read-only images can be checked, but all installation remains denied.
+    check_policy(
+        policy(
+            context,
+            SupportMode::ManualOnly,
+            Some(InstallerKind::AppImage),
+            if read_only {
+                SupportReason::AppImageReadOnly
+            } else {
+                SupportReason::NativeValidationPending
+            },
+        ),
+        "linux-x86_64-appimage",
     )
 }
 
@@ -215,17 +229,23 @@ fn classify(context: &InstallationContext) -> UpdateSupport {
         );
     }
     match (context.platform, context.bundle.as_ref()) {
-        ("windows", Some(BundleType::Nsis)) => policy(
-            context,
-            SupportMode::ManualOnly,
-            Some(InstallerKind::Nsis),
-            SupportReason::NativeValidationPending,
+        ("windows", Some(BundleType::Nsis)) => check_policy(
+            policy(
+                context,
+                SupportMode::ManualOnly,
+                Some(InstallerKind::Nsis),
+                SupportReason::NativeValidationPending,
+            ),
+            "windows-x86_64-nsis",
         ),
-        ("windows", Some(BundleType::Msi)) => policy(
-            context,
-            SupportMode::ManualOnly,
-            Some(InstallerKind::Msi),
-            SupportReason::NativeValidationPending,
+        ("windows", Some(BundleType::Msi)) => check_policy(
+            policy(
+                context,
+                SupportMode::ManualOnly,
+                Some(InstallerKind::Msi),
+                SupportReason::NativeValidationPending,
+            ),
+            "windows-x86_64-msi",
         ),
         ("linux", Some(BundleType::Deb)) => policy(
             context,

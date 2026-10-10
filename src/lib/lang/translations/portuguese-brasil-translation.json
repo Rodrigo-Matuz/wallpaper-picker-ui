@@ -69,6 +69,7 @@
 		"settings.language.placeholder": "Buscar idioma...",
 		"settings.language.hint.description": "Selecione seu idioma preferido na lista.<br><br>Não encontrou o seu? Ajude a traduzir o aplicativo para o seu idioma! Visite o projeto no <span class=\"text-primary hover:text-secondary\"><a href=\"https://github.com/Rodrigo-Matuz/wallpaper_picker\" target=\"_blank\">GitHub</a></span>",
 		"updater.title": "Atualizações",
+		"updater.guidance.manual": "A instalação pelo app está desativada para esta instalação. Para atualizar manualmente, use o instalador correspondente ou o AppImage da página oficial de versões abaixo.",
 		"updater.guidance.unavailable": "A atualização pelo app não está disponível para esta instalação. Nenhuma verificação de atualizações foi concluída.",
 		"updater.releases": "Versões no GitHub",
 		"updater.version.installed": "Versão instalada",

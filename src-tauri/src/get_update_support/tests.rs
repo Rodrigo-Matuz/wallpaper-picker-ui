@@ -44,6 +44,7 @@ fn unidentified_or_unsupported_installations_fail_closed() {
         assert_eq!(support.reason, reason);
         assert_eq!(support.installer, None);
         assert_eq!(support.target, None);
+        assert_eq!(support.check_target, None);
     }
 }
 
@@ -68,6 +69,18 @@ fn linux_package_managed_installations_never_expose_a_target() {
             InstallerKind::Nix,
             SupportReason::NixManaged,
         ),
+        (
+            Some(BundleType::AppImage),
+            "/nix/store/hash-wallpaper-picker-ui/bin/wallpaper-picker-ui",
+            InstallerKind::Nix,
+            SupportReason::NixManaged,
+        ),
+        (
+            None,
+            "/nix/store/hash-wallpaper-picker-ui/bin/wallpaper-picker-ui",
+            InstallerKind::Nix,
+            SupportReason::NixManaged,
+        ),
     ];
     for (bundle, executable, installer, reason) in cases {
         let support = classify(&InstallationContext {
@@ -80,14 +93,15 @@ fn linux_package_managed_installations_never_expose_a_target() {
         assert_eq!(support.installer, Some(installer));
         assert_eq!(support.reason, reason);
         assert_eq!(support.target, None);
+        assert_eq!(support.check_target, None);
     }
 }
 
 #[test]
 fn windows_bundle_metadata_preserves_installer_kind_but_waits_for_native_validation() {
-    for (bundle, installer) in [
-        (BundleType::Nsis, InstallerKind::Nsis),
-        (BundleType::Msi, InstallerKind::Msi),
+    for (bundle, installer, check_target) in [
+        (BundleType::Nsis, InstallerKind::Nsis, "windows-x86_64-nsis"),
+        (BundleType::Msi, InstallerKind::Msi, "windows-x86_64-msi"),
     ] {
         let support = classify(&InstallationContext {
             bundle: Some(bundle),
@@ -97,6 +111,7 @@ fn windows_bundle_metadata_preserves_installer_kind_but_waits_for_native_validat
         assert_eq!(support.installer, Some(installer));
         assert_eq!(support.reason, SupportReason::NativeValidationPending);
         assert_eq!(support.target, None);
+        assert_eq!(support.check_target, Some(check_target));
     }
 }
 
@@ -117,6 +132,7 @@ fn contradictory_bundle_metadata_does_not_select_an_installer() {
         assert_eq!(support.reason, SupportReason::ConflictingMetadata);
         assert_eq!(support.installer, None);
         assert_eq!(support.target, None);
+        assert_eq!(support.check_target, None);
     }
 }
 
@@ -147,6 +163,7 @@ fn appimage_identity_requires_correlated_native_bundle_and_launch_metadata() {
     assert_eq!(support.installer, Some(InstallerKind::AppImage));
     assert_eq!(support.reason, SupportReason::NativeValidationPending);
     assert_eq!(support.target, None);
+    assert_eq!(support.check_target, Some("linux-x86_64-appimage"));
 }
 
 #[test]
@@ -162,6 +179,34 @@ fn read_only_appimage_has_actionable_manual_guidance() {
     assert_eq!(support.mode, SupportMode::ManualOnly);
     assert_eq!(support.reason, SupportReason::AppImageReadOnly);
     assert_eq!(support.target, None);
+    assert_eq!(support.check_target, Some("linux-x86_64-appimage"));
+}
+
+#[test]
+fn appimage_metadata_checks_do_not_require_replace_permissions() {
+    for read_only in [false, true] {
+        let (_dir, context) = appimage_context();
+        let path = context.appimage.as_ref().unwrap();
+        let original = std::fs::metadata(path).unwrap().permissions();
+        if read_only {
+            let mut permissions = original.clone();
+            permissions.set_readonly(true);
+            std::fs::set_permissions(path, permissions).unwrap();
+        }
+        let support = classify(&context);
+        // Restore owned fixture permissions before assertions/cleanup, including RED.
+        std::fs::set_permissions(path, original).unwrap();
+        assert_eq!(
+            serde_json::to_value(support).unwrap(),
+            serde_json::json!({
+                "mode": "manual-only", "platform": "linux", "architecture": "x86_64",
+                "installer": "appimage", "target": null,
+                "checkTarget": "linux-x86_64-appimage",
+                "reason": if read_only { "app-image-read-only" } else { "native-validation-pending" }
+            }),
+            "read_only={read_only}"
+        );
+    }
 }
 
 #[test]
@@ -172,6 +217,7 @@ fn native_adapter_reports_current_development_environment_without_a_target() {
     assert_eq!(support.architecture, std::env::consts::ARCH);
     assert_eq!(support.mode, SupportMode::Development);
     assert_eq!(support.target, None);
+    assert_eq!(support.check_target, None);
 }
 
 fn stale_nix_appimage_context(bundle: Option<BundleType>) -> InstallationContext {
@@ -192,6 +238,7 @@ fn stale_nix_appimage_does_not_override_deb_provenance() {
     assert_eq!(support.mode, SupportMode::PackageManaged);
     assert_eq!(support.reason, SupportReason::PackageManaged);
     assert_eq!(support.target, None);
+    assert_eq!(support.check_target, None);
 }
 
 #[test]
@@ -201,6 +248,7 @@ fn stale_nix_appimage_does_not_override_rpm_provenance() {
     assert_eq!(support.mode, SupportMode::PackageManaged);
     assert_eq!(support.reason, SupportReason::PackageManaged);
     assert_eq!(support.target, None);
+    assert_eq!(support.check_target, None);
 }
 
 #[test]
@@ -210,6 +258,7 @@ fn stale_nix_appimage_does_not_identify_an_unknown_bundle() {
     assert_eq!(support.installer, None);
     assert_eq!(support.reason, SupportReason::InstallerUnidentified);
     assert_eq!(support.target, None);
+    assert_eq!(support.check_target, None);
 }
 
 #[test]
@@ -222,6 +271,7 @@ fn marked_appimage_with_nonexistent_nix_origin_is_unknown() {
     assert_eq!(support.installer, None);
     assert_eq!(support.reason, SupportReason::AppImageMetadataInvalid);
     assert_eq!(support.target, None);
+    assert_eq!(support.check_target, None);
 }
 
 #[test]
@@ -239,6 +289,7 @@ fn validated_nix_appimage_origin_is_package_managed_even_when_executable_is_moun
         assert_eq!(support.installer, Some(InstallerKind::Nix));
         assert_eq!(support.reason, SupportReason::NixManaged);
         assert_eq!(support.target, None);
+        assert_eq!(support.check_target, None);
     }
 }
 
@@ -270,6 +321,7 @@ fn incomplete_or_inconsistent_appimage_metadata_is_unknown() {
         );
         assert_eq!(support.installer, None);
         assert_eq!(support.target, None);
+        assert_eq!(support.check_target, None);
     }
 }
 
@@ -281,6 +333,7 @@ fn appimage_environment_without_bundle_marker_is_not_identity() {
     assert_eq!(support.mode, SupportMode::Unknown);
     assert_eq!(support.reason, SupportReason::InstallerUnidentified);
     assert_eq!(support.target, None);
+    assert_eq!(support.check_target, None);
 }
 
 #[test]
@@ -297,23 +350,30 @@ fn system_directory_and_nix_lookalike_do_not_infer_a_package() {
         assert_eq!(support.mode, SupportMode::Unknown);
         assert_eq!(support.reason, SupportReason::InstallerUnidentified);
         assert_eq!(support.target, None);
+        assert_eq!(support.check_target, None);
     }
 }
 
 #[test]
 fn serialized_policy_has_reason_codes_but_no_filesystem_paths() {
-    let value = serde_json::to_value(classify(&InstallationContext {
-        bundle: Some(BundleType::Nsis),
-        ..installed_context()
-    }))
-    .unwrap();
-    assert_eq!(
-        value,
-        serde_json::json!({
-            "mode": "manual-only", "platform": "windows", "architecture": "x86_64",
-            "installer": "nsis", "target": null, "reason": "native-validation-pending"
-        })
-    );
+    for (bundle, installer, check_target) in [
+        (BundleType::Nsis, "nsis", "windows-x86_64-nsis"),
+        (BundleType::Msi, "msi", "windows-x86_64-msi"),
+    ] {
+        let value = serde_json::to_value(classify(&InstallationContext {
+            bundle: Some(bundle),
+            ..installed_context()
+        }))
+        .unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "mode": "manual-only", "platform": "windows", "architecture": "x86_64",
+                "installer": installer, "target": null,
+                "checkTarget": check_target, "reason": "native-validation-pending"
+            })
+        );
+    }
 }
 
 #[cfg(unix)]
@@ -326,6 +386,7 @@ fn symlinked_appimage_is_not_treated_as_a_replaceable_installation() {
     let support = classify(&context);
     assert_eq!(support.reason, SupportReason::AppImageMetadataInvalid);
     assert_eq!(support.target, None);
+    assert_eq!(support.check_target, None);
 }
 
 #[test]
@@ -367,4 +428,154 @@ fn development_build_never_exposes_an_updater_target() {
     assert_eq!(support.mode, SupportMode::Development);
     assert_eq!(support.reason, SupportReason::DevelopmentBuild);
     assert_eq!(support.target, None);
+    assert_eq!(support.check_target, None);
+}
+
+#[test]
+fn check_target_rejection_matrix_keeps_serialized_installation_denied() {
+    // The native API reports one bundle marker; absent/unknown markers are
+    // ambiguous, not a reason to infer NSIS/MSI from a path or environment.
+    for (platform, bundle, installer, mode, reason) in [
+        ("windows", None, None, "unknown", "installer-unidentified"),
+        (
+            "windows",
+            Some(BundleType::App),
+            None,
+            "unknown",
+            "installer-unidentified",
+        ),
+        (
+            "windows",
+            Some(BundleType::Dmg),
+            None,
+            "unknown",
+            "installer-unidentified",
+        ),
+        (
+            "windows",
+            Some(BundleType::Deb),
+            None,
+            "unknown",
+            "conflicting-metadata",
+        ),
+        (
+            "windows",
+            Some(BundleType::Rpm),
+            None,
+            "unknown",
+            "conflicting-metadata",
+        ),
+        (
+            "windows",
+            Some(BundleType::AppImage),
+            None,
+            "unknown",
+            "conflicting-metadata",
+        ),
+        ("linux", None, None, "unknown", "installer-unidentified"),
+        (
+            "linux",
+            Some(BundleType::App),
+            None,
+            "unknown",
+            "installer-unidentified",
+        ),
+        (
+            "linux",
+            Some(BundleType::Dmg),
+            None,
+            "unknown",
+            "installer-unidentified",
+        ),
+        (
+            "linux",
+            Some(BundleType::Nsis),
+            None,
+            "unknown",
+            "conflicting-metadata",
+        ),
+        (
+            "linux",
+            Some(BundleType::Msi),
+            None,
+            "unknown",
+            "conflicting-metadata",
+        ),
+        (
+            "linux",
+            Some(BundleType::Deb),
+            Some("deb"),
+            "package-managed",
+            "package-managed",
+        ),
+        (
+            "linux",
+            Some(BundleType::Rpm),
+            Some("rpm"),
+            "package-managed",
+            "package-managed",
+        ),
+    ] {
+        let context = InstallationContext {
+            platform,
+            bundle,
+            ..installed_context()
+        };
+        assert_eq!(
+            serde_json::to_value(classify(&context)).unwrap(),
+            serde_json::json!({
+                "mode": mode, "platform": platform, "architecture": "x86_64",
+                "installer": installer, "checkTarget": null, "target": null, "reason": reason
+            })
+        );
+    }
+
+    // Every otherwise eligible marker must still respect the earlier denial
+    // gates. Use correlated AppImage fixtures so rejection is not accidental.
+    for (platform, bundle) in [
+        ("windows", BundleType::Nsis),
+        ("windows", BundleType::Msi),
+        ("linux", BundleType::AppImage),
+    ] {
+        for (case, reason, mode) in [
+            (0, SupportReason::DevelopmentBuild, SupportMode::Development),
+            (
+                1,
+                SupportReason::UnsupportedArchitecture,
+                SupportMode::Unknown,
+            ),
+            (
+                2,
+                SupportReason::UnsupportedArchitecture,
+                SupportMode::Unknown,
+            ),
+            (3, SupportReason::UnsupportedPlatform, SupportMode::Unknown),
+            (
+                4,
+                SupportReason::ExecutableUnavailable,
+                SupportMode::Unknown,
+            ),
+        ] {
+            let (_dir, mut context) = appimage_context();
+            context.platform = platform;
+            context.bundle = Some(bundle.clone());
+            match case {
+                0 => context.development = true,
+                1 => context.architecture = "aarch64",
+                2 => context.architecture = "x86",
+                3 => context.platform = "macos",
+                _ => context.executable = None,
+            }
+            let support = classify(&context);
+            assert_eq!(support.mode, mode);
+            assert_eq!(support.reason, reason);
+            assert_eq!(support.installer, None);
+            assert_eq!(support.check_target, None);
+            assert_eq!(support.target, None);
+            let wire = serde_json::to_value(support).unwrap();
+            assert_eq!(wire.as_object().unwrap().len(), 7);
+            assert!(wire.get("checkTarget").unwrap().is_null());
+            assert!(wire.get("target").unwrap().is_null());
+        }
+    }
 }

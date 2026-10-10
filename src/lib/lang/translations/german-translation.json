@@ -69,6 +69,7 @@
 		"settings.language.placeholder": "Sprache suchen...",
 		"settings.language.hint.description": "Wählen Sie Ihre bevorzugte Sprache.",
 		"updater.title": "Updates",
+		"updater.guidance.manual": "Die In-App-Installation ist für diese Installation deaktiviert. Nutzen Sie zum manuellen Aktualisieren das passende Installationsprogramm oder AppImage von der unten verlinkten offiziellen Versionsseite.",
 		"updater.guidance.unavailable": "In-App-Updates sind für diese Installation nicht verfügbar. Es wurde keine Update-Prüfung abgeschlossen.",
 		"updater.releases": "Versionen auf GitHub",
 		"updater.version.installed": "Installierte Version",

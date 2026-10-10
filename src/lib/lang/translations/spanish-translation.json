@@ -69,6 +69,7 @@
 		"settings.language.placeholder": "Buscar idioma...",
 		"settings.language.hint.description": "Seleccione su idioma preferido.",
 		"updater.title": "Actualizaciones",
+		"updater.guidance.manual": "La instalación desde la aplicación está desactivada para esta instalación. Para actualizar manualmente, usa el instalador correspondiente o el AppImage de la página oficial de versiones indicada abajo.",
 		"updater.guidance.unavailable": "La actualización desde la aplicación no está disponible para esta instalación. No se ha completado ninguna comprobación de actualizaciones.",
 		"updater.releases": "Versiones en GitHub",
 		"updater.version.installed": "Versión instalada",

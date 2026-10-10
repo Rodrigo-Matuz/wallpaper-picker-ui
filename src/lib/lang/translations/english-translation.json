@@ -69,6 +69,7 @@
 		"settings.language.placeholder": "Search Language...",
 		"settings.language.hint.description": "Select your preferred language from the list.<br><br>Don't see yours? Help translate it into your language! Visit the project on <span class=\"text-primary hover:text-secondary\"><a href=\"https://github.com/Rodrigo-Matuz/wallpaper_picker\" target=\"_blank\">GitHub</a></span>",
 		"updater.title": "Updates",
+		"updater.guidance.manual": "In-app installation is disabled for this installation. To update manually, use the matching installer or AppImage from the trusted releases page below.",
 		"updater.guidance.unavailable": "In-app updating is unavailable for this installation. No update check has been completed.",
 		"updater.releases": "Releases on GitHub",
 		"updater.version.installed": "Installed version",

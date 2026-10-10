@@ -49,7 +49,20 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: "Wallpaper Picker UI v__VERSION__"
-          releaseBody: "See the assets to download and install this version."
+          # GitHub generates the change list; don't reuse version-specific
+          # RELEASE.md notes from an earlier tag. The updater receives this
+          # self-contained guidance (tauri-action does not read generated notes back).
+          releaseBody: |
+            Download the installer matching your existing installation: Windows
+            NSIS (.exe) or MSI (.msi), or Linux AppImage. Debian/RPM and Nix installs
+            remain package-managed. Review the generated change list and assets
+            before manually publishing this draft.
+          generateReleaseNotes: true
+          includeUpdaterJson: true
+          # Preserve the existing MSI preference for the legacy Windows alias.
+          # Installer-specific NSIS/MSI keys are emitted independently of this;
+          # app eligibility must use exact keys, never this generic alias.
+          updaterJsonPreferNsis: false
           releaseDraft: true
           prerelease: false
 
@@ -97,3 +110,21 @@ jobs:
           commit_message: "chore(flake): bump to ${{ github.ref_name }}"
           file_pattern: flake.nix
           branch: main
+
+  verify_release:
+    # tauri-action merges then replaces latest.json without a cross-job lock.
+    # Waiting for the entire matrix prevents reading an in-progress merge;
+    # a lost-update race still fails closed here, without rewriting/publishing.
+    # Metadata/sidecar consistency is not payload cryptography or install/reopen acceptance.
+    needs: build
+    permissions:
+      contents: read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - name: Verify final draft manifest and uploaded signature sidecars
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bun scripts/release-contract/verify.ts

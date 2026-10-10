@@ -275,7 +275,8 @@ if (process.env.WALLPAPER_PICKER_UPDATER_NATIVE_TESTS === "1") {
 				expect(await controller.retry()).toBe("failed");
 				expect(native.attempts).toEqual([bytesRid, bytesRid]);
 				expect([...native.live]).toEqual([updateRid, bytesRid]);
-				expect(detectSupport).toHaveBeenCalledTimes(2); // Initial check and pre-download policy.
+				// Initial policy, acquired-resource provenance, then pre-download policy.
+				expect(detectSupport).toHaveBeenCalledTimes(3);
 				expect(checkNative).toHaveBeenCalledTimes(1);
 				expect(reportError).toHaveBeenCalledTimes(2);
 				for (const [report] of reportError.mock.calls) {
@@ -285,7 +286,8 @@ if (process.env.WALLPAPER_PICKER_UPDATER_NATIVE_TESTS === "1") {
 				expect(await controller.retry()).toBe("completed");
 				expect(native.attempts).toEqual([bytesRid, bytesRid, bytesRid, updateRid]);
 				expect([...native.live]).toEqual([]);
-				expect(detectSupport).toHaveBeenCalledTimes(3);
+				// The explicit successful retry checks policy once; its feed result is null.
+				expect(detectSupport).toHaveBeenCalledTimes(4);
 				expect(checkNative).toHaveBeenCalledTimes(2);
 				expect(get(controller.state)).toMatchObject({
 					status: "up-to-date",
@@ -309,7 +311,7 @@ if (process.env.WALLPAPER_PICKER_UPDATER_NATIVE_TESTS === "1") {
 				expect(await controller.retry()).toBe("failed");
 				expect(native.attempts).toEqual([bytesRid, bytesRid]);
 				expect([...native.live]).toEqual([updateRid]);
-				expect(detectSupport).toHaveBeenCalledTimes(2);
+				expect(detectSupport).toHaveBeenCalledTimes(3);
 				expect(checkNative).toHaveBeenCalledTimes(1);
 				expect(get(controller.state)).toMatchObject({
 					status: "error",

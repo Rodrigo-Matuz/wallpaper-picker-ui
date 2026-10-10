@@ -66,6 +66,7 @@ describe("updater component flow (mocked resources, not native acceptance)", () 
 			await fireEvent.click(screen.getByRole("button", { name: "Update to 3.7.0" }));
 			await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
 			expect(screen.getByRole("progressbar")).toBeTruthy();
+			expect(screen.queryByText(/In-app installation is disabled/)).toBeNull();
 			expect(install).not.toHaveBeenCalled();
 			finishDownload();
 			await waitFor(() => expect(relaunch).toHaveBeenCalledTimes(1));

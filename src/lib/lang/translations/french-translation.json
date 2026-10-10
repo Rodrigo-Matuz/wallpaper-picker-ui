@@ -69,6 +69,7 @@
 		"settings.language.placeholder": "Rechercher une langue...",
 		"settings.language.hint.description": "Sélectionnez votre langue préférée.",
 		"updater.title": "Mises à jour",
+		"updater.guidance.manual": "L’installation intégrée est désactivée pour cette installation. Pour une mise à jour manuelle, utilisez le programme d’installation correspondant ou l’AppImage de la page officielle des versions ci-dessous.",
 		"updater.guidance.unavailable": "La mise à jour intégrée n’est pas disponible pour cette installation. Aucune recherche de mises à jour n’a été effectuée.",
 		"updater.releases": "Versions sur GitHub",
 		"updater.version.installed": "Version installée",
