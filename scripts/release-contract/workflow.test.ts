@@ -1,19 +1,32 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
-test("verifies the final draft only after the complete two-platform matrix with read-only permissions", () => {
-	const job = workflow().jobs.verify_release;
+test("grants draft visibility after the full matrix without persisting write credentials or publishing", () => {
+	const { build, verify_release: job } = workflow().jobs;
 	expect(job?.needs).toBe("build");
-	expect(job?.permissions).toEqual({ contents: "read" });
+	expect(job?.permissions).toEqual({ contents: "write" });
 	expect(job?.["timeout-minutes"]).toBe(10);
+	expect(job?.steps).toHaveLength(3);
 	expect(job?.steps.map((step) => step.uses).filter(Boolean)).toEqual([
 		"actions/checkout@v5",
 		"oven-sh/setup-bun@v2",
 	]);
-	const step = job?.steps.find((step) => step.run);
+	const checkout = job?.steps.find((step) => step.uses === "actions/checkout@v5");
+	expect(checkout?.with).toEqual({ "persist-credentials": false });
+	const runSteps = job?.steps.filter((step) => step.run);
+	expect(runSteps).toHaveLength(1);
+	const step = runSteps?.[0];
 	expect(step?.run).toBe("bun scripts/release-contract/verify.ts");
 	// biome-ignore lint/suspicious/noTemplateCurlyInString: literal GitHub Actions expression
 	expect(step?.env).toEqual({ GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" });
+	expect(build.strategy?.matrix.include).toEqual([
+		{ os: "ubuntu-22.04" },
+		{ os: "windows-latest" },
+	]);
+	const action = build.steps.find((step) => step.uses === "tauri-apps/tauri-action@v0");
+	expect(action?.with?.releaseDraft).toBe(true);
+	expect(action?.with?.prerelease).toBe(false);
+	expect(action?.with?.releaseBody).toContain("before manually publishing this draft");
 });
 
 const workflow = () =>

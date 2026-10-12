@@ -1,5 +1,7 @@
 import { cleanup, render, screen, waitFor, within } from "@testing-library/svelte";
+import { get } from "svelte/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { currentLanguage, languages, t } from "$lang/index";
 import AboutPage from "./+page.svelte";
 
 vi.stubGlobal("__APP_VERSION__", "3.5.0-test");
@@ -24,10 +26,64 @@ vi.mock("$config/contributors.json", () => ({
 
 afterEach(() => {
 	cleanup();
+	currentLanguage.set("eng");
 	vi.unstubAllGlobals();
 });
 
 describe("About page", () => {
+	it("shows the second updater test build marker for 3.6.3", () => {
+		vi.stubGlobal("__APP_VERSION__", "3.6.3");
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(() => new Promise(() => {})),
+		);
+		render(AboutPage);
+		expect(screen.getByText("Updater test: second build")).toBeTruthy();
+	});
+
+	it.each([
+		"3.6.2",
+		"3.5.0",
+		"3.6.4",
+		"4.0.0",
+		"3.6.3-test",
+	])("does not show the updater test marker for %s", (version) => {
+		vi.stubGlobal("__APP_VERSION__", version);
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(() => new Promise(() => {})),
+		);
+		render(AboutPage);
+		expect(screen.getByText(version)).toBeTruthy();
+		expect(screen.queryByText("Updater test: second build")).toBeNull();
+		expect(screen.queryByText("about.updater.test.marker")).toBeNull();
+	});
+
+	it.each([
+		["eng", "Updater test: second build"],
+		["pt-br", "Teste de atualização: segunda versão de teste"],
+		["es", "Prueba de actualización: segunda versión de prueba"],
+		["fr", "Test de mise à jour : deuxième version de test"],
+		["de", "Update-Test: zweiter Testbuild"],
+	])("resolves and renders the updater test marker in %s", async (locale, expected) => {
+		vi.stubGlobal("__APP_VERSION__", "3.6.3");
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(() => new Promise(() => {})),
+		);
+		expect(Object.keys(languages).sort()).toEqual(["de", "eng", "es", "fr", "pt-br"]);
+		render(AboutPage);
+		expect(screen.getByText("Updater test: second build")).toBeTruthy();
+		currentLanguage.set(locale);
+		expect(get(t)("about.updater.test.marker")).toBe(expected);
+		expect(get(t)("about.updater.test.marker")).not.toBe("about.updater.test.marker");
+		await waitFor(() => expect(screen.getByText(expected)).toBeTruthy());
+		expect(screen.queryByText("about.updater.test.marker")).toBeNull();
+		if (locale !== "eng") {
+			expect(screen.queryByText("Updater test: second build")).toBeNull();
+		}
+	});
+
 	it("mounts the updater panel near the installed version", () => {
 		vi.stubGlobal("__APP_VERSION__", "3.5.0-test");
 		vi.stubGlobal(

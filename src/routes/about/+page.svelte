@@ -40,6 +40,9 @@ const projectSourceUrl = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui";
             <div class="border-l border-foreground/15 pl-4 sm:mb-1">
                 <p class="font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">{$t('about.app.version')}</p>
                 <p class="mt-1 font-mono text-xs text-foreground">{__APP_VERSION__}</p>
+                {#if __APP_VERSION__ === '3.6.3'}
+                    <p class="mt-2 text-xs text-success">{$t('about.updater.test.marker')}</p>
+                {/if}
             </div>
         </header>
 

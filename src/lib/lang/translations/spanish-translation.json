@@ -33,6 +33,7 @@
 		"about.profile.loading": "Cargando...",
 		"about.profile.info": "Cargando información del perfil...",
 		"about.app.version": "Versión de la aplicación:",
+		"about.updater.test.marker": "Prueba de actualización: segunda versión de prueba",
 		"settings.search.placeholder": "Configuración",
 		"settings.page.description": "Adapta la aplicación a tu manera de trabajar.",
 		"settings.sections.label": "Secciones de configuración",

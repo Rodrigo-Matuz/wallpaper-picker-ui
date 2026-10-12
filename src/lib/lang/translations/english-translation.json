@@ -33,6 +33,7 @@
 		"about.profile.loading": "Loading...",
 		"about.profile.info": "Loading profile information...",
 		"about.app.version": "App version:",
+		"about.updater.test.marker": "Updater test: second build",
 		"settings.search.placeholder": "Settings",
 		"settings.page.description": "Make the app work your way.",
 		"settings.sections.label": "Settings sections",

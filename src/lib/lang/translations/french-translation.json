@@ -33,6 +33,7 @@
 		"about.profile.loading": "Chargement...",
 		"about.profile.info": "Chargement des informations du profil...",
 		"about.app.version": "Version de l’application :",
+		"about.updater.test.marker": "Test de mise à jour : deuxième version de test",
 		"settings.search.placeholder": "Paramètres",
 		"settings.page.description": "Adaptez l’application à vos habitudes.",
 		"settings.sections.label": "Sections des paramètres",
