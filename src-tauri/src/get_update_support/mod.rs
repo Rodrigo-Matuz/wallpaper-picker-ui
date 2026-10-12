@@ -1,5 +1,6 @@
 //! Read-only check provenance and installation policy for the in-app updater.
-//! No installation target is authorized until packaged native upgrade tests pass.
+//! Only approved current-user default-location Windows NSIS snapshots may install.
+//! Native handoff/reopen remains subject to manual official test-release acceptance.
 
 use serde::Serialize;
 use std::fs;
@@ -11,6 +12,7 @@ use tauri::Manager;
 #[derive(Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SupportMode {
+    SelfManaged,
     Development,
     PackageManaged,
     ManualOnly,
@@ -31,6 +33,7 @@ pub enum InstallerKind {
 #[derive(Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SupportReason {
+    Supported,
     DevelopmentBuild,
     UnsupportedPlatform,
     UnsupportedArchitecture,
@@ -69,13 +72,24 @@ struct InstallationContext {
 }
 
 /// Returns check provenance and guidance without checking, downloading, or installing.
-/// All installation remains denied until the packaged native acceptance gate passes.
+/// Eligibility is a fresh read-only snapshot, not completed native installation.
 #[tauri::command]
 pub async fn get_update_support(app: tauri::AppHandle) -> Result<UpdateSupport, String> {
     let context = collect_native_context(&app.env());
-    tauri::async_runtime::spawn_blocking(move || classify(&context))
-        .await
-        .map_err(|error| error.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(all(target_os = "windows", not(test)))]
+        {
+            windows::classify_with_provider(
+                &context,
+                &mut windows::native::Native,
+                env!("CARGO_PKG_VERSION"),
+            )
+        }
+        #[cfg(any(not(target_os = "windows"), test))]
+        classify(&context)
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 fn collect_native_context(_env: &tauri::utils::Env) -> InstallationContext {
@@ -109,8 +123,8 @@ fn policy(
         architecture: context.architecture,
         installer,
         check_target: None,
-        // Identification alone does not establish safe replacement/relaunch.
-        // Keep every installation target disabled until native acceptance passes.
+        // Identification alone never authorizes installation. The separate
+        // Windows collector must approve a current default-only NSIS snapshot.
         target: None,
         reason,
     }
@@ -286,3 +300,7 @@ fn classify(context: &InstallationContext) -> UpdateSupport {
 
 #[cfg(test)]
 mod tests;
+#[cfg(any(target_os = "windows", test))]
+mod windows;
+#[cfg(test)]
+mod windows_tests;

@@ -4980,7 +4980,7 @@ dependencies = [
 
 [[package]]
 name = "wallpaper-picker-ui"
-version = "3.6.1"
+version = "3.6.2"
 dependencies = [
  "colored",
  "serde",
@@ -4993,6 +4993,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-updater",
  "walkdir",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

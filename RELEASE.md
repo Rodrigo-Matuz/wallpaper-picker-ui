@@ -1,10 +1,22 @@
-# Release notes — Wallpaper Picker UI v3.6.1
+# Wallpaper Picker UI v3.6.2 — updater test base
 
-This is a correction release for v3.6.0.
+> **TEST RELEASE:** Published specifically to test in-app updating. This release may be deleted soon. Back up your settings and app data before testing. Successful native upgrade, restart and data preservation have **not yet been verified**.
 
-- Permit the app to check, read, and write its thumbnail map in the app-data directory. Thumbnail previews can be persisted and shown again.
-- On Home Manager installations, seed `~/.config/WallpaperPickerUI/config.json` as a regular, writable file instead of a read-only Nix-store symlink. Existing user settings are left untouched on subsequent activations; Nix configuration values are initial defaults, not permanent overrides.
+This is the base for the **3.6.2 → 3.6.3** manual updater trial. It uses the normal application identity, existing signing key and public HTTPS GitHub update feed—not a separate test app or local feed.
 
-The Home Manager module change takes effect after updating its flake input and activating Home Manager/NixOS; installing the new binary alone does not replace an existing managed symlink. Nix package installations must also update the flake input after the release's `.deb` hash is committed to `main`.
+- Check once at startup without blocking Home.
+- Notify when a newer version is available; displaying or dismissing a notice never downloads or installs anything.
+- On eligible Windows NSIS installations, one explicit version-labelled About **Update** click authorizes signed download, verification, installation and installer restart.
+- Pending work or unsaved Settings input denies installation until an explicit retry. No automatic installation or forced update.
 
-In-app updating remains unavailable. Install v3.6.1 through your package manager or from the release assets; do not rely on an in-app update prompt.
+## Scope and manual test
+
+The first in-app installation trial is **Windows x64, current-user NSIS, default location**. Custom locations, ambiguous/coexisting registrations and unsupported installations remain manual. **MSI, AppImage, Debian/RPM and Nix installations are not part of this in-app installation trial**; use their normal manual/package-manager update route.
+
+1. Close the existing app and back up configuration and thumbnail/app-data folders.
+2. Manually install the **3.6.2 NSIS `.exe`** asset. The earlier 3.6.1 release cannot bootstrap this updater.
+3. Launch 3.6.2. Once 3.6.3 is published, it should report the newer version without automatically downloading or installing it.
+4. Open About, confirm the exact candidate version and click **Update to 3.6.3** once.
+5. After the installer reopens the app, verify the displayed version, the newer About-page marker and preserved settings, wallpapers and thumbnails. Report errors or failure to reopen.
+
+These are **test instructions, not a claim that native acceptance passed**. Do not manually install the second package before testing the first package's Update button. Deleting these releases later may remove their download/update URLs; retain backup and recovery installers.

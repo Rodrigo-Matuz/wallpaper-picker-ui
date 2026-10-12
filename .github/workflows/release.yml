@@ -53,6 +53,8 @@ jobs:
           # RELEASE.md notes from an earlier tag. The updater receives this
           # self-contained guidance (tauri-action does not read generated notes back).
           releaseBody: |
+            ${{ (github.ref_name == 'v3.6.2' || github.ref_name == 'v3.6.3') && 'TEST RELEASE: These versions are published specifically to test in-app updating and may be deleted soon. Back up your settings and app data before testing. Native upgrade/restart/data preservation is not yet verified.' || '' }}
+
             Download the installer matching your existing installation: Windows
             NSIS (.exe) or MSI (.msi), or Linux AppImage. Debian/RPM and Nix installs
             remain package-managed. Review the generated change list and assets

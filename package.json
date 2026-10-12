@@ -1,6 +1,6 @@
 {
 	"name": "wallpaper-picker-ui",
-	"version": "3.6.1",
+	"version": "3.6.2",
 	"description": "A simple UI for selecting and applying wallpapers with a customizable command.",
 	"type": "module",
 	"scripts": {
@@ -38,7 +38,7 @@
 		"@tailwindcss/forms": "^0.5.10",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.1.18",
-		"@tauri-apps/cli": "^2",
+		"@tauri-apps/cli": "2.12.2",
 		"@testing-library/svelte": "^5",
 		"@types/bun": "^1.4.2",
 		"@types/node": "^25.0.9",

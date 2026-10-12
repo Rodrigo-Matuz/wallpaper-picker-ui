@@ -210,11 +210,14 @@ fn appimage_metadata_checks_do_not_require_replace_permissions() {
 }
 
 #[test]
-fn native_adapter_reports_current_development_environment_without_a_target() {
-    let context = collect_native_context(&tauri::utils::Env::default());
+fn development_context_reports_no_target_without_native_collection() {
+    let context = InstallationContext {
+        development: true,
+        ..installed_context()
+    };
     let support = classify(&context);
-    assert_eq!(support.platform, std::env::consts::OS);
-    assert_eq!(support.architecture, std::env::consts::ARCH);
+    assert_eq!(support.platform, "windows");
+    assert_eq!(support.architecture, "x86_64");
     assert_eq!(support.mode, SupportMode::Development);
     assert_eq!(support.target, None);
     assert_eq!(support.check_target, None);

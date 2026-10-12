@@ -50,3 +50,34 @@ test("makes updater JSON, existing MSI alias preference and generated release no
 		"See the assets to download and install this version.",
 	);
 });
+
+test("warns that the two official updater trial releases are temporary and unverified", () => {
+	const action = workflow().jobs.build.steps.find(
+		(step) => step.uses === "tauri-apps/tauri-action@v0",
+	);
+	const body = String(action?.with?.releaseBody);
+	expect(body).toContain("github.ref_name == 'v3.6.2'");
+	expect(body).toContain("github.ref_name == 'v3.6.3'");
+	expect(body).toContain("published specifically to test in-app updating");
+	expect(body).toContain("may be deleted soon");
+	expect(body).toContain("Back up your settings and app data before testing");
+	expect(body).toContain("Native upgrade/restart/data preservation is not yet verified");
+});
+
+test("requires the signed artifact version to match the announced update version", () => {
+	const config = JSON.parse(
+		readFileSync(new URL("../../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
+	) as { plugins: { updater: { requireSignedVersion?: boolean } } };
+	expect(config.plugins.updater.requireSignedVersion).toBe(true);
+});
+
+test("rejects Windows installer downgrades as well as updater-check downgrades", () => {
+	const config = JSON.parse(
+		readFileSync(new URL("../../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
+	) as {
+		bundle: { windows: { allowDowngrades?: boolean } };
+		plugins: { updater: { allowDowngrades: boolean } };
+	};
+	expect(config.bundle.windows.allowDowngrades).toBe(false);
+	expect(config.plugins.updater.allowDowngrades).toBe(false);
+});
