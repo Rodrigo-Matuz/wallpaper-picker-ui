@@ -2,7 +2,7 @@
 import "./layout.css";
 import { ModeWatcher, mode } from "mode-watcher";
 import { onMount } from "svelte";
-import { Toaster } from "$components/ui/sonner";
+import Toaster from "$components/notifications/app-toaster.svelte";
 import GlobalUpdater from "$components/updating/global-updater.svelte";
 import { t } from "$lang/index";
 import { initializeApplicationSession } from "$utils/updating/session/runtime";

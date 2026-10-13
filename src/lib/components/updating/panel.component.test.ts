@@ -34,6 +34,167 @@ function fixture(
 	};
 }
 
+function manualMsiFixture(overrides: Partial<UpdaterSnapshot> = {}) {
+	return fixture({
+		status: "available",
+		availableUpdate: { currentVersion: "3.6.2", version: "3.6.3" },
+		support: {
+			mode: "manual-only",
+			platform: "windows",
+			architecture: "x86_64",
+			installer: "msi",
+			target: null,
+			checkTarget: "windows-x86_64-msi",
+			reason: "native-validation-pending",
+		},
+		...overrides,
+	});
+}
+
+function expectNoManualDownload(controller: ReturnType<typeof fixture>) {
+	render(Panel, { controller });
+	expect(screen.queryByRole("link", { name: /MSI installer/ })).toBeNull();
+	expect(document.querySelector('a[href$=".msi"]')).toBeNull();
+	expect(document.getElementById("manual-msi-guidance")).toBeNull();
+	expect(screen.getByRole("link", { name: "Releases on GitHub" })).toBeTruthy();
+	expect(controller.checkForUpdates).not.toHaveBeenCalled();
+	expect(controller.updateAndRestart).not.toHaveBeenCalled();
+	expect(controller.retry).not.toHaveBeenCalled();
+}
+
+describe("manual MSI presentation rejection (synthetic state, no native effects)", () => {
+	it.each([
+		"idle",
+		"checking",
+		"up-to-date",
+		"manual-only",
+		"error",
+		"downloading",
+		"ready-to-install",
+		"installing",
+		"installer-handoff",
+		"restarting",
+		"restart-required",
+	] as const)("does not render a manual download for retained metadata in %s", (status) => {
+		expectNoManualDownload(manualMsiFixture({ status }));
+	});
+	it.each([
+		"check",
+		"dismiss",
+		"download",
+		"install",
+		"restart",
+		"update",
+	] as const)("does not render a manual download while %s is busy", (busy) => {
+		expectNoManualDownload(manualMsiFixture({ busy }));
+	});
+	it.each([
+		"support",
+		"check",
+		"cleanup",
+		"download",
+		"install",
+		"restart",
+	] as const)("does not render a manual download with %s failure", (phase) => {
+		expectNoManualDownload(manualMsiFixture({ failure: { phase, category: "unknown" } }));
+	});
+	it.each([
+		"canDownload",
+		"canInstall",
+		"canUpdate",
+		"installBlocked",
+	] as const)("does not render a manual download with contradictory %s", (key) => {
+		expectNoManualDownload(manualMsiFixture({ [key]: true }));
+	});
+	it.each([
+		null,
+		{},
+		{ installer: "nsis" },
+		{ installer: "appimage", platform: "linux" },
+		{ installer: "deb", mode: "package-managed" },
+		{ installer: "rpm", mode: "package-managed" },
+		{ installer: "nix", mode: "package-managed" },
+		{ mode: "self-managed" },
+		{ mode: "development" },
+		{ mode: "unknown" },
+		{ platform: "browser" },
+		{ architecture: "aarch64" },
+		{ checkTarget: null },
+		{ checkTarget: undefined },
+		{ checkTarget: "windows-x86_64-nsis" },
+		{ checkTarget: "windows-x86_64" },
+		{ target: "windows-x86_64-msi" },
+		{ target: undefined },
+		{ reason: "supported" },
+	])("does not convert missing, external or mismatched policy %# into an MSI download", (patch) => {
+		const controller = manualMsiFixture();
+		controller.state.update(
+			(state) =>
+				({
+					...state,
+					support:
+						patch === null
+							? null
+							: Object.keys(patch).length === 0
+								? {}
+								: { ...state.support, ...patch },
+				}) as UpdaterSnapshot,
+		);
+		expectNoManualDownload(controller);
+		expect(
+			screen.getByText(
+				"In-app installation is disabled for this installation. To update manually, use the matching installer or AppImage from the trusted releases page below.",
+			),
+		).toBeTruthy();
+	});
+	it.each([
+		"unknown",
+		"v3.6.3",
+		"3.6.3/other",
+		"3.6.3?x",
+		"3.6.3#x",
+		"3.6.3\n",
+	])("retains generic manual guidance for rejected candidate %j", (version) => {
+		expectNoManualDownload(
+			manualMsiFixture({ availableUpdate: { currentVersion: "3.6.2", version } }),
+		);
+		expect(
+			screen.getByText(
+				"In-app installation is disabled for this installation. To update manually, use the matching installer or AppImage from the trusted releases page below.",
+			),
+		).toBeTruthy();
+	});
+	it("has no manual download without candidate metadata", () => {
+		expectNoManualDownload(manualMsiFixture({ availableUpdate: null }));
+	});
+	it("reactively withdraws and restores the link without invoking update actions", async () => {
+		const controller = manualMsiFixture();
+		render(Panel, { controller });
+		expect(
+			screen.getByRole("link", { name: "Download 3.6.3 MSI installer (manual)" }),
+		).toBeTruthy();
+		controller.state.update((state) => ({ ...state, busy: "check" }));
+		await waitFor(() => expect(document.querySelector('a[href$=".msi"]')).toBeNull());
+		controller.state.update((state) => ({
+			...state,
+			busy: null,
+			availableUpdate: { currentVersion: "3.6.2", version: "3.7.0" },
+		}));
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole("link", { name: "Download 3.7.0 MSI installer (manual)" })
+					.getAttribute("href"),
+			).toBe(
+				"https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.7.0/Wallpaper.Picker.UI_3.7.0_x64_en-US.msi",
+			),
+		);
+		expect(controller.checkForUpdates).not.toHaveBeenCalled();
+		expect(controller.updateAndRestart).not.toHaveBeenCalled();
+		expect(controller.retry).not.toHaveBeenCalled();
+	});
+});
+
 describe("About updater (synthetic resources, not native acceptance)", () => {
 	it.each([
 		["eng", "Updates", "Releases on GitHub"],

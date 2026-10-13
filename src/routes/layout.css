@@ -121,6 +121,50 @@ button {
 	background: transparent;
 }
 
+/* ── App toast layout ──
+   Sonner's default dismiss control straddles the toast edge. Keep it inside
+   and reserve its entire column, including when translated actions wrap. */
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:has([data-close-button]) {
+	padding-right: 44px;
+	flex-wrap: wrap;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-content] {
+	flex: 1 1 120px;
+	min-width: 0;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-button] {
+	max-width: 100%;
+	height: auto;
+	min-height: 24px;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-button]:not([data-cancel]) {
+	background: var(--action-bg);
+	color: var(--action-text);
+}
+
+[data-sonner-toaster]
+	[data-sonner-toast][data-styled="true"]
+	[data-button]:not([data-cancel]):hover {
+	background: var(--action-hover-bg);
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button] {
+	top: 8px;
+	right: 8px;
+	bottom: auto;
+	left: auto;
+	transform: none;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button]:hover {
+	transform: none;
+}
+
 /* ── Reduce motion ── */
 @media (prefers-reduced-motion: reduce) {
 	*,

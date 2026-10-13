@@ -2,6 +2,7 @@
 import { currentLanguage, t } from "$lang/index";
 import { runtimeMode } from "$utils/updating/session/runtime";
 import { updaterController } from "$utils/updating/updating";
+import { manualMsiDownload } from "./manual-download";
 import { categoryKeys, statusKeys, type UpdaterPanelController } from "./presentation";
 
 let { controller = updaterController }: { controller?: UpdaterPanelController } = $props();
@@ -9,6 +10,7 @@ const translate = $derived($t);
 const snapshotStore = $derived(controller.state);
 const candidate = $derived($snapshotStore.availableUpdate);
 const support = $derived($snapshotStore.support);
+const manualDownloadUrl = $derived(manualMsiDownload($snapshotStore));
 const guidanceKey = $derived(
 	support?.installer === "nix"
 		? "updater.guidance.nix"
@@ -63,6 +65,9 @@ function update() {
 			{#if $snapshotStore.canUpdate}
 				<p id="update-consent" class="mt-4 max-w-xl">{translate("updater.consent")}</p>
 				<button type="button" onclick={update} aria-describedby="update-consent" class="mt-3 min-h-11 border border-success/40 px-4 font-mono text-xs text-success transition-colors hover:bg-success/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-success">{translate($snapshotStore.installBlocked ? "updater.action.resume" : "updater.action.update").replace("{version}", candidate.version)}</button>
+			{:else if manualDownloadUrl}
+				<p id="manual-msi-guidance" class="mt-4 max-w-xl">{translate("updater.guidance.msi")}</p>
+				<a href={manualDownloadUrl} aria-describedby="manual-msi-guidance" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex min-h-11 items-center border border-success/40 px-4 font-mono text-xs text-success transition-colors hover:bg-success/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-success">{translate("updater.action.download.manual").replace("{version}", candidate.version)}</a>
 			{:else if !$snapshotStore.busy && ($snapshotStore.status === "available" || $snapshotStore.status === "ready-to-install")}
 				<p class="mt-4 max-w-xl">{translate("updater.guidance.manual")}</p>
 			{/if}

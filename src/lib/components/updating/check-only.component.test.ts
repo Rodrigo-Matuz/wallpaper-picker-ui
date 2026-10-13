@@ -78,6 +78,112 @@ function expectNoInstallation(f: ReturnType<typeof fixture>) {
 
 describe("check-only installed flow (native boundary mocked, not packaged acceptance)", () => {
 	it.each([
+		[
+			"eng",
+			"Download {version} MSI installer (manual)",
+			"MSI installations require a manual update. This button opens the installer download in your browser; close the app and run it yourself after backing up your data.",
+		],
+		[
+			"pt-br",
+			"Baixar instalador MSI {version} (manual)",
+			"Instalações MSI exigem atualização manual. Este botão abre o download do instalador no navegador; faça backup dos seus dados, feche o app e execute o instalador por conta própria.",
+		],
+		[
+			"es",
+			"Descargar instalador MSI {version} (manual)",
+			"Las instalaciones MSI requieren una actualización manual. Este botón abre la descarga del instalador en tu navegador; haz una copia de seguridad de tus datos, cierra la aplicación y ejecuta el instalador por tu cuenta.",
+		],
+		[
+			"fr",
+			"Télécharger le programme d’installation MSI {version} (manuel)",
+			"Les installations MSI nécessitent une mise à jour manuelle. Ce bouton ouvre le téléchargement du programme d’installation dans votre navigateur ; sauvegardez vos données, fermez l’application et lancez vous-même le programme d’installation.",
+		],
+		[
+			"de",
+			"MSI-Installationsprogramm {version} herunterladen (manuell)",
+			"MSI-Installationen müssen manuell aktualisiert werden. Diese Schaltfläche öffnet den Download des Installationsprogramms im Browser. Sichern Sie Ihre Daten, schließen Sie die App und führen Sie das Installationsprogramm selbst aus.",
+		],
+		[
+			"unknown-locale",
+			"Download {version} MSI installer (manual)",
+			"MSI installations require a manual update. This button opens the installer download in your browser; close the app and run it yourself after backing up your data.",
+		],
+	])("resolves and renders the manual MSI action and guidance in %s without native click effects", async (language, action, guidance) => {
+		const f = fixture({
+			...checkOnlySupport,
+			installer: "msi",
+			checkTarget: "windows-x86_64-msi",
+		});
+		f.resource.version = "3.6.3";
+		await f.controller.checkForUpdates();
+		currentLanguage.set(language);
+		const translate = get(t);
+		expect(translate("updater.action.download.manual")).toBe(action);
+		expect(translate("updater.guidance.msi")).toBe(guidance);
+		render(Panel, { controller: f.controller });
+		const explanation = screen.getByText(guidance);
+		const link = screen.getByRole("link", { name: action.replace("{version}", "3.6.3") });
+		expect(link.getAttribute("aria-describedby")).toBe(explanation.id);
+		expect(explanation.id).not.toBe("");
+		expect(link.getAttribute("href")).toBe(
+			"https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.6.3/Wallpaper.Picker.UI_3.6.3_x64_en-US.msi",
+		);
+		expect(link.getAttribute("target")).toBe("_blank");
+		expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+		const before = get(f.controller.state);
+		link.addEventListener("click", (event) => event.preventDefault(), { once: true });
+		await fireEvent.click(link);
+		expect(get(f.controller.state)).toBe(before);
+		expect(before).toMatchObject({
+			status: "available",
+			canDownload: false,
+			canInstall: false,
+			canUpdate: false,
+		});
+		expect(f.detectSupport).toHaveBeenCalledTimes(2);
+		expect(f.check).toHaveBeenCalledTimes(1);
+		expect(f.resource.close).not.toHaveBeenCalled();
+		expectNoInstallation(f);
+		expect(screen.queryByRole("button")).toBeNull();
+		expect(screen.queryByText(translate("updater.guidance.manual"))).toBeNull();
+		expect(screen.queryByText(translate("updater.status.ready"))).toBeNull();
+		expect(document.body.textContent).not.toContain("updater.");
+	});
+	it("offers an external manual MSI link without native effects or verified readiness", async () => {
+		const f = fixture({
+			...checkOnlySupport,
+			installer: "msi",
+			checkTarget: "windows-x86_64-msi",
+		});
+		f.resource.version = "3.6.3";
+		await f.controller.checkForUpdates();
+		render(Panel, { controller: f.controller });
+		const before = get(f.controller.state);
+		const link = screen.getByRole("link", { name: "Download 3.6.3 MSI installer (manual)" });
+		expect(link.getAttribute("href")).toBe(
+			"https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v3.6.3/Wallpaper.Picker.UI_3.6.3_x64_en-US.msi",
+		);
+		expect(link.getAttribute("target")).toBe("_blank");
+		expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+		// Prevent jsdom navigation only; dispatch the actual component's link click.
+		link.addEventListener("click", (event) => event.preventDefault(), { once: true });
+		await fireEvent.click(link);
+		expect(get(f.controller.state)).toBe(before);
+		expect(before).toMatchObject({
+			status: "available",
+			canDownload: false,
+			canInstall: false,
+			canUpdate: false,
+			installBlocked: false,
+		});
+		expect(f.detectSupport).toHaveBeenCalledTimes(2);
+		expect(f.check).toHaveBeenCalledTimes(1);
+		expect(f.check).toHaveBeenCalledWith({ target: "windows-x86_64-msi", timeout: 15000 });
+		expect(f.resource.close).not.toHaveBeenCalled();
+		expectNoInstallation(f);
+		expect(screen.queryByRole("button")).toBeNull();
+	});
+	it.each([
 		null,
 		{},
 		{
