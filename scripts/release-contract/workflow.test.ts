@@ -20,9 +20,12 @@ test("grants draft visibility after the full matrix without persisting write cre
 	// biome-ignore lint/suspicious/noTemplateCurlyInString: literal GitHub Actions expression
 	expect(step?.env).toEqual({ GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" });
 	expect(build.strategy?.matrix.include).toEqual([
-		{ os: "ubuntu-22.04" },
-		{ os: "windows-latest" },
+		{ os: "ubuntu-22.04", bundles: "deb,rpm,appimage" },
+		{ os: "windows-latest", bundles: "nsis" },
 	]);
+	const bundler = build.steps.find((step) => step.uses === "tauri-apps/tauri-action@v0");
+	// biome-ignore lint/suspicious/noTemplateCurlyInString: literal GitHub Actions expression
+	expect(bundler?.with?.args).toBe("--bundles ${{ matrix.bundles }}");
 	const action = build.steps.find((step) => step.uses === "tauri-apps/tauri-action@v0");
 	expect(action?.with?.releaseDraft).toBe(true);
 	expect(action?.with?.prerelease).toBe(false);
@@ -41,7 +44,7 @@ const workflow = () =>
 				permissions: Record<string, string>;
 				"runs-on": string;
 				"timeout-minutes"?: number;
-				strategy?: { matrix: { include: { os: string }[] } };
+				strategy?: { matrix: { include: { os: string; bundles: string }[] } };
 				steps: {
 					uses?: string;
 					run?: string;
@@ -52,29 +55,48 @@ const workflow = () =>
 		>;
 	};
 
-test("makes updater JSON, existing MSI alias preference and generated release notes explicit", () => {
+test("makes updater JSON, NSIS alias preference and generated release notes explicit", () => {
 	const action = workflow().jobs.build.steps.find(
 		(step) => step.uses === "tauri-apps/tauri-action@v0",
 	);
 	expect(action?.with?.includeUpdaterJson).toBe(true);
-	expect(action?.with?.updaterJsonPreferNsis).toBe(false);
+	expect(action?.with?.updaterJsonPreferNsis).toBe(true);
 	expect(action?.with?.generateReleaseNotes).toBe(true);
 	expect(action?.with?.releaseBody).not.toBe(
 		"See the assets to download and install this version.",
 	);
 });
 
-test("warns that the two official updater trial releases are temporary and unverified", () => {
+test("ships self-contained official release guidance with consent and manual legacy MSI migration", () => {
 	const action = workflow().jobs.build.steps.find(
 		(step) => step.uses === "tauri-apps/tauri-action@v0",
 	);
 	const body = String(action?.with?.releaseBody);
-	expect(body).toContain("github.ref_name == 'v3.6.2'");
-	expect(body).toContain("github.ref_name == 'v3.6.3'");
-	expect(body).toContain("published specifically to test in-app updating");
-	expect(body).toContain("may be deleted soon");
-	expect(body).toContain("Back up your settings and app data before testing");
-	expect(body).toContain("Native upgrade/restart/data preservation is not yet verified");
+	expect(body).toContain("Windows NSIS (.exe) only");
+	expect(body).toContain("default current-user NSIS installation");
+	expect(body).toContain("explicit version-labelled Update click");
+	expect(body).toContain("never automatically downloads, installs or restarts");
+	expect(body).toContain("Legacy MSI installations require manual migration");
+	expect(body).toContain("Back up your settings and app data, close the app");
+	expect(body).toContain("No MSI installer is included");
+	expect(body).toContain("Linux AppImage, Debian (.deb) and RPM (.rpm)");
+	expect(body).toContain("Debian/RPM installs remain package-managed");
+	expect(body).toContain("Nix/NixOS/Home Manager installs use their flake/configuration update");
+	expect(body).toContain("before manually publishing this draft");
+	expect(body).not.toContain("github.ref_name");
+	expect(body).not.toContain("TEST RELEASE");
+	expect(body).not.toContain("may be deleted soon");
+	expect(body).not.toContain("docs/");
+});
+
+test("limits default bundle targets to NSIS and the existing Linux packages", () => {
+	const config = JSON.parse(
+		readFileSync(new URL("../../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
+	);
+	expect(config.bundle.targets).toEqual(["nsis", "appimage", "deb", "rpm"]);
+	expect(config.bundle.createUpdaterArtifacts).toBe(true);
+	expect(config.bundle.windows.nsis.installMode).toBe("currentUser");
+	expect(config.bundle.windows.wix.upgradeCode).toBe("83118bd9-967b-5a1f-94be-e18868474288");
 });
 
 test("requires the signed artifact version to match the announced update version", () => {

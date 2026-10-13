@@ -442,8 +442,8 @@ fn path_grammar_rejects_win32_aliases_without_filesystem_access() {
 }
 
 #[test]
-fn official_pair_versions_require_matching_registration_without_native_calls() {
-    for version in ["3.6.2", "3.6.3"] {
+fn released_versions_require_matching_registration_without_native_calls() {
+    for version in ["3.6.2", "3.6.3", "3.6.4"] {
         let mut fixture = Fixture::approved();
         fixture
             .keys

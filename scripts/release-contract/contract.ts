@@ -15,17 +15,34 @@ export type ContractInput = {
 	allowUntaggedDraftUrls?: boolean;
 };
 
-export const requiredTargets = [
-	"windows-x86_64-nsis",
-	"windows-x86_64-msi",
-	"linux-x86_64-appimage",
-] as const;
+export const requiredTargets = ["windows-x86_64-nsis", "linux-x86_64-appimage"] as const;
+
+export function assertNoMsiAssets(assets: Asset[]) {
+	if (assets.some((asset) => /\.msi(?:\.sig)?$/i.test(asset.name))) {
+		throw new Error("MSI assets are forbidden in an NSIS-only release");
+	}
+}
+
+export function assertNoMsiPlatforms(platforms?: Record<string, { url?: unknown }> | null) {
+	for (const [target, entry] of Object.entries(platforms ?? {})) {
+		// Inspect encoded URLs without changing the original manifest or asset names.
+		if (
+			/msi/i.test(target) ||
+			(typeof entry?.url === "string" &&
+				/\.msi(?:[./?#]|$)/i.test(decodeURIComponent(entry.url)))
+		) {
+			throw new Error("MSI platform keys and URLs are forbidden in an NSIS-only release");
+		}
+	}
+}
 
 export function validateManifest(input: ContractInput): string[] {
+	assertNoMsiAssets(input.assets);
 	const manifest = input.manifest as {
 		version?: unknown;
 		platforms?: Record<string, { url?: unknown; signature?: unknown }>;
 	} | null;
+	assertNoMsiPlatforms(manifest?.platforms);
 	if (
 		!/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(input.tag) ||
 		manifest?.version !== input.tag.slice(1)
@@ -66,7 +83,6 @@ export function validateManifest(input: ContractInput): string[] {
 	const version = input.tag.slice(1).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 	const patterns = [
 		new RegExp(`^Wallpaper\\.Picker\\.UI_${version}_x64-setup\\.exe$`),
-		new RegExp(`^Wallpaper\\.Picker\\.UI_${version}_x64_[A-Za-z]+-[A-Za-z]+\\.msi$`),
 		new RegExp(`^Wallpaper\\.Picker\\.UI_${version}_amd64\\.AppImage$`),
 	];
 	for (const [index, target] of requiredTargets.entries()) {
@@ -93,6 +109,15 @@ export function validateManifest(input: ContractInput): string[] {
 		if (sidecars.length !== 1 || input.sidecars[sidecarName] !== entry.signature) {
 			throw new Error(`Missing, ambiguous or mismatching sidecar for ${target}`);
 		}
+	}
+	const nsis = manifest?.platforms?.["windows-x86_64-nsis"];
+	const windowsAlias = manifest?.platforms?.["windows-x86_64"];
+	if (
+		!windowsAlias ||
+		windowsAlias.url !== nsis?.url ||
+		windowsAlias.signature !== nsis?.signature
+	) {
+		throw new Error("Generic Windows alias must match the exact NSIS URL and signature");
 	}
 	return [...requiredTargets];
 }

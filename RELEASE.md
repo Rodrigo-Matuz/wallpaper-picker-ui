@@ -1,26 +1,27 @@
-# Wallpaper Picker UI v3.6.3 — updater test candidate
+# Wallpaper Picker UI v3.6.4
 
-> **TEST RELEASE:** Published specifically to test in-app updating. This release may be deleted soon. Back up your settings and app data before testing. Successful native upgrade, restart and data preservation have **not yet been verified**.
+## In-app updates
 
-This is the newer candidate for the **3.6.2 → 3.6.3** manual updater trial. It uses the normal application identity, existing signing key and public HTTPS GitHub update feed—not a separate test app or local feed.
+- Check for a newer release once at startup without blocking Home.
+- Notify without automatically downloading or installing anything.
+- On eligible Windows NSIS installations, About offers **Update to {version}**. The explicit click authorizes the signed download, verification and installer handoff.
+- Pending app work or unsaved Settings changes block installation until you finish them and retry. Nothing is saved or discarded automatically.
 
-- Check once at startup without blocking Home.
-- Notify when a newer version is available; displaying or dismissing a notice never downloads or installs anything.
-- On eligible Windows NSIS installations, one explicit version-labelled About **Update** click authorizes signed download, verification, installation and installer restart.
-- Pending work or unsaved Settings input denies installation until an explicit retry. No automatic installation or forced update.
+## Windows installer: NSIS/setup.exe only
 
-## Visible test change
+The Windows download is **`Wallpaper.Picker.UI_3.6.4_x64-setup.exe`**. This is the NSIS installer; there is no separate NSIS package and no MSI installer in this release.
 
-About shows the translated **“Updater test: second build”** marker beside version **3.6.3**. The marker identifies this build only; it does not claim that an update succeeded and also appears after a manual installation. It is limited to this exact test version and translated into all five supported languages. Updater behavior and safety guards are unchanged from the base.
+In-app installation eligibility is limited to **Windows x64, current-user NSIS, default location**. Custom locations, conflicting registrations and installations that cannot be safely identified remain manual.
 
-## Test from the base, not by manually installing this candidate
+**Existing MSI users:** back up your settings and app data and migrate manually to the NSIS installer. The updater does not silently convert MSI installations to NSIS. Earlier releases without the enabled updater also need a manual installation first.
 
-The first in-app installation trial is **Windows x64, current-user NSIS, default location**. Custom locations, ambiguous/coexisting registrations and unsupported installations remain manual. **MSI, AppImage, Debian/RPM and Nix installations are not part of this in-app installation trial**; use their normal manual/package-manager update route.
+## Notification fixes
 
-1. Close the existing app and back up configuration and thumbnail/app-data folders.
-2. Manually install the **3.6.2 NSIS `.exe`** asset. The earlier 3.6.1 release cannot bootstrap this updater.
-3. Launch 3.6.2 with internet access. It should report 3.6.3 without automatically downloading or installing it.
-4. Open About, confirm the exact candidate version and click **Update to 3.6.3** once.
-5. After the installer reopens the app, verify the displayed version, the newer About-page marker and preserved settings, wallpapers and thumbnails. Report errors or failure to reopen.
+- Opaque notification background using the app's design tokens.
+- Dismiss X inside the notification, with space for wrapping text and translated actions.
 
-These are **test instructions, not a claim that native acceptance passed**. Do not manually install the second package before testing the first package's Update button. Deleting these releases later may remove their download/update URLs; retain backup and recovery installers.
+## Other installations and verification
+
+Linux AppImage updates remain manual; Debian/RPM and Nix installations remain package-managed. Their normal download/package routes are unchanged.
+
+Back up configuration and thumbnail/app-data folders before updating. Source tests, package builds and signature checks do not establish a completed native upgrade: actual installer restart and data-preservation acceptance remain unverified. This release retains the existing application identity, signing key and public HTTPS update feed.

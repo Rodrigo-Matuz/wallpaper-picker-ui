@@ -2,7 +2,6 @@
 import { currentLanguage, t } from "$lang/index";
 import { runtimeMode } from "$utils/updating/session/runtime";
 import { updaterController } from "$utils/updating/updating";
-import { manualMsiDownload } from "./manual-download";
 import { categoryKeys, statusKeys, type UpdaterPanelController } from "./presentation";
 
 let { controller = updaterController }: { controller?: UpdaterPanelController } = $props();
@@ -10,7 +9,12 @@ const translate = $derived($t);
 const snapshotStore = $derived(controller.state);
 const candidate = $derived($snapshotStore.availableUpdate);
 const support = $derived($snapshotStore.support);
-const manualDownloadUrl = $derived(manualMsiDownload($snapshotStore));
+const legacyMsi = $derived(
+	support?.mode === "manual-only" &&
+		support.platform === "windows" &&
+		support.installer === "msi" &&
+		support.target === null,
+);
 const guidanceKey = $derived(
 	support?.installer === "nix"
 		? "updater.guidance.nix"
@@ -24,7 +28,7 @@ const guidanceKey = $derived(
 const statusKey = $derived(statusKeys[$snapshotStore.status]);
 
 function update() {
-	if (!candidate || !$snapshotStore.canUpdate) return;
+	if (legacyMsi || !candidate || !$snapshotStore.canUpdate) return;
 	void controller.updateAndRestart({ confirmed: true, version: candidate.version });
 }
 </script>
@@ -62,19 +66,19 @@ function update() {
 				<h3 class="mt-4 font-medium text-foreground">{translate("updater.notes")}</h3>
 				<p class="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{candidate.body}</p>
 			{/if}
-			{#if $snapshotStore.canUpdate}
+			{#if !legacyMsi && $snapshotStore.canUpdate}
 				<p id="update-consent" class="mt-4 max-w-xl">{translate("updater.consent")}</p>
 				<button type="button" onclick={update} aria-describedby="update-consent" class="mt-3 min-h-11 border border-success/40 px-4 font-mono text-xs text-success transition-colors hover:bg-success/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-success">{translate($snapshotStore.installBlocked ? "updater.action.resume" : "updater.action.update").replace("{version}", candidate.version)}</button>
-			{:else if manualDownloadUrl}
-				<p id="manual-msi-guidance" class="mt-4 max-w-xl">{translate("updater.guidance.msi")}</p>
-				<a href={manualDownloadUrl} aria-describedby="manual-msi-guidance" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex min-h-11 items-center border border-success/40 px-4 font-mono text-xs text-success transition-colors hover:bg-success/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-success">{translate("updater.action.download.manual").replace("{version}", candidate.version)}</a>
-			{:else if !$snapshotStore.busy && ($snapshotStore.status === "available" || $snapshotStore.status === "ready-to-install")}
+			{:else if !legacyMsi && !$snapshotStore.busy && ($snapshotStore.status === "available" || $snapshotStore.status === "ready-to-install")}
 				<p class="mt-4 max-w-xl">{translate("updater.guidance.manual")}</p>
 			{/if}
-		{:else if ($snapshotStore.status === "up-to-date" || $snapshotStore.failure?.phase === "check") && support?.mode === "manual-only"}
+		{:else if !legacyMsi && ($snapshotStore.status === "up-to-date" || $snapshotStore.failure?.phase === "check") && support?.mode === "manual-only"}
 			<p class="mt-4 max-w-xl">{translate("updater.guidance.manual")}</p>
-		{:else if !statusKey && !$snapshotStore.failure}
+		{:else if !legacyMsi && !statusKey && !$snapshotStore.failure}
 			<p>{translate(guidanceKey)}</p>
+		{/if}
+		{#if legacyMsi}
+			<p class="mt-4 max-w-xl">{translate("updater.guidance.msi")}</p>
 		{/if}
 		{#if $snapshotStore.lastCheckedAt !== null}
 			<div class="mt-4 text-[10px] text-subtle">

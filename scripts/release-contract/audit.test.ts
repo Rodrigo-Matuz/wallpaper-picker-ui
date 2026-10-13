@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { auditDraft } from "./audit";
-import { fixture } from "./fixtures";
+import { fixture, forbiddenMsiPlatforms } from "./fixtures";
 
 test("refuses dot-segment repositories before building authenticated API paths", async () => {
 	let calls = 0;
@@ -75,8 +75,69 @@ test("refuses a published release before reading assets", async () => {
 	).rejects.toThrow("draft");
 });
 
+test.each([
+	"legacy.msi",
+	"legacy.MSI",
+	"legacy.msi.sig",
+	"legacy.MsI.SiG",
+])("refuses MSI asset %s from metadata before fetching any asset body", async (name) => {
+	const input = fixture();
+	input.assets.push({
+		...input.assets[1],
+		id: 999,
+		name,
+		browser_download_url: `https://github.com/${input.repository}/releases/download/${input.tag}/${name}`,
+	});
+	const before = structuredClone(input);
+	const paths: string[] = [];
+	await expect(
+		auditDraft(input.repository, input.tag, async (path) => {
+			paths.push(path);
+			if (path.includes("/releases?"))
+				return JSON.stringify([
+					{ id: 42, tag_name: input.tag, draft: true, prerelease: false },
+				]);
+			if (path.includes("/releases/42/assets?")) return JSON.stringify(input.assets);
+			throw new Error("Forbidden asset body fetch");
+		}),
+	).rejects.toThrow("MSI");
+	expect(paths).toEqual([
+		`/repos/${input.repository}/releases?per_page=100&page=1`,
+		`/repos/${input.repository}/releases/42/assets?per_page=100&page=1`,
+	]);
+	expect(input).toEqual(before);
+});
+
+test.each(
+	forbiddenMsiPlatforms,
+)("refuses MSI platform key or URL %s %s before fetching any sidecar", async (target, url) => {
+	const input = fixture();
+	input.manifest.platforms[target] = { url, signature: "synthetic" };
+	const before = structuredClone(input);
+	const paths: string[] = [];
+	await expect(
+		auditDraft(input.repository, input.tag, async (path) => {
+			paths.push(path);
+			if (path.includes("/releases?"))
+				return JSON.stringify([
+					{ id: 42, tag_name: input.tag, draft: true, prerelease: false },
+				]);
+			if (path.includes("/releases/42/assets?")) return JSON.stringify(input.assets);
+			if (path === `/repos/${input.repository}/releases/assets/1`)
+				return JSON.stringify(input.manifest);
+			throw new Error("Forbidden sidecar fetch");
+		}),
+	).rejects.toThrow("MSI");
+	expect(paths).toEqual([
+		`/repos/${input.repository}/releases?per_page=100&page=1`,
+		`/repos/${input.repository}/releases/42/assets?per_page=100&page=1`,
+		`/repos/${input.repository}/releases/assets/1`,
+	]);
+	expect(input).toEqual(before);
+});
+
 // Synthetic metadata only: no binary payload is provided or requested.
-test("audits the draft through GET metadata, latest.json and three exact sidecars only", async () => {
+test("audits the draft through GET metadata, latest.json and two exact sidecars only", async () => {
 	const input = fixture();
 	const paths: string[] = [];
 	const read = async (path: string, _limit: number, binary = false) => {
@@ -97,7 +158,13 @@ test("audits the draft through GET metadata, latest.json and three exact sidecar
 	expect(await auditDraft(input.repository, input.tag, read)).toEqual({
 		releaseId: 42,
 		tag: input.tag,
-		targets: ["windows-x86_64-nsis", "windows-x86_64-msi", "linux-x86_64-appimage"],
+		targets: ["windows-x86_64-nsis", "linux-x86_64-appimage"],
 	});
-	expect(paths).toHaveLength(6);
+	expect(paths).toEqual([
+		`/repos/${input.repository}/releases?per_page=100&page=1`,
+		`/repos/${input.repository}/releases/42/assets?per_page=100&page=1`,
+		`/repos/${input.repository}/releases/assets/1`,
+		`/repos/${input.repository}/releases/assets/3`,
+		`/repos/${input.repository}/releases/assets/5`,
+	]);
 });

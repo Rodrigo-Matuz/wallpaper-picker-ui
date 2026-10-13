@@ -1,4 +1,10 @@
-import { type Asset, requiredTargets, validateManifest } from "./contract";
+import {
+	type Asset,
+	assertNoMsiAssets,
+	assertNoMsiPlatforms,
+	requiredTargets,
+	validateManifest,
+} from "./contract";
 
 export type ReadGitHub = (path: string, limit: number, asset?: boolean) => Promise<string>;
 
@@ -61,6 +67,7 @@ export async function auditDraft(repository: string, tag: string, read: ReadGitH
 		throw new Error("Expected one non-prerelease draft with a valid release ID");
 	}
 	const assets = await readPages<Asset>(`${base}/releases/${release.id}/assets`, read, 5);
+	assertNoMsiAssets(assets);
 	if (
 		new Set(assets.map((asset) => asset.name)).size !== assets.length ||
 		new Set(assets.map((asset) => asset.id)).size !== assets.length
@@ -73,6 +80,7 @@ export async function auditDraft(repository: string, tag: string, read: ReadGitH
 	const manifest = JSON.parse(
 		await read(`${base}/releases/assets/${manifestAsset.id}`, 1_048_576, true),
 	);
+	assertNoMsiPlatforms(manifest?.platforms);
 	const sidecars: Record<string, string> = {};
 	for (const target of requiredTargets) {
 		const url = manifest?.platforms?.[target]?.url;

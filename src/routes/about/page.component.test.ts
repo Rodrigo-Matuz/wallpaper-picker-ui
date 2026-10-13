@@ -31,14 +31,15 @@ afterEach(() => {
 });
 
 describe("About page", () => {
-	it("shows the second updater test build marker for 3.6.3", () => {
+	it("does not show the retired updater test build marker even for the old 3.6.3 fixture", () => {
 		vi.stubGlobal("__APP_VERSION__", "3.6.3");
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(() => new Promise(() => {})),
 		);
 		render(AboutPage);
-		expect(screen.getByText("Updater test: second build")).toBeTruthy();
+		expect(screen.getByText("3.6.3")).toBeTruthy();
+		expect(screen.queryByText("Updater test: second build")).toBeNull();
 	});
 
 	it.each([
@@ -65,22 +66,23 @@ describe("About page", () => {
 		["es", "Prueba de actualización: segunda versión de prueba"],
 		["fr", "Test de mise à jour : deuxième version de test"],
 		["de", "Update-Test: zweiter Testbuild"],
-	])("resolves and renders the updater test marker in %s", async (locale, expected) => {
+		["unknown-locale", "Updater test: second build"],
+	])("keeps the old 3.6.3 fixture unbadged in %s and removes the retired locale keys", (locale, marker) => {
 		vi.stubGlobal("__APP_VERSION__", "3.6.3");
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(() => new Promise(() => {})),
 		);
 		expect(Object.keys(languages).sort()).toEqual(["de", "eng", "es", "fr", "pt-br"]);
-		render(AboutPage);
-		expect(screen.getByText("Updater test: second build")).toBeTruthy();
 		currentLanguage.set(locale);
-		expect(get(t)("about.updater.test.marker")).toBe(expected);
-		expect(get(t)("about.updater.test.marker")).not.toBe("about.updater.test.marker");
-		await waitFor(() => expect(screen.getByText(expected)).toBeTruthy());
+		render(AboutPage);
+		expect(screen.getByText("3.6.3")).toBeTruthy();
+		expect(screen.queryByText(marker)).toBeNull();
 		expect(screen.queryByText("about.updater.test.marker")).toBeNull();
-		if (locale !== "eng") {
-			expect(screen.queryByText("Updater test: second build")).toBeNull();
+		expect(screen.getByRole("heading", { name: get(t)("updater.title") })).toBeTruthy();
+		for (const language of Object.values(languages)) {
+			expect(language.data).not.toHaveProperty("about.updater.test.marker");
+			expect(language.data).not.toHaveProperty("updater.action.download.manual");
 		}
 	});
 
