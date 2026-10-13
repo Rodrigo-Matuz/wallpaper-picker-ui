@@ -68,8 +68,8 @@ let activeBlobUrls: ThumbnailRecord = {};
  * - Errors during generation, blob loading, or store updates are logged individually
  *   without crashing the entire pipeline; user-actionable failures surface as toasts.
  *
- * @param forceRegenerate - When true, forces thumbnail regeneration even if no new wallpapers
- * are detected (e.g. after deletions).
+ * @param forceRegenerate - Rebuilds all thumbnails (e.g. after a naming scheme change).
+ * @param scanForNew - Scans the selected folder once even when automatic discovery is disabled.
  *
  * @example
  * ```ts
@@ -80,7 +80,7 @@ let activeBlobUrls: ThumbnailRecord = {};
  * await handleThumbnails(true);
  * ```
  */
-export async function handleThumbnails(forceRegenerate = false): Promise<void> {
+export async function handleThumbnails(forceRegenerate = false, scanForNew = false): Promise<void> {
 	const release = applicationWork.beginWork();
 	try {
 		if (isProcessing) {
@@ -99,9 +99,9 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 
 				const { newWallpapers, thumbnailVersion } = await fetchConfig();
 				const needsMigration = (thumbnailVersion ?? 0) !== CURRENT_THUMBNAIL_VERSION;
-				const regenerate = forceRegenerate || needsMigration || newWallpapers;
+				const regenerate = forceRegenerate || needsMigration || newWallpapers || scanForNew;
 				// Show valid cached previews before scanning for additional files.
-				if (newWallpapers && !forceRegenerate && !needsMigration) {
+				if ((newWallpapers || scanForNew) && !forceRegenerate && !needsMigration) {
 					thumbnailsHashMap = await publishThumbnails(thumbnailsHashMap);
 				}
 
@@ -124,9 +124,13 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 						}
 
 						const listed = new Set(videosList);
+						const generatedPaths = new Set(Object.values(newThumbnailsHashMap));
 						const sorted = sortJsonByKey({
+							// Keep the previous file if an explicit rebuild fails for that video.
 							...Object.fromEntries(
-								Object.entries(reusable).filter(([, path]) => listed.has(path)),
+								Object.entries(thumbnailsHashMap).filter(
+									([, path]) => listed.has(path) && !generatedPaths.has(path),
+								),
 							),
 							...newThumbnailsHashMap,
 						});

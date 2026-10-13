@@ -9,9 +9,12 @@ import { t } from "$lang/index";
  * Pipeline-owned diagnostics and concurrency remain unchanged.
  * @returns True when thumbnail work completes, false when denied or rejected.
  */
-export async function runThumbnailAction(forceRegenerate = false): Promise<boolean> {
+export async function runThumbnailAction(
+	forceRegenerate = false,
+	scanForNew = false,
+): Promise<boolean> {
 	try {
-		await handleThumbnails(forceRegenerate);
+		await handleThumbnails(forceRegenerate, scanForNew);
 		return true;
 	} catch {
 		toast.error(get(t)("toast.thumbnails.failed"));

@@ -244,6 +244,32 @@ test("a missing cached image is regenerated on the next scan", async () => {
 	expect(Object.values(get(thumbnails))).toContain("/mock/a.mp4");
 });
 
+test("selecting a folder scans for additions with discovery disabled without rebuilding cached previews", async () => {
+	readTextFile.mockResolvedValueOnce(JSON.stringify({ "a.png": "/mock/a.mp4" }));
+	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: false, thumbnailVersion: 1 });
+	invoke.mockImplementation(async (command) => (command === "generate_thumb" ? "b.png" : []));
+	await handleThumbnails(false, true);
+	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(1);
+	expect(Object.values(get(thumbnails)).sort()).toEqual(["/mock/a.mp4", "/mock/b.mp4"]);
+});
+
+test("failed forced rebuild keeps the last readable preview for the same video", async () => {
+	readTextFile.mockResolvedValueOnce(JSON.stringify({ "a.png": "/mock/a.mp4" }));
+	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, thumbnailVersion: 1 });
+	fetchVideos.mockResolvedValue(["/mock/a.mp4"]);
+	invoke.mockImplementation(async (command) => {
+		if (command === "generate_thumb") throw new Error("ffmpeg unavailable");
+		return [];
+	});
+	await handleThumbnails(true);
+	expect(Object.values(get(thumbnails))).toContain("/mock/a.mp4");
+	expect(writeFile).toHaveBeenCalledWith(
+		"thumbnails/map.json",
+		expect.any(Uint8Array),
+		expect.any(Object),
+	);
+});
+
 test("joined pipeline rejection settles both callers and allows a subsequent pipeline", async () => {
 	const gate = deferred();
 	ensureDir.mockImplementationOnce(async () => {

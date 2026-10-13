@@ -116,7 +116,7 @@ describe("Settings page", () => {
 		expect(runThumbnailAction).not.toHaveBeenCalled();
 		selectFolder.mockResolvedValueOnce("/wallpapers");
 		await fireEvent.click(button);
-		await waitFor(() => expect(runThumbnailAction).toHaveBeenCalledWith(true));
+		await waitFor(() => expect(runThumbnailAction).toHaveBeenCalledWith(false, true));
 	});
 
 	it("keeps maintenance actions and both toggles wired to the existing APIs", async () => {

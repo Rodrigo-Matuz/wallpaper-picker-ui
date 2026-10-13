@@ -68,7 +68,7 @@ const sections = ["wallpaper", "preferences", "maintenance"] as const;
                         shortDescription={translate('settings.folder.short.description')}
                         buttonName={translate('settings.folder.button.text')}
                         buttonOnClick={async () => {
-                            if (await selectFolder()) await runThumbnailAction(true);
+                            if (await selectFolder()) await runThumbnailAction(false, true);
                         }}
                         hintDescription={translate('settings.folder.hint.description')}
                     />

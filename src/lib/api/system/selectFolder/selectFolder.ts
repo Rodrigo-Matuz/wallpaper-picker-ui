@@ -19,7 +19,7 @@ import { log } from "$utils/logger/logger";
  * @example
  * ```ts
  * const folderPath = await selectFolder();
- * if (folderPath) await handleThumbnails(true);
+ * if (folderPath) await handleThumbnails(false, true);
  * ```
  */
 export async function selectFolder(): Promise<string> {
