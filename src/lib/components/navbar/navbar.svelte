@@ -1,47 +1,36 @@
 <script lang="ts">
-import { Info } from "@lucide/svelte";
-import { Button } from "$components/ui/button";
+import Search from "@lucide/svelte/icons/search";
+import Settings2 from "@lucide/svelte/icons/settings-2";
 import { t } from "$lang/index";
+import WindowControls from "./window-controls.svelte";
 
-export let leftIcon = Info;
-export let leftOnClick = () => {};
-export let inputPlaceholder = "";
-export let showInput = true;
-export let autoFocusInput = false;
-export let disableInput = true;
-export let onInputChange = (_event: Event) => {};
-export let rightIcon = Info;
-export let rightOnClick = () => {};
+let {
+	inputPlaceholder = "",
+	onInputChange = (_event: Event) => {},
+}: {
+	inputPlaceholder?: string;
+	onInputChange?: (event: Event) => void;
+} = $props();
 
-const searchPlaceholder = inputPlaceholder || $t("home.search.placeholder");
+const translate = $derived($t);
 </script>
 
-<nav
-    class="top-0 z-50 sticky flex items-center bg-background/80 backdrop-blur-sm border-b border-foreground/10 px-4 py-3 w-full"
->
-    <div class="flex items-center gap-3 max-w-7xl mx-auto w-full">
-        {#if leftIcon}
-            <Button onclick={leftOnClick} variant="ghost" size="sm" class="size-9 p-0! border-0 bg-transparent hover:bg-transparent! hover:text-success!">
-                <svelte:component this={leftIcon} class="size-5 shrink-0" />
-            </Button>
-        {/if}
-
-        {#if showInput}
-            <!-- svelte-ignore a11y_autofocus -->
-            <input
-                type="text"
-                class="flex-1 bg-surface hover:bg-surface-raised px-3 py-1.5 border border-border rounded-md outline-none w-full min-w-0 text-base placeholder:text-muted transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder={searchPlaceholder}
-                autofocus={autoFocusInput}
-                disabled={disableInput}
-                on:input={onInputChange}
-            />
-        {/if}
-
-        {#if rightIcon}
-            <Button onclick={rightOnClick} variant="ghost" size="sm" class="size-9 p-0! border-0 bg-transparent hover:bg-transparent! hover:text-success!">
-                <svelte:component this={rightIcon} class="size-5 shrink-0" />
-            </Button>
-        {/if}
-    </div>
-</nav>
+<header class="sticky top-0 z-50 border-b border-foreground/15 bg-background/95 backdrop-blur-md">
+    <nav class="mx-auto max-w-7xl px-5 md:px-8" aria-label="Wallpaper Picker UI">
+        <div class="flex min-h-16 items-center gap-3 border-b border-foreground/10" data-tauri-drag-region>
+            <div class="min-w-0 flex-1 py-2" data-tauri-drag-region>
+                <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-primary" data-tauri-drag-region>Wallpaper / Picker</p>
+                <h1 class="truncate font-display text-xl leading-tight tracking-tight text-foreground" data-tauri-drag-region>Wallpaper Picker UI</h1>
+            </div>
+            <a href="/settings" aria-label={translate('settings.search.placeholder')} title={translate('settings.search.placeholder')} class="flex size-10 shrink-0 items-center justify-center border border-foreground/15 text-muted transition-colors hover:border-primary hover:text-primary"><Settings2 class="size-4" /></a>
+            <WindowControls />
+        </div>
+        <div class="flex items-center gap-3 py-3">
+            <label class="flex min-w-0 flex-1 items-center gap-3 border border-foreground/15 bg-surface px-3 transition-colors focus-within:border-primary hover:border-foreground/30">
+                <Search class="size-4 shrink-0 text-primary" />
+                <!-- svelte-ignore a11y_autofocus -->
+                <input type="search" aria-label={inputPlaceholder || translate('home.search.placeholder')} class="h-11 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted" placeholder={inputPlaceholder || translate('home.search.placeholder')} autofocus oninput={onInputChange} />
+            </label>
+        </div>
+    </nav>
+</header>

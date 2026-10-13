@@ -6,19 +6,27 @@ import SettingsPage from "./panel.svelte";
 
 vi.stubGlobal("__APP_VERSION__", "test");
 
-const { clearConfig, clearThumbnails, fetchConfig, updateConfig, toggleDarkMode } = vi.hoisted(
-	() => ({
-		clearConfig: vi.fn(async () => true),
-		clearThumbnails: vi.fn(async () => {}),
-		fetchConfig: vi.fn(async () => ({
-			command: "mpvpaper $VP",
-			darkMode: true,
-			newWallpapers: true,
-		})),
-		updateConfig: vi.fn(async (_value: unknown) => true),
-		toggleDarkMode: vi.fn(async () => {}),
-	}),
-);
+const {
+	clearConfig,
+	clearThumbnails,
+	fetchConfig,
+	updateConfig,
+	toggleDarkMode,
+	selectFolder,
+	runThumbnailAction,
+} = vi.hoisted(() => ({
+	clearConfig: vi.fn(async () => true),
+	clearThumbnails: vi.fn(async () => {}),
+	fetchConfig: vi.fn(async () => ({
+		command: "mpvpaper $VP",
+		darkMode: true,
+		newWallpapers: true,
+	})),
+	updateConfig: vi.fn(async (_value: unknown) => true),
+	toggleDarkMode: vi.fn(async () => {}),
+	selectFolder: vi.fn(async () => ""),
+	runThumbnailAction: vi.fn(async () => {}),
+}));
 
 vi.mock("$app/navigation", () => ({ goto: vi.fn() }));
 vi.mock("$lib/api/config/clear", () => ({ clearConfig }));
@@ -26,6 +34,8 @@ vi.mock("$lib/api/thumbnails/clear", () => ({ clearThumbnails }));
 vi.mock("$lib/api/config/read/read", () => ({ fetchConfig }));
 vi.mock("$lib/api/config/update/update", () => ({ updateConfig }));
 vi.mock("$lib/utils/darkMode", () => ({ toggleDarkMode }));
+vi.mock("$lib/api/system/selectFolder/selectFolder", () => ({ selectFolder }));
+vi.mock("$components/display/thumbnailAction", () => ({ runThumbnailAction }));
 
 afterEach(() => {
 	cleanup();
@@ -51,6 +61,7 @@ describe("Settings page", () => {
 				screen.getByRole("button", { name: "SAVE" }),
 				screen.getByRole("button", { name: "CLEAR" }),
 				screen.getByRole("button", { name: "DELETE" }),
+				screen.getByRole("button", { name: "SELECT FOLDER" }),
 			]) {
 				expect((control as HTMLButtonElement).disabled).toBe(true);
 			}
@@ -79,7 +90,7 @@ describe("Settings page", () => {
 		view.unmount();
 		expect(applicationWork.hasDirtyInputs()).toBe(true);
 	});
-	it("groups all six settings under labelled sections with a working section index", async () => {
+	it("groups all seven settings under labelled sections with a working section index", async () => {
 		render(SettingsPage);
 		expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeTruthy();
 		const index = screen.getByRole("navigation", { name: "Settings sections" });
@@ -90,10 +101,22 @@ describe("Settings page", () => {
 			const section = screen.getByRole("region", { name });
 			expect(section.id).toBe(id);
 		}
-		expect(document.querySelectorAll('[data-slot="settings-row"]').length).toBe(6);
+		expect(document.querySelectorAll('[data-slot="settings-row"]').length).toBe(7);
 		expect(document.querySelectorAll('[data-slot="card"]').length).toBe(0);
 		const command = screen.getByRole("textbox", { name: "Command" }) as HTMLInputElement;
 		await waitFor(() => expect(command.value).toBe("mpvpaper $VP"));
+	});
+
+	it("selecting a folder starts a refresh only after a real selection", async () => {
+		render(SettingsPage);
+		const button = screen.getByRole("button", { name: "SELECT FOLDER" });
+		selectFolder.mockResolvedValueOnce("");
+		await fireEvent.click(button);
+		await waitFor(() => expect(selectFolder).toHaveBeenCalledTimes(1));
+		expect(runThumbnailAction).not.toHaveBeenCalled();
+		selectFolder.mockResolvedValueOnce("/wallpapers");
+		await fireEvent.click(button);
+		await waitFor(() => expect(runThumbnailAction).toHaveBeenCalledWith(true));
 	});
 
 	it("keeps maintenance actions and both toggles wired to the existing APIs", async () => {

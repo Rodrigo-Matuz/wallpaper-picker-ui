@@ -54,9 +54,9 @@ let activeBlobUrls: ThumbnailRecord = {};
  * Main responsibilities:
  * - Loads the thumbnail map from `thumbnails/map.json` (migrating it from
  *   config.json on first run — see {@link migrateThumbnailMapFromConfig}).
- * - Determines whether regeneration is needed (config `newWallpapers` flag,
- *   forced regeneration, or an outdated `thumbnailVersion`).
- * - Generates thumbnails concurrently ({@link GENERATION_CONCURRENCY} at a time)
+ * - Scans for new files when `newWallpapers` is enabled, reusing saved thumbnails;
+ *   forced regeneration and outdated `thumbnailVersion` rebuild all previews.
+ * - Generates missing thumbnails concurrently ({@link GENERATION_CONCURRENCY} at a time)
  *   and updates progress-related Svelte stores during generation.
  * - Persists the sorted thumbnail map to its own file.
  * - Prunes mapping entries whose video file no longer exists (deleted/renamed videos).
@@ -100,15 +100,22 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 				const { newWallpapers, thumbnailVersion } = await fetchConfig();
 				const needsMigration = (thumbnailVersion ?? 0) !== CURRENT_THUMBNAIL_VERSION;
 				const regenerate = forceRegenerate || needsMigration || newWallpapers;
+				// Show valid cached previews before scanning for additional files.
+				if (newWallpapers && !forceRegenerate && !needsMigration) {
+					thumbnailsHashMap = await publishThumbnails(thumbnailsHashMap);
+				}
 
 				if (regenerate) {
 					try {
 						thumbnailsGenerated.set(0);
 						const videosList = await fetchVideos();
-						totalVideos.set(videosList.length);
+						const reusable = forceRegenerate || needsMigration ? {} : thumbnailsHashMap;
+						const cachedPaths = new Set(Object.values(reusable));
+						const missingVideos = videosList.filter((path) => !cachedPaths.has(path));
+						totalVideos.set(missingVideos.length);
 
 						const { map: newThumbnailsHashMap, failures } =
-							await processVideoPaths(videosList);
+							await processVideoPaths(missingVideos);
 
 						totalVideos.set(0);
 
@@ -116,7 +123,13 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 							toast.warning(get(t)("toast.thumbnails.failed"));
 						}
 
-						const sorted = sortJsonByKey(newThumbnailsHashMap);
+						const listed = new Set(videosList);
+						const sorted = sortJsonByKey({
+							...Object.fromEntries(
+								Object.entries(reusable).filter(([, path]) => listed.has(path)),
+							),
+							...newThumbnailsHashMap,
+						});
 						await writeThumbnailMap(sorted);
 						await updateConfig({ thumbnailVersion: CURRENT_THUMBNAIL_VERSION });
 						thumbnailsHashMap = sorted;
@@ -152,35 +165,7 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 				}
 
 				try {
-					const blobUrlsHashMap: ThumbnailRecord = {};
-					for (const [fileName, videoPath] of Object.entries(thumbnailsHashMap) as [
-						string,
-						string,
-					][]) {
-						try {
-							const blobUrl = await fileToBlobUrl(fileName);
-							blobUrlsHashMap[blobUrl] = videoPath;
-						} catch (error) {
-							await log({
-								level: "error",
-								callStack: new Error(),
-								message: {
-									context: "Failed to convert thumbnail file to blob URL",
-									error,
-								},
-							});
-						}
-					}
-
-					// Revoke blob URLs that are no longer referenced by the new store.
-					for (const oldUrl of Object.keys(activeBlobUrls)) {
-						if (!blobUrlsHashMap[oldUrl]) {
-							URL.revokeObjectURL(oldUrl);
-						}
-					}
-					activeBlobUrls = blobUrlsHashMap;
-
-					thumbnails.set(blobUrlsHashMap);
+					await publishThumbnails(thumbnailsHashMap);
 				} catch (error) {
 					await log({
 						level: "error",
@@ -201,6 +186,31 @@ export async function handleThumbnails(forceRegenerate = false): Promise<void> {
 	} finally {
 		release();
 	}
+}
+
+/** Loads valid cached image files and publishes their blob URLs for the grid. */
+async function publishThumbnails(map: ThumbnailRecord): Promise<ThumbnailRecord> {
+	const valid: ThumbnailRecord = {};
+	const blobUrls: ThumbnailRecord = {};
+	for (const [fileName, videoPath] of Object.entries(map)) {
+		try {
+			const blobUrl = await fileToBlobUrl(fileName);
+			valid[fileName] = videoPath;
+			blobUrls[blobUrl] = videoPath;
+		} catch (error) {
+			await log({
+				level: "error",
+				callStack: new Error(),
+				message: { context: "Failed to convert thumbnail file to blob URL", error },
+			});
+		}
+	}
+	for (const oldUrl of Object.keys(activeBlobUrls)) {
+		if (!blobUrls[oldUrl]) URL.revokeObjectURL(oldUrl);
+	}
+	activeBlobUrls = blobUrls;
+	thumbnails.set(blobUrls);
+	return valid;
 }
 
 /** DOCS:

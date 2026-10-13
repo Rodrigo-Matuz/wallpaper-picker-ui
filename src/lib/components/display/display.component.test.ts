@@ -1,7 +1,8 @@
-import { cleanup, render, waitFor } from "@testing-library/svelte";
+import { cleanup, render, screen, waitFor } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { get } from "svelte/store";
 import { afterEach, expect, test, vi } from "vitest";
+import { thumbnails, thumbnailsGenerated, totalVideos } from "$api/thumbnails/handle";
 import { t } from "$lang/index";
 import { applicationWork } from "$utils/applicationWork/applicationWork";
 import Display from "./display.svelte";
@@ -27,7 +28,24 @@ vi.mock("svelte-sonner", () => ({ toast: { error: effects.errorToast, warning: v
 
 afterEach(() => {
 	cleanup();
+	thumbnails.set({});
+	thumbnailsGenerated.set(0);
+	totalVideos.set(0);
 	vi.clearAllMocks();
+});
+
+test("wallpaper cards show only the preview and a primary-blue play affordance", async () => {
+	thumbnails.set({ "data:image/png;base64,": "/wallpapers/forest.mp4" });
+	render(Display);
+	const preview = screen.getByRole("img", { name: "/wallpapers/forest.mp4" });
+	expect(preview).toBeTruthy();
+	expect(screen.queryByText("forest.mp4")).toBeNull();
+	expect(
+		preview
+			.closest('[role="button"]')
+			?.querySelector("svg")
+			?.classList.contains("text-primary"),
+	).toBe(true);
 });
 
 test("Display reports other pipeline rejection through the existing translated toast", async () => {

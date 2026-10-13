@@ -49,14 +49,14 @@ describe("Home footer", () => {
 		await waitFor(() => expect(screen.getByRole("contentinfo")).toBeTruthy());
 	});
 
-	it("shows while generation replaces the grid, then hides when the grid returns", async () => {
+	it("keeps cached thumbnails visible while new ones generate", async () => {
 		thumbnails.set({ "data:image/png;base64,": "/wallpapers/forest.mp4" });
 		totalVideos.set(2);
 		render(HomePage);
 		await screen.findByRole("progressbar");
-		expect(screen.getByRole("contentinfo")).toBeTruthy();
+		expect(screen.getByRole("img", { name: "/wallpapers/forest.mp4" })).toBeTruthy();
+		expect(screen.queryByRole("contentinfo")).toBeNull();
 		thumbnailsGenerated.set(2);
-		await screen.findByRole("img", { name: "/wallpapers/forest.mp4" });
-		await waitFor(() => expect(screen.queryByRole("contentinfo")).toBeNull());
+		await waitFor(() => expect(screen.queryByRole("progressbar")).toBeNull());
 	});
 });

@@ -2,6 +2,7 @@
 import ArrowLeft from "@lucide/svelte/icons/arrow-left";
 import ArrowUpRight from "@lucide/svelte/icons/arrow-up-right";
 import DevProfile from "$components/devProfile";
+import WindowControls from "$components/navbar/window-controls.svelte";
 import UpdaterPanel from "$components/updating/panel.svelte";
 import contributorsConfig from "$config/contributors.json";
 import { t } from "$lang/index";
@@ -14,15 +15,18 @@ const projectSourceUrl = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui";
 
 <div class="flex min-h-screen flex-col">
     <header class="sticky top-0 z-50 border-b border-foreground/10 bg-background">
-        <nav aria-label={$t('about.search.placeholder')} class="mx-auto flex min-h-14 max-w-5xl items-center justify-between gap-4 px-5 md:px-8">
+        <nav aria-label={$t('about.search.placeholder')} class="mx-auto flex min-h-14 max-w-5xl items-center justify-between gap-4 px-5 md:px-8" data-tauri-drag-region>
             <a href="/" class="inline-flex min-h-11 items-center gap-2 text-xs text-muted transition-colors hover:text-success">
                 <ArrowLeft class="size-4 shrink-0" />
                 {$t('settings.back.label')}
             </a>
-            <a href="/settings" class="inline-flex min-h-11 items-center gap-1.5 text-xs text-muted transition-colors hover:text-success">
-                {$t('settings.search.placeholder')}
-                <ArrowUpRight class="size-3.5 shrink-0" />
-            </a>
+            <div class="flex items-center gap-3">
+                <a href="/settings" class="inline-flex min-h-11 items-center gap-1.5 text-xs text-muted transition-colors hover:text-primary">
+                    {$t('settings.search.placeholder')}
+                    <ArrowUpRight class="size-3.5 shrink-0" />
+                </a>
+                <WindowControls />
+            </div>
         </nav>
     </header>
 

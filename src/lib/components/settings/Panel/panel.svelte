@@ -1,6 +1,8 @@
 <script lang="ts">
 import ArrowLeft from "@lucide/svelte/icons/arrow-left";
 import ArrowUpRight from "@lucide/svelte/icons/arrow-up-right";
+import { runThumbnailAction } from "$components/display/thumbnailAction";
+import WindowControls from "$components/navbar/window-controls.svelte";
 import SettingsButton from "$components/settings/Button";
 import SettingsInput from "$components/settings/Input";
 import SettingsSelector from "$components/settings/Selector";
@@ -8,6 +10,7 @@ import SettingsSwitch from "$components/settings/Switch";
 import { clearConfig } from "$lib/api/config/clear";
 import { fetchConfig } from "$lib/api/config/read/read";
 import { updateConfig } from "$lib/api/config/update/update";
+import { selectFolder } from "$lib/api/system/selectFolder/selectFolder";
 import { clearThumbnails } from "$lib/api/thumbnails/clear";
 import { t } from "$lib/lang/index";
 import { toggleDarkMode } from "$lib/utils/darkMode";
@@ -17,15 +20,18 @@ const sections = ["wallpaper", "preferences", "maintenance"] as const;
 </script>
 
 <header class="sticky top-0 z-50 border-b border-foreground/10 bg-background">
-    <nav class="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-4 px-5 md:px-8" aria-label={translate('settings.search.placeholder')}>
+    <nav class="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-4 px-5 md:px-8" aria-label={translate('settings.search.placeholder')} data-tauri-drag-region>
         <a href="/" class="inline-flex min-h-11 items-center gap-2 text-xs text-muted transition-colors hover:text-foreground">
             <ArrowLeft class="size-4 shrink-0" />
             {translate('settings.back.label')}
         </a>
-        <a href="/about" class="inline-flex min-h-11 items-center gap-1.5 text-xs text-muted transition-colors hover:text-foreground">
-            {translate('about.search.placeholder')}
-            <ArrowUpRight class="size-3.5 shrink-0" />
-        </a>
+        <div class="flex items-center gap-3">
+            <a href="/about" class="inline-flex min-h-11 items-center gap-1.5 text-xs text-muted transition-colors hover:text-primary">
+                {translate('about.search.placeholder')}
+                <ArrowUpRight class="size-3.5 shrink-0" />
+            </a>
+            <WindowControls />
+        </div>
     </nav>
 </header>
 
@@ -57,6 +63,15 @@ const sections = ["wallpaper", "preferences", "maintenance"] as const;
                     <p class="mt-1 text-xs leading-5 text-muted">{translate('settings.section.wallpaper.description')}</p>
                 </div>
                 <div class="divide-y divide-foreground/10 border-y border-foreground/15 bg-surface">
+                    <SettingsButton
+                        name={translate('settings.folder.name')}
+                        shortDescription={translate('settings.folder.short.description')}
+                        buttonName={translate('settings.folder.button.text')}
+                        buttonOnClick={async () => {
+                            if (await selectFolder()) await runThumbnailAction(true);
+                        }}
+                        hintDescription={translate('settings.folder.hint.description')}
+                    />
                     <SettingsInput
                         name={translate('settings.command.name')}
                         shortDescription={translate('settings.command.short.description')}

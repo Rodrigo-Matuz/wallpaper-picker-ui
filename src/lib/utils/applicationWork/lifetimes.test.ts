@@ -1,6 +1,6 @@
 import { beforeEach, expect, mock, test } from "bun:test";
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { defaultConfig } from "$api/config/defaults";
 import { applicationWork } from "./applicationWork";
 
@@ -191,6 +191,57 @@ test("joined thumbnail pipeline remains tracked through concurrent generation, m
 		for (const gate of [directory, generation, mapWrite, cleanup, blob]) gate.resolve();
 		await Promise.all([first, joined]);
 	}
+});
+
+test("new-wallpaper scans publish cached previews before generating only missing videos", async () => {
+	readTextFile.mockResolvedValueOnce(JSON.stringify({ "a.png": "/mock/a.mp4" }));
+	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, thumbnailVersion: 1 });
+	basename.mockImplementation(async (path) => path.split("/").pop() ?? path);
+	const started = deferred();
+	const generation = deferred();
+	invoke.mockImplementation(async (command) => {
+		if (command === "generate_thumb") {
+			started.resolve();
+			await generation.promise;
+			return "b.png";
+		}
+		return [];
+	});
+	const operation = handleThumbnails();
+	try {
+		await started.promise;
+		expect(Object.values(get(thumbnails))).toContain("/mock/a.mp4");
+		expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(
+			1,
+		);
+		generation.resolve();
+		await operation;
+		expect(Object.values(get(thumbnails)).sort()).toEqual(["/mock/a.mp4", "/mock/b.mp4"]);
+	} finally {
+		generation.resolve();
+		await operation;
+	}
+});
+
+test("returning home with new-wallpaper discovery enabled reuses every saved thumbnail", async () => {
+	const saved = { "a.png": "/mock/a.mp4", "b.png": "/mock/b.mp4" };
+	readTextFile.mockResolvedValue(JSON.stringify(saved));
+	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, thumbnailVersion: 1 });
+	for (const _visit of [1, 2]) {
+		await handleThumbnails();
+		expect(Object.values(get(thumbnails)).sort()).toEqual(["/mock/a.mp4", "/mock/b.mp4"]);
+	}
+	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(0);
+});
+
+test("a missing cached image is regenerated on the next scan", async () => {
+	readTextFile.mockResolvedValueOnce(JSON.stringify({ "a.png": "/mock/a.mp4" }));
+	readFile.mockRejectedValueOnce(new Error("preview missing"));
+	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, thumbnailVersion: 1 });
+	fetchVideos.mockResolvedValue(["/mock/a.mp4"]);
+	await handleThumbnails();
+	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(1);
+	expect(Object.values(get(thumbnails))).toContain("/mock/a.mp4");
 });
 
 test("joined pipeline rejection settles both callers and allows a subsequent pipeline", async () => {

@@ -1,12 +1,8 @@
 <script lang="ts">
-import { FolderSearch2, Settings } from "@lucide/svelte";
 import { onMount } from "svelte";
-import { goto } from "$app/navigation";
 import Display from "$components/display";
-import { runThumbnailAction } from "$components/display/thumbnailAction";
 import Navbar from "$components/navbar";
 import HomeNotice from "$components/updating/home-notice.svelte";
-import { selectFolder } from "$lib/api/system/selectFolder/selectFolder";
 import { t } from "$lib/lang/index";
 import { initializeApplicationSession } from "$utils/updating/session/runtime";
 
@@ -34,19 +30,8 @@ const handleInputChange = (event: Event) => {
     <div class="flex flex-col min-h-screen">
         <div class="flex-1">
             <Navbar
-                leftIcon={FolderSearch2}
-                leftOnClick={async () => {
-                    const folderPath = await selectFolder();
-                    if (folderPath) {
-                        await runThumbnailAction(true);
-                    }
-                }}
-                disableInput={false}
-                autoFocusInput={true}
                 inputPlaceholder={translate('home.search.placeholder')}
                 onInputChange={handleInputChange}
-                rightIcon={Settings}
-                rightOnClick={() => goto('/settings')}
             />
 
             <div class="px-4 pb-8">

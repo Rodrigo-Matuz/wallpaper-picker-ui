@@ -28,13 +28,11 @@ $: normalizedSearchQuery = normalizeForSearch(searchQuery);
 $: filteredThumbnails = Object.entries($thumbnails).filter(([, videoPath]) =>
 	normalizeForSearch(videoPath).includes(normalizedSearchQuery),
 );
-$: onVisibleCountChange(
-	$totalVideos > 0 && $thumbnailsGenerated < $totalVideos ? 0 : filteredThumbnails.length,
-);
+$: onVisibleCountChange(filteredThumbnails.length);
 </script>
 
 {#if $totalVideos > 0 && $thumbnailsGenerated < $totalVideos}
-    <div class="flex flex-col items-center mt-40 w-full">
+    <div class="flex flex-col items-center mt-10 w-full">
         <p class="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
             {$t('home.thumbs.generating.text')} {value} / {$totalVideos}
         </p>
@@ -47,7 +45,8 @@ $: onVisibleCountChange(
             {$t('home.thumbs.generating.hint')}
         </p>
     </div>
-{:else}
+{/if}
+{#if filteredThumbnails.length > 0 || $totalVideos === 0}
     <div class="flex flex-wrap justify-center gap-3 mt-6">
         {#each filteredThumbnails as [blobUrl, videoPath]}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -61,12 +60,9 @@ $: onVisibleCountChange(
                     <img src={blobUrl} alt={videoPath} class="aspect-video w-48 h-32 object-cover" />
                     <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <div class="absolute inset-0 flex justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <CirclePlay class="text-foreground text-3xl" size={40} />
+                        <CirclePlay class="text-primary text-3xl" size={40} />
                     </div>
                 </div>
-                <p class="mt-1 text-center text-subtle text-xs font-mono tracking-wide truncate max-w-[192px]">
-                    {videoPath.split(/[\\/]/).pop()}
-                </p>
             </div>
         {/each}
     </div>
