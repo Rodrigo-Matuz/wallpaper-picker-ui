@@ -1,27 +1,21 @@
-# Wallpaper Picker UI v3.6.4
+# Wallpaper Picker UI v3.6.5
 
-## In-app updates
+## Wallpaper library and previews
 
-- Check for a newer release once at startup without blocking Home.
-- Notify without automatically downloading or installing anything.
-- On eligible Windows NSIS installations, About offers **Update to {version}**. The explicit click authorizes the signed download, verification and installer handoff.
-- Pending app work or unsaved Settings changes block installation until you finish them and retry. Nothing is saved or discarded automatically.
+- **New Wallpapers** now checks the selected folder for additions instead of regenerating saved thumbnails on every visit to Home. Cached previews appear while the scan runs; only new videos or missing thumbnail files need generation.
+- Existing thumbnails remain visible during generation. A failed explicit rebuild retains the previous preview for videos that still have one.
+- **Select Folder** has moved from Home to Settings. Selecting a folder scans it immediately, including when automatic discovery is off, without rebuilding previews that are already saved.
 
-## Windows installer: NSIS/setup.exe only
+## Home and window controls
 
-The Windows download is **`Wallpaper.Picker.UI_3.6.4_x64-setup.exe`**. This is the NSIS installer; there is no separate NSIS package and no MSI installer in this release.
+- Home cards show thumbnails without video filenames. The hover play icon now matches the blue thumbnail border.
+- A refreshed Home header keeps wallpaper search and Settings prominent. Native minimize, maximize/restore, and close controls are available on Home, Settings, and About in the undecorated window.
+- Folder and window-control labels are translated in all five supported languages.
 
-In-app installation eligibility is limited to **Windows x64, current-user NSIS, default location**. Custom locations, conflicting registrations and installations that cannot be safely identified remain manual.
+## Updating and installation
 
-**Existing MSI users:** back up your settings and app data and migrate manually to the NSIS installer. The updater does not silently convert MSI installations to NSIS. Earlier releases without the enabled updater also need a manual installation first.
+Eligible **Windows x64, default-location, current-user NSIS** installations can check for this signed update in the app and install it with an explicit version-labelled Update click. The app does not automatically download, install, or restart. Pending work or unsaved Settings changes pause installation until you resolve them and retry.
 
-## Notification fixes
+Windows MSI installations require a manual migration to the NSIS `.exe` installer; the updater does not change installer types. Older app versions without in-app update controls also require a manual installation first. Linux AppImage updates remain manual; Debian/RPM and Nix/NixOS/Home Manager installations use their package or flake update path.
 
-- Opaque notification background using the app's design tokens.
-- Dismiss X inside the notification, with space for wrapping text and translated actions.
-
-## Other installations and verification
-
-Linux AppImage updates remain manual; Debian/RPM and Nix installations remain package-managed. Their normal download/package routes are unchanged.
-
-Back up configuration and thumbnail/app-data folders before updating. Source tests, package builds and signature checks do not establish a completed native upgrade: actual installer restart and data-preservation acceptance remain unverified. This release retains the existing application identity, signing key and public HTTPS update feed.
+Back up your configuration and thumbnail/app-data folders before updating. Build and signature checks do not verify an actual installer restart or data-preserving upgrade in every environment.
