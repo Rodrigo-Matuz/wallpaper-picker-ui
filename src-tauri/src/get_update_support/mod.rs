@@ -1,6 +1,6 @@
 //! Read-only check provenance and installation policy for the in-app updater.
 //! Only approved current-user default-location Windows NSIS snapshots may install.
-//! Native handoff/reopen remains subject to manual official test-release acceptance.
+//! Native upgrade/reopen/data-preservation acceptance of the official flow is pending.
 
 use serde::Serialize;
 use std::fs;

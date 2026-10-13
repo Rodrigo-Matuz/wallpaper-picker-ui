@@ -37,6 +37,10 @@ Wallpaper Picker UI lets you quickly preview wallpapers, automatically generate 
 
 The easiest option is to download a pre-built binary for your system from the [Releases](https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases) page.
 
+Windows uses the **NSIS `*-setup.exe` installer only**; MSI is no longer published. In-app updates require an eligible Windows x64, default-location, current-user NSIS installation and an explicit version-labelled **Update** click in About. Existing MSI installations must migrate manually after backing up their data; the updater does not convert installer types. Linux AppImage updates are manual, while Debian/RPM and Nix installations remain package-managed.
+
+For the implementation, safety rules, release procedure and native acceptance checklist, see the [in-app updater guide](docs/in-app-updater.md). Installer restart and data-preservation acceptance remain unverified; successful builds and signatures are not a completed native upgrade test.
+
 ### NixOS / Home Manager
 
 The x86_64-linux flake installs the pinned GitHub release `.deb` binary, patched to use Nixpkgs' WebKitGTK and GTK libraries (with a desktop launcher and FFmpeg). The AppImage's bundled WebKitGTK can open a black window with an EGL error on newer Mesa/Wayland systems. The flake provides NixOS and Home Manager modules.
@@ -133,7 +137,7 @@ bun install
 bun run tauri build --no-bundle
 ```
 
-This builds the application binary without generating installer bundles. Installer bundles require a code-signing key.
+This builds the application binary without generating installer bundles. When `createUpdaterArtifacts` is enabled, bundle builds require the updater's Minisign signing key; that is separate from optional OS installer signing.
 
 The release workflow (`.github/workflows/release.yml`) runs `tauri build` with the signing key configured as a GitHub Actions secret.
 
@@ -396,14 +400,11 @@ Releases are produced automatically by the GitHub Actions release workflow when 
 The workflow:
 
 * Builds the application on Linux (Ubuntu) and Windows
-* Produces signed installers:
-
-  * `.deb`
-  * `.rpm`
-  * `.AppImage`
-  * NSIS `.exe`
-* Signs updater artifacts (`latest.json`) with the application's minisign key
-* Opens a **draft release** for review and publishing
+* Builds Linux `.deb`, `.rpm`, `.AppImage` packages and the Windows NSIS `*-setup.exe` installer; no MSI
+* Signs payloads with the application's Minisign key and uploads their `.sig` sidecars
+* Generates `latest.json` metadata containing exact payload URLs and signatures; the JSON file itself is not signed
+* Opens a **draft release**, then verifies its merged metadata after both platform builds
+* Requires manual review of the actual signed payload, release notes and assets before publication
 
 To trigger a release:
 

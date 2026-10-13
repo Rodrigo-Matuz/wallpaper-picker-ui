@@ -47,6 +47,7 @@ lerna-debug.log*
 # =====================
 *.local
 docs/*
+!docs/in-app-updater.md
 
 # Tauri updater signing keys (NEVER commit the private key)
 .tauri-keys/
