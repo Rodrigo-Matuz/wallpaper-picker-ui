@@ -20,4 +20,13 @@ describe("Home header", () => {
 		expect(onInputChange).toHaveBeenCalledTimes(1);
 		expect((onInputChange.mock.calls[0][0] as Event).target).toBe(search);
 	});
+
+	it("uses the search field border as its focus indicator instead of an offset input outline", () => {
+		render(Navbar, { inputPlaceholder: "Search Wallpapers..." });
+		const input = screen.getByRole("searchbox", { name: "Search Wallpapers..." });
+		expect(input.hasAttribute("data-home-search")).toBe(true);
+		expect(input.closest("label")?.classList.contains("focus-within:border-primary")).toBe(
+			true,
+		);
+	});
 });

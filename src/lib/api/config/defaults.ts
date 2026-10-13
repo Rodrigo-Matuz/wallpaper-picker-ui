@@ -7,6 +7,7 @@ export const defaultConfig: ConfigInterArgs = {
 	debugMode: false,
 	newWallpapers: true,
 	darkMode: true,
+	showWindowControls: true,
 	language: "eng",
 	thumbnailsHashMap: {},
 	thumbnailVersion: 1,

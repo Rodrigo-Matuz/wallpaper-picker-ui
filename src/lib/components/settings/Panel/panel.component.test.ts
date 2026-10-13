@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
+import { get } from "svelte/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { windowControlsVisible } from "$components/navbar/windowControlsVisibility";
 import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { commandDraft } from "../Input/commandDraft";
 import SettingsPage from "./panel.svelte";
@@ -90,7 +92,7 @@ describe("Settings page", () => {
 		view.unmount();
 		expect(applicationWork.hasDirtyInputs()).toBe(true);
 	});
-	it("groups all seven settings under labelled sections with a working section index", async () => {
+	it("groups all eight settings under labelled sections with a working section index", async () => {
 		render(SettingsPage);
 		expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeTruthy();
 		const index = screen.getByRole("navigation", { name: "Settings sections" });
@@ -101,10 +103,26 @@ describe("Settings page", () => {
 			const section = screen.getByRole("region", { name });
 			expect(section.id).toBe(id);
 		}
-		expect(document.querySelectorAll('[data-slot="settings-row"]').length).toBe(7);
+		expect(document.querySelectorAll('[data-slot="settings-row"]').length).toBe(8);
 		expect(document.querySelectorAll('[data-slot="card"]').length).toBe(0);
 		const command = screen.getByRole("textbox", { name: "Command" }) as HTMLInputElement;
 		await waitFor(() => expect(command.value).toBe("mpvpaper $VP"));
+	});
+
+	it("lets users hide and restore window controls without restarting", async () => {
+		render(SettingsPage);
+		const control = await screen.findByRole("switch", { name: "Show window controls" });
+		await waitFor(() => expect(control.getAttribute("aria-checked")).toBe("true"));
+		await fireEvent.click(control);
+		await waitFor(() =>
+			expect(updateConfig).toHaveBeenCalledWith({ showWindowControls: false }),
+		);
+		expect(get(windowControlsVisible)).toBe(false);
+		await fireEvent.click(control);
+		await waitFor(() =>
+			expect(updateConfig).toHaveBeenCalledWith({ showWindowControls: true }),
+		);
+		expect(get(windowControlsVisible)).toBe(true);
 	});
 
 	it("selecting a folder starts a refresh only after a real selection", async () => {

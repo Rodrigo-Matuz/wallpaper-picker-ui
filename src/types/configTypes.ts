@@ -8,6 +8,8 @@ export interface ConfigInterArgs {
 	debugMode: boolean;
 	newWallpapers: boolean;
 	darkMode: boolean;
+	/** Missing in older configs means the controls remain visible. */
+	showWindowControls?: boolean;
 	language: LangCode;
 	/** Legacy: kept for the one-time migration to thumbnails/map.json; cleared after migration. */
 	thumbnailsHashMap?: ThumbnailRecord;

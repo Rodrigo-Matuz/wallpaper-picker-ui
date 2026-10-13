@@ -234,6 +234,35 @@ test("returning home with new-wallpaper discovery enabled reuses every saved thu
 	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(0);
 });
 
+test("discovery off displays saved previews without deleting them when video validation returns no paths", async () => {
+	const saved = { "a.png": "/mock/a.mp4", "b.png": "/mock/b.mp4" };
+	readTextFile.mockResolvedValue(JSON.stringify(saved));
+	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: false, thumbnailVersion: 1 });
+	invoke.mockImplementation(async (command) =>
+		command === "validate_video_paths" ? [] : undefined,
+	);
+	thumbnails.set({});
+	await handleThumbnails();
+	expect(Object.values(get(thumbnails)).sort()).toEqual(["/mock/a.mp4", "/mock/b.mp4"]);
+	expect(
+		invoke.mock.calls.filter(([command]) => command === "validate_video_paths"),
+	).toHaveLength(0);
+	expect(writeFile).not.toHaveBeenCalled();
+	expect(invoke).toHaveBeenCalledWith("cleanup_thumbnails", {
+		thumbPath: "/mock/data/thumbnails",
+		keepFiles: ["a.png", "b.png"],
+	});
+});
+
+test("discovery off never cleans cached files when the map is unavailable", async () => {
+	readTextFile.mockResolvedValue("{}");
+	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: false, thumbnailVersion: 1 });
+	await handleThumbnails();
+	expect(invoke.mock.calls.filter(([command]) => command === "cleanup_thumbnails")).toHaveLength(
+		0,
+	);
+});
+
 test("a missing cached image is regenerated on the next scan", async () => {
 	readTextFile.mockResolvedValueOnce(JSON.stringify({ "a.png": "/mock/a.mp4" }));
 	readFile.mockRejectedValueOnce(new Error("preview missing"));

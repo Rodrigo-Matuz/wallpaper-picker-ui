@@ -3,6 +3,7 @@ import ArrowLeft from "@lucide/svelte/icons/arrow-left";
 import ArrowUpRight from "@lucide/svelte/icons/arrow-up-right";
 import { runThumbnailAction } from "$components/display/thumbnailAction";
 import WindowControls from "$components/navbar/window-controls.svelte";
+import { windowControlsVisible } from "$components/navbar/windowControlsVisibility";
 import SettingsButton from "$components/settings/Button";
 import SettingsInput from "$components/settings/Input";
 import SettingsSelector from "$components/settings/Selector";
@@ -100,6 +101,17 @@ const sections = ["wallpaper", "preferences", "maintenance"] as const;
                         fetchValue={async () => (await fetchConfig()).darkMode}
                         onToggle={async () => await toggleDarkMode()}
                         hintDescription={translate('settings.darkMode.hint.description')}
+                    />
+                    <SettingsSwitch
+                        name={translate('settings.windowControls.name')}
+                        shortDescription={translate('settings.windowControls.short.description')}
+                        fetchValue={async () => (await fetchConfig()).showWindowControls !== false}
+                        onToggle={async (checked) => {
+                            const saved = await updateConfig({ showWindowControls: checked });
+                            if (saved) windowControlsVisible.set(checked);
+                            return saved;
+                        }}
+                        hintDescription={translate('settings.windowControls.hint.description')}
                     />
                     <SettingsSelector
                         name={translate('settings.language.name')}

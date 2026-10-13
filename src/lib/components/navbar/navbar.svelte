@@ -29,7 +29,7 @@ const translate = $derived($t);
             <label class="flex min-w-0 flex-1 items-center gap-3 border border-foreground/15 bg-surface px-3 transition-colors focus-within:border-primary hover:border-foreground/30">
                 <Search class="size-4 shrink-0 text-primary" />
                 <!-- svelte-ignore a11y_autofocus -->
-                <input type="search" aria-label={inputPlaceholder || translate('home.search.placeholder')} class="h-11 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted" placeholder={inputPlaceholder || translate('home.search.placeholder')} autofocus oninput={onInputChange} />
+                <input type="search" data-home-search aria-label={inputPlaceholder || translate('home.search.placeholder')} class="h-11 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted" placeholder={inputPlaceholder || translate('home.search.placeholder')} autofocus oninput={onInputChange} />
             </label>
         </div>
     </nav>

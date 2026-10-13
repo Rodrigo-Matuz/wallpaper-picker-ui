@@ -59,7 +59,7 @@ let activeBlobUrls: ThumbnailRecord = {};
  * - Generates missing thumbnails concurrently ({@link GENERATION_CONCURRENCY} at a time)
  *   and updates progress-related Svelte stores during generation.
  * - Persists the sorted thumbnail map to its own file.
- * - Prunes mapping entries whose video file no longer exists (deleted/renamed videos).
+ * - Removes entries for missing/renamed videos only after a successful folder scan.
  * - Cleans up orphaned thumbnail files not referenced by the mapping.
  * - Converts thumbnail files into blob URLs for UI consumption (revoking stale ones).
  * - Updates the thumbnails store used by the UI.
@@ -147,25 +147,26 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 							},
 						});
 					}
-				} else {
-					thumbnailsHashMap = await pruneMissingVideos(thumbnailsHashMap);
 				}
 
-				// Remove orphaned thumbnail files (deleted videos, old naming scheme).
-				try {
-					await invoke("cleanup_thumbnails", {
-						thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
-						keepFiles: Object.keys(thumbnailsHashMap),
-					});
-				} catch (error) {
-					await log({
-						level: "warn",
-						callStack: new Error(),
-						message: {
-							context: "Failed to clean up orphaned thumbnail files",
-							error,
-						},
-					});
+				// Never purge thumbnail files when no readable map entries were loaded.
+				// An inaccessible/corrupt map must not turn a Home visit into data loss.
+				if (Object.keys(thumbnailsHashMap).length > 0) {
+					try {
+						await invoke("cleanup_thumbnails", {
+							thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
+							keepFiles: Object.keys(thumbnailsHashMap),
+						});
+					} catch (error) {
+						await log({
+							level: "warn",
+							callStack: new Error(),
+							message: {
+								context: "Failed to clean up orphaned thumbnail files",
+								error,
+							},
+						});
+					}
 				}
 
 				try {
@@ -215,55 +216,6 @@ async function publishThumbnails(map: ThumbnailRecord): Promise<ThumbnailRecord>
 	activeBlobUrls = blobUrls;
 	thumbnails.set(blobUrls);
 	return valid;
-}
-
-/** DOCS:
- * Removes mapping entries whose video file no longer exists on disk.
- *
- * Existence is checked in Rust (`validate_video_paths`) because wallpaper
- * paths live outside the app's fs capabilities. Pruned mappings are
- * persisted back to the map file.
- *
- * @param map - Current thumbnail filename → video path mapping.
- *
- * @returns The pruned mapping (sorted, persisted) or the original mapping
- *          if validation failed or nothing changed.
- *
- * @example
- * ```ts
- * thumbnailsHashMap = await pruneMissingVideos(thumbnailsHashMap);
- * ```
- */
-async function pruneMissingVideos(map: ThumbnailRecord): Promise<ThumbnailRecord> {
-	const entries = Object.entries(map) as [string, string][];
-
-	if (entries.length === 0) return map;
-
-	try {
-		const existing = new Set(
-			await invoke<string[]>("validate_video_paths", {
-				paths: entries.map(([, videoPath]) => videoPath),
-			}),
-		);
-
-		if (existing.size === entries.length) return map;
-
-		const sorted = sortJsonByKey(
-			Object.fromEntries(entries.filter(([, videoPath]) => existing.has(videoPath))),
-		);
-		await writeThumbnailMap(sorted);
-		return sorted;
-	} catch (error) {
-		await log({
-			level: "error",
-			callStack: new Error(),
-			message: {
-				context: "Failed to validate video paths for thumbnails",
-				error,
-			},
-		});
-		return map;
-	}
 }
 
 /** DOCS:

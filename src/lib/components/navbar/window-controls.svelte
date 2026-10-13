@@ -6,19 +6,25 @@ import X from "@lucide/svelte/icons/x";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { onMount } from "svelte";
+import { fetchConfig } from "$api/config/read/read";
 import { t } from "$lang/index";
+import { windowControlsVisible } from "./windowControlsVisibility";
 
 const translate = $derived($t);
 const native = isTauri();
 let maximized = $state(false);
 
 onMount(() => {
-	if (native)
+	if (native) {
+		void fetchConfig().then((config) =>
+			windowControlsVisible.set(config.showWindowControls !== false),
+		);
 		void getCurrentWindow()
 			.isMaximized()
 			.then((value) => {
 				maximized = value;
 			});
+	}
 });
 
 async function toggleMaximize() {
@@ -27,7 +33,7 @@ async function toggleMaximize() {
 }
 </script>
 
-{#if native}
+{#if native && $windowControlsVisible}
     <div class="flex shrink-0 items-center gap-0.5 border-l border-foreground/10 pl-2" role="group" aria-label="Window controls">
         <button type="button" aria-label={translate('home.window.minimize')} title={translate('home.window.minimize')} class="flex size-9 items-center justify-center text-muted transition-colors hover:bg-surface-raised hover:text-foreground" onclick={() => getCurrentWindow().minimize()}><Minus class="size-4" /></button>
         <button type="button" aria-label={translate(maximized ? 'home.window.restore' : 'home.window.maximize')} title={translate(maximized ? 'home.window.restore' : 'home.window.maximize')} class="flex size-9 items-center justify-center text-muted transition-colors hover:bg-surface-raised hover:text-primary" onclick={toggleMaximize}>

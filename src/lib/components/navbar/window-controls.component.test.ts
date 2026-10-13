@@ -8,8 +8,10 @@ const native = vi.hoisted(() => ({
 	close: vi.fn(async () => {}),
 	isMaximized: vi.fn(async () => false),
 }));
+const fetchConfig = vi.hoisted(() => vi.fn(async () => ({ showWindowControls: true })));
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => native }));
+vi.mock("$api/config/read/read", () => ({ fetchConfig }));
 
 afterEach(() => {
 	cleanup();
@@ -27,4 +29,11 @@ test("titlebar controls invoke minimize, maximize and close on the current nativ
 	await waitFor(() =>
 		expect(screen.getByRole("button", { name: "Restore window" })).toBeTruthy(),
 	);
+});
+
+test("hides native window buttons when the stored preference disables them", async () => {
+	fetchConfig.mockResolvedValueOnce({ showWindowControls: false });
+	render(WindowControls);
+	await waitFor(() => expect(fetchConfig).toHaveBeenCalled());
+	expect(screen.queryByRole("group", { name: "Window controls" })).toBeNull();
 });
