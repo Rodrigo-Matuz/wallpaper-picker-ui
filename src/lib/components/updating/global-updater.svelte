@@ -17,7 +17,7 @@ let {
 const snapshotStore = $derived(controller.state);
 const translate = $derived($t);
 const activeStatus = $derived(
-	$snapshotStore.busy !== null ||
+	($snapshotStore.busy !== null && $snapshotStore.busy !== "check") ||
 		[
 			"downloading",
 			"installing",

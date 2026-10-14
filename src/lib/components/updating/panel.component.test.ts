@@ -107,6 +107,155 @@ describe("legacy MSI migration presentation (synthetic state, no native effects)
 
 describe("About updater (synthetic resources, not native acceptance)", () => {
 	it.each([
+		"version",
+		"body",
+		"disappear",
+	])("resets expanded notes after candidate %s changes", async (change) => {
+		const candidate = {
+			currentVersion: "3.6.1",
+			version: "3.7.0",
+			body: "First\nSecond\nThird\nFourth\nFifth\nTAIL",
+		};
+		const controller = fixture({ status: "available", availableUpdate: candidate });
+		render(Panel, { controller });
+		await fireEvent.click(screen.getByRole("button", { name: "Read more" }));
+		expect(screen.getByText("TAIL")).toBeTruthy();
+		if (change === "disappear") {
+			controller.state.update((value) => ({ ...value, availableUpdate: null }));
+			await waitFor(() =>
+				expect(screen.queryByRole("button", { name: "Read less" })).toBeNull(),
+			);
+		}
+		controller.state.update((value) => ({
+			...value,
+			availableUpdate: {
+				...candidate,
+				version: change === "version" ? "3.8.0" : candidate.version,
+				body: change === "body" ? `${candidate.body} changed` : candidate.body,
+			},
+		}));
+		await waitFor(() =>
+			expect(
+				screen.getByRole("button", { name: "Read more" }).getAttribute("aria-expanded"),
+			).toBe("false"),
+		);
+		expect(screen.queryByText(/TAIL/)).toBeNull();
+	});
+
+	it.each([
+		["eng", "Read more", "Read less"],
+		["pt-br", "Ler mais", "Ler menos"],
+		["es", "Leer más", "Leer menos"],
+		["fr", "Lire la suite", "Réduire"],
+		["de", "Mehr lesen", "Weniger lesen"],
+		["unknown", "Read more", "Read less"],
+	])("resolves real %s notes controls and fallback", async (language, more, less) => {
+		currentLanguage.set(language);
+		render(Panel, {
+			controller: fixture({
+				availableUpdate: {
+					currentVersion: "3.6.1",
+					version: "3.7.0",
+					body: "Release notes. ".repeat(100),
+				},
+			}),
+		});
+		await fireEvent.click(screen.getByRole("button", { name: more }));
+		expect(screen.getByRole("button", { name: less })).toBeTruthy();
+		expect(document.body.textContent).not.toContain("updater.");
+	});
+
+	it.each([
+		"Short **notes**",
+		"One\nTwo\nThree\nFour\nFive",
+		"x".repeat(360),
+	])("does not offer a toggle for short notes: %s", (body) => {
+		render(Panel, {
+			controller: fixture({
+				availableUpdate: { currentVersion: "3.6.1", version: "3.7.0", body },
+			}),
+		});
+		expect(screen.queryByRole("button")).toBeNull();
+	});
+	it.each([
+		["lines", "## Changes\n**First**\nSecond\nThird\nFourth\nSECRET TAIL"],
+		["paragraph", `${"A long release paragraph. ".repeat(80)}SECRET TAIL`],
+	])("collapses long %s notes accessibly without updater effects", async (_kind, body) => {
+		const controller = fixture({
+			status: "available",
+			canUpdate: true,
+			availableUpdate: {
+				currentVersion: "3.6.1",
+				version: "3.7.0",
+				body,
+			},
+		});
+		const before = get(controller.state);
+		render(Panel, { controller });
+		const more = screen.getByRole("button", { name: "Read more" });
+		expect(more.getAttribute("aria-expanded")).toBe("false");
+		const notes = document.getElementById(more.getAttribute("aria-controls") ?? "");
+		expect(notes).not.toBeNull();
+		expect(notes?.textContent).toContain("...");
+		expect(notes?.textContent).not.toContain("SECRET TAIL");
+		await fireEvent.click(more);
+		const less = screen.getByRole("button", { name: "Read less" });
+		expect(less.getAttribute("aria-expanded")).toBe("true");
+		expect(notes?.textContent).toContain("SECRET TAIL");
+		await fireEvent.click(less);
+		expect(notes?.textContent).not.toContain("SECRET TAIL");
+		await fireEvent.click(screen.getByRole("link", { name: "Releases on GitHub" }));
+		expect(get(controller.state)).toBe(before);
+		expect(controller.updateAndRestart).not.toHaveBeenCalled();
+		expect(controller.checkForUpdates).not.toHaveBeenCalled();
+		expect(controller.retry).not.toHaveBeenCalled();
+		await fireEvent.click(screen.getByRole("button", { name: "Update to 3.7.0" }));
+		expect(controller.updateAndRestart).toHaveBeenCalledExactlyOnceWith({
+			confirmed: true,
+			version: "3.7.0",
+		});
+	});
+	it("renders release headings and bold as escaped markup, never feed HTML or links", async () => {
+		const body = [
+			"# One",
+			"## Two **important**",
+			"### Three",
+			"#### Four",
+			"##### Five",
+			"###### Six",
+			"Plain **bold** and **unfinished",
+			"<img src=x onerror=alert(1)> <script>alert(1)</script>",
+			"[click](javascript:alert(1)) ![remote](https://example.com/pixel) <a href='javascript:alert(1)'>bad</a>",
+		].join("\n");
+		render(Panel, {
+			controller: fixture({
+				status: "available",
+				availableUpdate: {
+					currentVersion: "3.6.1",
+					version: "3.7.0",
+					body,
+				},
+			}),
+		});
+		await fireEvent.click(screen.getByRole("button", { name: "Read more" }));
+		for (const [index, name] of [
+			"One",
+			"Two important",
+			"Three",
+			"Four",
+			"Five",
+			"Six",
+		].entries()) {
+			expect(screen.getByRole("heading", { name, level: index + 1 })).toBeTruthy();
+		}
+		expect(screen.getByText("important").tagName).toBe("STRONG");
+		expect(screen.getByText("bold", { exact: true }).tagName).toBe("STRONG");
+		expect(document.body.textContent).toContain("**unfinished");
+		expect(document.querySelector("img, script, iframe")).toBeNull();
+		expect(screen.getAllByRole("link")).toHaveLength(1);
+		expect(document.body.textContent).toContain("[click](javascript:alert(1))");
+	});
+	it.each([
 		["eng", "Updates", "Releases on GitHub"],
 		["pt-br", "Atualizações", "Versões no GitHub"],
 		["es", "Actualizaciones", "Versiones en GitHub"],
@@ -173,6 +322,13 @@ describe("About updater (synthetic resources, not native acceptance)", () => {
 			},
 		});
 		render(Panel, { controller });
+		const checkButton = screen.getByRole("button", { name: "Check again" });
+		const releases = screen.getByRole("link", { name: "Releases on GitHub" });
+		expect(checkButton.parentElement).toBe(releases.parentElement);
+		expect(releases.parentElement?.classList.contains("flex")).toBe(true);
+		expect(releases.parentElement?.classList.contains("flex-wrap")).toBe(true);
+		expect(releases.parentElement?.classList.contains("gap-x-4")).toBe(true);
+		expect(releases.parentElement?.classList.contains("gap-y-3")).toBe(true);
 		expect(screen.getByText("Last completed check")).toBeTruthy();
 		expect(document.querySelector("time")?.getAttribute("datetime")).toBe(
 			new Date(1700000000000).toISOString(),
@@ -327,6 +483,11 @@ describe("About updater (synthetic resources, not native acceptance)", () => {
 		);
 		const button = screen.getByRole("button", { name: "Update to 3.7.0" });
 		expect(button.getAttribute("aria-describedby")).toBe(explanation.id);
+		const releases = screen.getByRole("link", { name: "Releases on GitHub" });
+		expect(button.parentElement).toBe(releases.parentElement);
+		expect(button.parentElement?.classList.contains("flex-wrap")).toBe(true);
+		expect(button.parentElement?.classList.contains("gap-x-4")).toBe(true);
+		expect(button.parentElement?.classList.contains("gap-y-3")).toBe(true);
 		expect(screen.queryByRole("button", { name: /^Install/ })).toBeNull();
 		await fireEvent.click(button);
 		await waitFor(() =>

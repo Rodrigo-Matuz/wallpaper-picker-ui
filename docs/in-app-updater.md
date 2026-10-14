@@ -2,18 +2,32 @@
 
 Wallpaper Picker UI's **Tauri 2** updater design, with a reusable implementation and maintenance guide. Reuse its consent, ownership and admission rules, but derive another app's installer identity, data paths and eligibility independently. Do not copy this app's signing key or registry constants. Native upgrade acceptance is still pending; “final” describes the implemented design, not a completed end-to-end installer trial.
 
-## Current status
+## Current status and commit-based handoff
+
+The user-owned baseline is **3.6.8**: release commit `43059a0`, followed by release-bot flake commit `01429a0` (`01429a01629d42ef09bd588c9d207f8b58550339`). The public GitHub latest-release API returned non-prerelease [v3.6.8](https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/tag/v3.6.8), release ID `412900535`. This is release metadata evidence, not renewed payload cryptography or native upgrade acceptance.
+
+Changes since the earlier guide/cleanup commit `756af3b`, read from Git history:
+
+| Commits | Maintained changes to preserve |
+| --- | --- |
+| `5632bcc`, `9629411` | Reuse cached wallpaper previews, refine window controls and folder scans rather than rebuild existing previews. |
+| `a723ba6` | Preserve cached wallpapers and streamline window chrome; add the related settings/window-control preference. |
+| `7bb09af` | Preserve/recover the thumbnail index, add native `recover_thumbnails`, and retain work ownership through recovery. |
+| `87db1c4` | Permit reading cached thumbnail-map bytes within the existing AppData scope; prepare 3.6.7. |
+| `03f3d1b`, `43059a0` | Consolidate Home's header and larger grid, then restore four columns at the default window width and a one-line brand. |
+| `1a763c1`, `43059a0` | Add Nix development-shell dependencies and the GStreamer `appsink`/plugin path correction. This does not authorize Nix self-updating. |
+| Release/flake commits | Versions 3.6.5 through 3.6.8 and their pinned binary hashes; preserve the bot-owned flake update workflow. |
+
+**This local UI slice prepares 3.6.9** with silent startup checks, explicit updater-action spacing and safely rendered collapsible release notes. The version script synchronizes package/Tauri/Cargo versions; Cargo regenerates only the root-package lock version. The local handoff consists of the complete changes, passing local gates and independent review, recorded together in the local Git commit. No hosted CI or release is implied by that commit. The user explicitly owns pushing, CI/release triggering and publication: **do not push or create a release tag on their behalf**.
 
 | Area | Result / boundary |
 | --- | --- |
-| Released baseline | **3.6.4**, tag `v3.6.4` points to commit `3617b40e1c80c2548d46bf3fcc5f9bc0a66bc48e`; subsequent release-bot main commit changes only the flake. |
-| Public release | [v3.6.4](https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/tag/v3.6.4), ID `411146018`, non-prerelease. Nine assets: latest.json; NSIS/AppImage/deb/rpm and four signatures. No MSI. |
-| Policy | In-app installation only for proven default-location/current-user Windows x64 NSIS. Linux in-app installation disabled. |
-| Release gates | 306 Bun tests/37 files; 193 components/26 files; 53 Windows Rust tests; five locales/116 keys; strict release-script TS, build/lint/Rust fmt/check/test; Svelte 0 errors/0 warnings. CI `38331712510`: four jobs; release `38331958570`: two builds/final verifier passed. |
-| Artifact evidence | Published NSIS verified with production key/minisign-verify 0.2.4: corruption rejected, authenticated version 3.6.4, extracted x64 PE version 3.6.4, NSS/no UNK marker. |
-| **Not verified** | **Actual native upgrade, installer completion/reopen and data preservation through the real About button.** Mocks/signatures/handoff are not that acceptance. |
+| Installation policy | Only proven default-location/current-user Windows x64 NSIS permits in-app installation. Linux in-app installation remains disabled. |
+| Historical release evidence | 3.6.4 normal CI `38331712510` and release `38331958570` passed; its NSIS signature/authenticated version/corruption rejection/x64 PE/NSS marker were verified. These results are historical, not proof for 3.6.8 or the new local slice. |
+| Current local gate evidence | **331 logic tests/39 files, 227 component tests/27 files, 56 Windows Rust tests, five locales/132 keys**; lint, Svelte 0 errors/0 warnings, frontend build, strict release-script TS and locked/offline Rust fmt/check/test passed. Hosted CI is deliberately not triggered by this local-only handoff. |
+| **Not verified** | **Actual native upgrade, installer completion/reopen and data preservation through the real About button.** Source, mocks, signatures and handoff are not that acceptance. |
 
-Temporary 3.6.2/3.6.3 release pages/assets retired; tags remain history. Do not restore MSI direct-asset constructors/test badges. This guide authorizes no publication, re-keying, installer launch, normal-host inspection or migration.
+Temporary 3.6.2/3.6.3 release pages/assets were retired; tags remain history. Do not restore MSI direct-asset constructors or test badges. This guide authorizes no publication, re-keying, installer launch, normal-host inspection or migration.
 
 ## 1. Architecture and UX
 
@@ -32,7 +46,7 @@ Linux: maintained latch/cleanup/relaunch code, not authorized
 
 Construction/SSR inert, native imports lazy. One startup-check attempt per native non-development process after language readiness, without waiting for network completion. Policy can deny the feed request; this is not a guarantee of one HTTP request in every installation. No automatic retry/download/install/restart. Home notices each version once, including off-Home detection; dismiss/remount never disposes resources.
 
-About retains versions, text-only notes, progress, consent/failure/manual guidance. One labelled Update spans split SDK download/install under one lock; no ordinary second Install button. Tauri supports static JSON/separate APIs.[1][2] A work/draft denial after download retains the verified payload; finishing or saving never auto-resumes installation—another same-version Update click is required.
+About retains versions, safely rendered basic Markdown notes, progress, consent/failure/manual guidance. Long notes start with a short preview and an accessible Read more/Read less disclosure; changing the candidate resets the disclosure. Raw HTML and arbitrary links/images remain inert rather than becoming executable markup. Startup support/feed verification is silent globally; actual download, install, restart and exclusive-reservation status remain visible. One labelled Update spans split SDK download/install under one lock; no ordinary second Install button. Tauri supports static JSON/separate APIs.[1][2] A work/draft denial after download retains the verified payload; finishing or saving never auto-resumes installation—another same-version Update click is required.
 
 ## 2. Code map
 
@@ -44,7 +58,7 @@ Repository-relative; `U` = `src/lib/utils/updating`, `UI` = `src/lib/components/
 | Controller/recovery | `U/controller/controller.ts`; controller/availability/lifecycle/orchestration tests. |
 | Singleton/SDK boundary | `U/updating.ts`, `U/native/native.ts` and tests including fresh-worker installed SDK. |
 | Session | `U/session/{session.ts,runtime.ts}` and tests. |
-| UI | `UI/{panel.svelte,home-notice.svelte,global-updater.svelte,presentation.ts}`; panel/notice/global/flow/check-only tests; root/Home/About routes. |
+| UI | `UI/{panel.svelte,home-notice.svelte,global-updater.svelte,presentation.ts,release-notes.svelte,release-notes.ts}`; panel/notice/global/flow/check-only/notes tests; root/Home/About routes. |
 | Work/draft | `src/lib/utils/applicationWork/applicationWork.ts` and applicationWork/lifetimes tests; `src/lib/components/settings/Input/{commandDraft.ts,input.svelte}` and draft/input/reset tests; Settings actions/API owners. |
 | Persistence | `src/lib/api/config/{mutationOrdering.ts,read/read.ts,update/update.ts,clear.ts,ensure/ensure.ts}`; utils ensureDirs/logger and tests. |
 | Native policy | `src-tauri/src/get_update_support/{mod.rs,windows.rs,windows/native.rs,tests.rs,windows_tests.rs}`; plugin/command registration in `src-tauri/src/lib.rs`. |
@@ -93,7 +107,7 @@ SDK Update owns native Update/bytes; close releases them.[2] One private owner; 
 4. Failed close retains **quarantine**; cleanup before next support/feed operation. Never overwrite ownership, infer success from invalid-ID, or immediately retry in cleanup-failure catch.
 5. Locked 2.13.2 may close bytes then fail Update without clearing bytes field. Adapter clears confirmed releases only; disposal after all close. Reinspect private-field dependency on upgrades; no vendor/global prototype patches.
 
-Separate support/check/download/install/cleanup/restart failures; categories don't authorize actions. Text notes, public GitHub HTTPS; no credentials/backend/proxy/telemetry, raw manifests/signed redirect URLs in UI/logs. Best-effort diagnostics can't break recovery.
+Separate support/check/download/install/cleanup/restart failures; categories do not authorize actions. Notes support only escaped headings/bold text through a non-recursive, budgeted parser and Svelte tags, never raw HTML or feed-controlled attributes. The collapsed preview is at most five logical source lines/360 characters (not a claimed five rendered lines at every viewport), with ellipsis and localized disclosure controls. Links/images remain literal; this is not a full Markdown renderer. Public GitHub HTTPS; no credentials/backend/proxy/telemetry, raw manifests/signed redirect URLs in UI/logs. Best-effort diagnostics can't break recovery.
 
 ## 6. Config, capabilities and signing
 
@@ -127,7 +141,7 @@ CLI 2.9.6 can't patch tauri-utils 2.10.1 marker; 2.12.2 matches. Patch warning f
 3. Wait entire matrix/final verify_release: parallel manifest merges non-atomic. Fail missing entries, never repair/publish. GET-only verifier needs contents: write for draft visibility, persist-credentials: false; no release writes.
 4. Exact version/tag/filenames/URLs/alias/inventory, byte-preserved sidecar equality; reject MSI assets/keys/encoded URLs. Bound pages/time/streamed bytes, strip auth on allowlisted redirects. **Consistency isn't cryptography.**
 5. Verify real payload/key/authenticated version/corruption rejection, packaged version/architecture/marker; native acceptance passed or pending. Sidecar size/hash isn't enough.
-6. Put the committed `RELEASE.md` into the draft body explicitly: tauri-action does not automatically read that file. Manually publish only with authorization, then read back public notes, exact asset identities and the latest feed. Keep notes self-contained, with runtime limitations rather than ignored evidence links.
+6. For the user-owned handoff, pushing `main` triggers the four-job normal CI; after it passes, an annotated new `v*` tag push triggers the signed draft build and final verifier. Do not use `gh workflow run` for these workflows: neither declares `workflow_dispatch`. Put the committed `RELEASE.md` into the draft body explicitly: tauri-action does not automatically read that file. Manually publish only with authorization, then read back public notes, exact asset identities and the latest feed. Keep notes self-contained, with runtime limitations rather than ignored evidence links.
 7. Retire temporary releases only when separately approved. Publish and verify the replacement first so the latest feed remains available, then remove the exact old release IDs and confirm the release/tag API and individual assets return 404. Deleting release pages/assets is separate from deleting Git tags; retain source history unless tag removal is explicitly requested.
 
 ## 8. Tests and boundaries

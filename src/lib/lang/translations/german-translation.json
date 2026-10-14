@@ -90,6 +90,8 @@
 		"updater.version.installed": "Installierte Version",
 		"updater.version.available": "Verfügbare Version",
 		"updater.notes": "Versionshinweise",
+		"updater.notes.read.more": "Mehr lesen",
+		"updater.notes.read.less": "Weniger lesen",
 		"updater.consent": "Das Update lädt und überprüft diese Version, schließt die App und startet sie neu. Beenden Sie zuerst Ihre Arbeit; das System kann Berechtigungen anfordern.",
 		"updater.action.update": "Auf {version} aktualisieren",
 		"updater.status.downloading": "Update wird heruntergeladen und überprüft…",

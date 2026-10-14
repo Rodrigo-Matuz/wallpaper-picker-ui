@@ -90,6 +90,8 @@
 		"updater.version.installed": "Versión instalada",
 		"updater.version.available": "Versión disponible",
 		"updater.notes": "Notas de la versión",
+		"updater.notes.read.more": "Leer más",
+		"updater.notes.read.less": "Leer menos",
 		"updater.consent": "Actualizar descarga y verifica esta versión, después cierra y reinicia la aplicación. Termina tu trabajo primero; pueden aparecer solicitudes de permisos del sistema.",
 		"updater.action.update": "Actualizar a {version}",
 		"updater.status.downloading": "Descargando y verificando la actualización…",

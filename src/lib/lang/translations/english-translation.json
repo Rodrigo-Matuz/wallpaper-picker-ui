@@ -90,6 +90,8 @@
 		"updater.version.installed": "Installed version",
 		"updater.version.available": "Available version",
 		"updater.notes": "Release notes",
+		"updater.notes.read.more": "Read more",
+		"updater.notes.read.less": "Read less",
 		"updater.consent": "Update downloads and verifies this version, then closes and restarts the app. Finish your work first; system permission prompts may appear.",
 		"updater.action.update": "Update to {version}",
 		"updater.status.downloading": "Downloading and verifying the update…",

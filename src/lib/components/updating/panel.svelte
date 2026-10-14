@@ -3,6 +3,7 @@ import { currentLanguage, t } from "$lang/index";
 import { runtimeMode } from "$utils/updating/session/runtime";
 import { updaterController } from "$utils/updating/updating";
 import { categoryKeys, statusKeys, type UpdaterPanelController } from "./presentation";
+import ReleaseNotes from "./release-notes.svelte";
 
 let { controller = updaterController }: { controller?: UpdaterPanelController } = $props();
 const translate = $derived($t);
@@ -64,11 +65,13 @@ function update() {
 			</dl>
 			{#if candidate.body}
 				<h3 class="mt-4 font-medium text-foreground">{translate("updater.notes")}</h3>
-				<p class="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{candidate.body}</p>
+				{#key JSON.stringify([candidate.version, candidate.body])}
+					<ReleaseNotes body={candidate.body} />
+				{/key}
 			{/if}
 			{#if !legacyMsi && $snapshotStore.canUpdate}
 				<p id="update-consent" class="mt-4 max-w-xl">{translate("updater.consent")}</p>
-				<button type="button" onclick={update} aria-describedby="update-consent" class="mt-3 min-h-11 border border-success/40 px-4 font-mono text-xs text-success transition-colors hover:bg-success/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-success">{translate($snapshotStore.installBlocked ? "updater.action.resume" : "updater.action.update").replace("{version}", candidate.version)}</button>
+
 			{:else if !legacyMsi && !$snapshotStore.busy && ($snapshotStore.status === "available" || $snapshotStore.status === "ready-to-install")}
 				<p class="mt-4 max-w-xl">{translate("updater.guidance.manual")}</p>
 			{/if}
@@ -86,9 +89,14 @@ function update() {
 				<time class="ml-2" datetime={new Date($snapshotStore.lastCheckedAt).toISOString()}>{new Date($snapshotStore.lastCheckedAt).toLocaleString($currentLanguage === "eng" ? "en" : $currentLanguage)}</time>
 			</div>
 		{/if}
-		{#if $snapshotStore.status === "up-to-date" && $snapshotStore.canCheck && support?.mode === "self-managed" && support.target !== null && support.reason === "supported"}
-			<button type="button" onclick={() => void controller.checkForUpdates()} class="mt-3 min-h-11 border border-foreground/20 px-4 text-foreground hover:text-success">{translate("updater.action.check")}</button>
-		{/if}
-		<a href="https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex min-h-11 items-center text-foreground hover:text-success">{translate("updater.releases")}</a>
+		<div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-3">
+			{#if candidate && !legacyMsi && $snapshotStore.canUpdate}
+				<button type="button" onclick={update} aria-describedby="update-consent" class="min-h-11 border border-success/40 px-4 font-mono text-xs text-success transition-colors hover:bg-success/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-success">{translate($snapshotStore.installBlocked ? "updater.action.resume" : "updater.action.update").replace("{version}", candidate.version)}</button>
+			{/if}
+			{#if $snapshotStore.status === "up-to-date" && $snapshotStore.canCheck && support?.mode === "self-managed" && support.target !== null && support.reason === "supported"}
+				<button type="button" onclick={() => void controller.checkForUpdates()} class="min-h-11 border border-foreground/20 px-4 text-foreground hover:text-success">{translate("updater.action.check")}</button>
+			{/if}
+			<a href="https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center text-foreground hover:text-success">{translate("updater.releases")}</a>
+		</div>
 	</div>
 </section>

@@ -77,6 +77,37 @@ function expectNoInstallation(f: ReturnType<typeof fixture>) {
 }
 
 describe("check-only installed flow (native boundary mocked, not packaged acceptance)", () => {
+	it.each([
+		checkOnlySupport,
+		{ ...checkOnlySupport, installer: "msi", checkTarget: "windows-x86_64-msi" },
+	])("keeps notes expansion/collapse and GitHub passive for installer $installer", async (policy) => {
+		const f = fixture(policy);
+		f.resource.body =
+			"## Release\n**First**\nSecond\nThird\nFourth\nTAIL <img src=x onerror=alert(1)>";
+		await f.controller.checkForUpdates();
+		const before = get(f.controller.state);
+		const update = vi.spyOn(f.controller, "updateAndRestart");
+		const retry = vi.spyOn(f.controller, "retry");
+		const panel = render(Panel, { controller: f.controller });
+		expect(screen.queryByText(/TAIL/)).toBeNull();
+		await fireEvent.click(screen.getByRole("button", { name: "Read more" }));
+		expect(screen.getByText(/TAIL <img/)).toBeTruthy();
+		expect(screen.getByText("First").tagName).toBe("STRONG");
+		expect(document.querySelector("img")).toBeNull();
+		await fireEvent.click(screen.getByRole("button", { name: "Read less" }));
+		expect(screen.queryByText(/TAIL/)).toBeNull();
+		const link = screen.getByRole("link", { name: "Releases on GitHub" });
+		link.addEventListener("click", (event) => event.preventDefault(), { once: true });
+		await fireEvent.click(link);
+		panel.unmount();
+		expect(get(f.controller.state)).toBe(before);
+		expect(update).not.toHaveBeenCalled();
+		expect(retry).not.toHaveBeenCalled();
+		expect(f.detectSupport).toHaveBeenCalledTimes(2);
+		expect(f.check).toHaveBeenCalledTimes(1);
+		expect(f.resource.close).not.toHaveBeenCalled();
+		expectNoInstallation(f);
+	});
 	it("no longer publishes MSI installers and offers only manual NSIS migration via releases", async () => {
 		const f = fixture({
 			...checkOnlySupport,
