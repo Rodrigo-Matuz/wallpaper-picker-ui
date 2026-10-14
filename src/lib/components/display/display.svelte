@@ -47,7 +47,7 @@ $: onVisibleCountChange(filteredThumbnails.length);
     </div>
 {/if}
 {#if filteredThumbnails.length > 0 || $totalVideos === 0}
-    <div data-wallpaper-grid class="mx-auto mt-5 grid max-w-7xl grid-cols-1 gap-3 sm:grid-cols-3 min-[800px]:grid-cols-4">
+    <div data-wallpaper-grid class="mx-auto mt-5 grid max-w-7xl grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {#each filteredThumbnails as [blobUrl, videoPath]}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <div

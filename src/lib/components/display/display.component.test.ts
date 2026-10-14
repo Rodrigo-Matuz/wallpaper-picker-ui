@@ -53,7 +53,7 @@ test("wallpapers keep four fluid, larger columns in a 900px window", () => {
 	const { container } = render(Display);
 	const grid = container.querySelector("[data-wallpaper-grid]");
 	const preview = screen.getByRole("img", { name: "/wallpapers/forest.mp4" });
-	expect(grid?.classList.contains("min-[800px]:grid-cols-4")).toBe(true);
+	expect(grid?.classList.contains("md:grid-cols-4")).toBe(true);
 	expect(preview.classList.contains("w-full")).toBe(true);
 	expect(preview.classList.contains("aspect-[3/2]")).toBe(true);
 	expect(preview.classList.contains("w-48")).toBe(false);

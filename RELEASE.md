@@ -1,4 +1,4 @@
-# Wallpaper Picker UI v3.6.7
+# Wallpaper Picker UI v3.6.8
 
-- Keep saved thumbnails visible when returning Home with **New Wallpapers** off; recover an index deleted by older versions from existing previews without generating them again.
-- Allow the app to read its saved thumbnail index without a filesystem permission error.
+- Show four wallpaper columns at the default window width; keep the header brand label on one line.
+- Include the missing GStreamer `appsink` plugin in the Nix development shell.

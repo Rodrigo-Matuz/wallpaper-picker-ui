@@ -62,6 +62,7 @@
       # on NixOS. The package output above intentionally uses the published
       # release binary instead of compiling Bun/Cargo dependencies in a build.
       devShells.${system}.default = pkgs.mkShell {
+        GST_PLUGIN_PATH_1_0 = "${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0";
         packages = with pkgs; [
           bun
           rustc
@@ -78,6 +79,8 @@
           openssl
           librsvg
           libayatana-appindicator
+          gst_all_1.gstreamer
+          gst_all_1.gst-plugins-base
         ];
       };
 

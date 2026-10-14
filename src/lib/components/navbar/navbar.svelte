@@ -39,8 +39,8 @@ async function closeMonitorPanel() {
 	<nav class="mx-auto max-w-7xl px-5 md:px-8" aria-label="Wallpaper Picker UI">
 		<div class="flex min-h-20 flex-wrap items-center gap-2 py-3 sm:gap-3" data-header-row data-tauri-drag-region>
 			<button bind:this={monitorTrigger} type="button" aria-label={translate('home.monitors.title')} title={translate('home.monitors.title')} aria-controls="monitor-panel" aria-expanded={monitorOpen} class="flex size-10 shrink-0 items-center justify-center border border-foreground/15 text-muted transition-colors hover:border-primary hover:text-primary" onclick={openMonitorPanel}><Monitor class="size-4" /></button>
-			<div class="hidden w-48 shrink-0 min-[800px]:block" data-tauri-drag-region>
-				<p class="font-mono text-[10px] uppercase tracking-[0.2em] text-primary" data-tauri-drag-region>Wallpaper / Picker</p>
+			<div class="hidden w-52 shrink-0 min-[800px]:block" data-tauri-drag-region>
+				<p class="whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.2em] text-primary" data-tauri-drag-region>Wallpaper / Picker</p>
 				<h1 class="truncate font-display text-xl leading-tight tracking-tight text-foreground" data-tauri-drag-region>Wallpaper Picker UI</h1>
 			</div>
 			<label class="flex min-w-0 flex-1 items-center gap-3 border border-foreground/15 bg-surface px-3 transition-colors focus-within:border-primary hover:border-foreground/30 max-[640px]:order-last max-[640px]:w-full max-[640px]:basis-full">

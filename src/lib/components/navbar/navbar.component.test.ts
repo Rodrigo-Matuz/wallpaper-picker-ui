@@ -32,6 +32,12 @@ describe("Home header", () => {
 		expect(header.querySelector("nav")?.children.length).toBe(1);
 	});
 
+	it("keeps the brand label on one line at the default window width", () => {
+		render(Navbar, { inputPlaceholder: "Search Wallpapers..." });
+		const brandLabel = screen.getByText("Wallpaper / Picker");
+		expect(brandLabel.classList.contains("whitespace-nowrap")).toBe(true);
+	});
+
 	it("opens a placeholder monitor panel and closes it", async () => {
 		render(Navbar, { inputPlaceholder: "Search Wallpapers..." });
 		const trigger = screen.getByRole("button", { name: "Monitor settings" });
