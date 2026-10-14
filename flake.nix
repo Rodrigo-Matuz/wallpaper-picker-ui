@@ -58,6 +58,29 @@
     {
       packages.${system}.default = package;
 
+      # Development environment for building the Tauri application from source
+      # on NixOS. The package output above intentionally uses the published
+      # release binary instead of compiling Bun/Cargo dependencies in a build.
+      devShells.${system}.default = pkgs.mkShell {
+        packages = with pkgs; [
+          bun
+          rustc
+          cargo
+          rustfmt
+          clippy
+          rust-analyzer
+          pkg-config
+          dbus
+          gtk3
+          webkitgtk_4_1
+          libsoup_3
+          glib
+          openssl
+          librsvg
+          libayatana-appindicator
+        ];
+      };
+
       homeManagerModules.default = { config, pkgs, lib, ... }:
         let
           cfg = config.programs.wallpaper-picker-ui;
