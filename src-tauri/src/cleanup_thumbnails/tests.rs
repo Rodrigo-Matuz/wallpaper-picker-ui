@@ -25,6 +25,19 @@ fn removes_only_unkept_files_and_counts_successful_removals() {
 }
 
 #[test]
+fn preserves_the_index_when_removing_orphaned_previews() {
+    let tmp = TempDir::new();
+    let map = tmp.path().join("map.json");
+    fs::write(&map, br#"{"keep.png":"/videos/keep.mp4"}"#).unwrap();
+    fs::write(tmp.path().join("keep.png"), b"data").unwrap();
+    fs::write(tmp.path().join("orphan.png"), b"data").unwrap();
+    assert_eq!(cleanup(tmp.path(), &["keep.png"]), 1);
+    assert!(map.exists());
+    assert!(tmp.path().join("keep.png").exists());
+    assert!(!tmp.path().join("orphan.png").exists());
+}
+
+#[test]
 fn leaves_subdirectories_and_their_contents_untouched() {
     let tmp = TempDir::new();
     let nested = tmp.path().join("nested");

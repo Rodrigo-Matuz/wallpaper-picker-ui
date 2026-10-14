@@ -98,7 +98,7 @@ pub async fn generate_thumb(video_path: String, thumb_path: String) -> Result<St
 ///
 /// * `Ok(String)` - The generated thumbnail file name (e.g., `video-3f9a2c….png`).
 /// * `Err(String)` - If the path or its file stem is not valid UTF-8.
-fn generate_thumbnail_name(path: &Path) -> Result<String, String> {
+pub(crate) fn generate_thumbnail_name(path: &Path) -> Result<String, String> {
     let path_str = path
         .to_str()
         .ok_or_else(|| "Video path contains invalid UTF-8".to_string())?;

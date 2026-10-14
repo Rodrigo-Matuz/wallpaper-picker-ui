@@ -97,9 +97,30 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 					thumbnailsHashMap = await migrateThumbnailMapFromConfig();
 				}
 
-				const { newWallpapers, thumbnailVersion } = await fetchConfig();
+				const { newWallpapers, thumbnailVersion, wallpapersPath } = await fetchConfig();
 				const needsMigration = (thumbnailVersion ?? 0) !== CURRENT_THUMBNAIL_VERSION;
-				const regenerate = forceRegenerate || needsMigration || newWallpapers || scanForNew;
+				const regenerate = forceRegenerate || newWallpapers || scanForNew;
+				let scannedAndPersisted = false;
+				// Older builds removed map.json during orphan cleanup. Rebuild the index
+				// from existing PNGs once, without generating anything when discovery is off.
+				if (!regenerate && wallpapersPath && Object.keys(thumbnailsHashMap).length === 0) {
+					try {
+						const recovered = await invoke<ThumbnailRecord>("recover_thumbnails", {
+							directory: wallpapersPath,
+							thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
+						});
+						if (Object.keys(recovered).length > 0) {
+							thumbnailsHashMap = sortJsonByKey(recovered);
+							await writeThumbnailMap(thumbnailsHashMap);
+						}
+					} catch (error) {
+						await log({
+							level: "error",
+							callStack: new Error(),
+							message: { context: "Failed to restore saved thumbnails", error },
+						});
+					}
+				}
 				// Show valid cached previews before scanning for additional files.
 				if ((newWallpapers || scanForNew) && !forceRegenerate && !needsMigration) {
 					thumbnailsHashMap = await publishThumbnails(thumbnailsHashMap);
@@ -137,6 +158,7 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 						await writeThumbnailMap(sorted);
 						await updateConfig({ thumbnailVersion: CURRENT_THUMBNAIL_VERSION });
 						thumbnailsHashMap = sorted;
+						scannedAndPersisted = true;
 					} catch (error) {
 						await log({
 							level: "error",
@@ -149,13 +171,13 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 					}
 				}
 
-				// Never purge thumbnail files when no readable map entries were loaded.
-				// An inaccessible/corrupt map must not turn a Home visit into data loss.
-				if (Object.keys(thumbnailsHashMap).length > 0) {
+				// Only a successful scan can determine which cached files are orphaned.
+				// Cache-only visits must not delete unindexed previews needed for recovery.
+				if (scannedAndPersisted && Object.keys(thumbnailsHashMap).length > 0) {
 					try {
 						await invoke("cleanup_thumbnails", {
 							thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
-							keepFiles: Object.keys(thumbnailsHashMap),
+							keepFiles: ["map.json", ...Object.keys(thumbnailsHashMap)],
 						});
 					} catch (error) {
 						await log({

@@ -5,16 +5,18 @@ import { defaultConfig } from "$api/config/defaults";
 import { applicationWork } from "./applicationWork";
 
 const ensureDir = mock(async () => {});
-const exists = mock(async () => true);
-const writeFile = mock(async () => {});
+const exists = mock(async (_path?: string) => true);
+const writeFile = mock(async (_path?: string, _bytes?: Uint8Array) => {});
 const remove = mock(async () => {});
-const readFile = mock(async () => new Uint8Array([1]));
+const readFile = mock(async (_path?: string) => new Uint8Array([1]));
 const readTextFile = mock(async () => "{}");
 const log = mock(async () => {});
 const fetchConfig = mock(async () => ({ ...defaultConfig }));
 const setConfigCache = mock(() => {});
 const clearConfigCache = mock(() => {});
-const invoke = mock(async (_command: string, _args: object): Promise<unknown> => "a.png");
+const invoke = mock(
+	async (_command: string, _args: Record<string, unknown>): Promise<unknown> => "a.png",
+);
 const appDataDir = mock(async () => "/mock/data");
 const basename = mock(async (path: string) => path);
 const fetchVideos = mock(async () => ["/mock/a.mp4", "/mock/b.mp4"]);
@@ -234,6 +236,100 @@ test("returning home with new-wallpaper discovery enabled reuses every saved thu
 	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(0);
 });
 
+test("generated previews remain available after disabling discovery and returning home", async () => {
+	let savedMap: string | undefined;
+	const files = new Set<string>();
+	exists.mockImplementation(
+		async (path) => path === "thumbnails/map.json" && savedMap !== undefined,
+	);
+	readTextFile.mockImplementation(async () => savedMap ?? "{}");
+	writeFile.mockImplementation(async (path, bytes) => {
+		if (path === "thumbnails/map.json" && bytes) savedMap = new TextDecoder().decode(bytes);
+	});
+	readFile.mockImplementation(async (path) => {
+		if (!path || !files.has(path)) throw new Error("preview missing");
+		return new Uint8Array([1]);
+	});
+	basename.mockImplementation(async (path) => path.split("/").pop() ?? path);
+	invoke.mockImplementation(async (command, args) => {
+		if (command === "generate_thumb") {
+			const fileName = `${String(args.videoPath).split("/").pop()}.png`;
+			files.add(`thumbnails/${fileName}`);
+			return `/mock/data/thumbnails/${fileName}`;
+		}
+		if (command === "cleanup_thumbnails") {
+			const keep = new Set(args.keepFiles as string[]);
+			if (!keep.has("map.json")) savedMap = undefined;
+			for (const file of files) {
+				if (!keep.has(file.slice("thumbnails/".length))) files.delete(file);
+			}
+		}
+	});
+	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, thumbnailVersion: 1 });
+	await handleThumbnails();
+	expect(Object.values(get(thumbnails)).sort()).toEqual(["/mock/a.mp4", "/mock/b.mp4"]);
+	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: false, thumbnailVersion: 1 });
+	thumbnails.set({});
+	await handleThumbnails();
+	expect(Object.values(get(thumbnails)).sort()).toEqual(["/mock/a.mp4", "/mock/b.mp4"]);
+	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(2);
+});
+
+test("discovery off recovers previews left on disk by an older deleted index", async () => {
+	let savedMap: string | undefined;
+	exists.mockImplementation(
+		async (path) => path === "thumbnails/map.json" && savedMap !== undefined,
+	);
+	readTextFile.mockImplementation(async () => savedMap ?? "{}");
+	writeFile.mockImplementation(async (path, bytes) => {
+		if (path === "thumbnails/map.json" && bytes) savedMap = new TextDecoder().decode(bytes);
+	});
+	readFile.mockImplementation(async (path) => {
+		if (path !== "thumbnails/a.png") throw new Error("preview missing");
+		return new Uint8Array([1]);
+	});
+	invoke.mockImplementation(async (command) =>
+		command === "recover_thumbnails" ? { "a.png": "/mock/a.mp4" } : undefined,
+	);
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: false,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
+	thumbnails.set({});
+	await handleThumbnails();
+	expect(Object.values(get(thumbnails))).toEqual(["/mock/a.mp4"]);
+	expect(JSON.parse(savedMap ?? "{}")).toEqual({ "a.png": "/mock/a.mp4" });
+	await handleThumbnails();
+	expect(Object.values(get(thumbnails))).toEqual(["/mock/a.mp4"]);
+	expect(invoke.mock.calls.filter(([command]) => command === "recover_thumbnails")).toHaveLength(
+		1,
+	);
+	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(0);
+	expect(invoke.mock.calls.filter(([command]) => command === "cleanup_thumbnails")).toHaveLength(
+		0,
+	);
+});
+
+test("first launch with discovery off never generates, even before thumbnail version migration", async () => {
+	exists.mockResolvedValue(false);
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: false,
+		thumbnailVersion: undefined,
+		wallpapersPath: "/mock",
+	});
+	invoke.mockImplementation(async (command) =>
+		command === "recover_thumbnails" ? {} : undefined,
+	);
+	thumbnails.set({});
+	await handleThumbnails();
+	expect(Object.keys(get(thumbnails))).toHaveLength(0);
+	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(0);
+	expect(fetchVideos).not.toHaveBeenCalled();
+});
+
 test("discovery off displays saved previews without deleting them when video validation returns no paths", async () => {
 	const saved = { "a.png": "/mock/a.mp4", "b.png": "/mock/b.mp4" };
 	readTextFile.mockResolvedValue(JSON.stringify(saved));
@@ -248,10 +344,9 @@ test("discovery off displays saved previews without deleting them when video val
 		invoke.mock.calls.filter(([command]) => command === "validate_video_paths"),
 	).toHaveLength(0);
 	expect(writeFile).not.toHaveBeenCalled();
-	expect(invoke).toHaveBeenCalledWith("cleanup_thumbnails", {
-		thumbPath: "/mock/data/thumbnails",
-		keepFiles: ["a.png", "b.png"],
-	});
+	expect(invoke.mock.calls.filter(([command]) => command === "cleanup_thumbnails")).toHaveLength(
+		0,
+	);
 });
 
 test("discovery off never cleans cached files when the map is unavailable", async () => {

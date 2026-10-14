@@ -3,6 +3,7 @@ mod generate_thumbnails;
 mod get_update_support;
 mod get_videos_list;
 mod log_message;
+mod recover_thumbnails;
 mod send_command;
 #[cfg(test)]
 mod test_support;
@@ -13,6 +14,7 @@ pub use generate_thumbnails::generate_thumb;
 pub use get_update_support::get_update_support;
 pub use get_videos_list::get_videos_list;
 pub use log_message::log_message;
+pub use recover_thumbnails::recover_thumbnails;
 pub use send_command::send_command;
 pub use validate_video_paths::validate_video_paths;
 
@@ -31,6 +33,7 @@ pub fn run() {
             generate_thumb,
             validate_video_paths,
             cleanup_thumbnails,
+            recover_thumbnails,
             get_update_support
         ])
         .run(tauri::generate_context!())

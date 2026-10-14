@@ -36,7 +36,8 @@ pub async fn cleanup_thumbnails(
                 continue;
             };
 
-            if !keep.contains(name) && fs::remove_file(&path).is_ok() {
+            // The index lives in this directory but is not a generated preview.
+            if name != "map.json" && !keep.contains(name) && fs::remove_file(&path).is_ok() {
                 removed += 1;
             }
         }
