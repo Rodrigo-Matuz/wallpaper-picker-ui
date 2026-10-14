@@ -29,7 +29,8 @@ describe("Tauri file permissions for the thumbnail map", () => {
 	});
 
 	test("read and write cover the map but not arbitrary app data", () => {
-		expect(pathsFor("fs:allow-read-file")).toContain("$APPDATA/thumbnails/map.json");
+		expect(pathsFor("fs:allow-read-text-file")).toContain("$APPDATA/thumbnails/map.json");
+		expect(pathsFor("fs:allow-read-text-file")).not.toContain("$APPDATA/**");
 		expect(pathsFor("fs:allow-write-file")).toContain("$APPDATA/thumbnails/map.json");
 		expect(pathsFor("fs:allow-write-file")).not.toContain("$APPDATA/**");
 	});

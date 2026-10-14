@@ -1,4 +1,4 @@
-# Wallpaper Picker UI — next release (unreleased)
+# Wallpaper Picker UI v3.6.7
 
-- Keep the thumbnail index during cleanup, so saved previews still appear when **New Wallpapers** is off and you return Home.
-- Restore a missing index from existing thumbnail files without regenerating them. First-time users with discovery off will not generate thumbnails.
+- Keep saved thumbnails visible when returning Home with **New Wallpapers** off; recover an index deleted by older versions from existing previews without generating them again.
+- Allow the app to read its saved thumbnail index without a filesystem permission error.
