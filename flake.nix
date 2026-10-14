@@ -8,7 +8,7 @@
       system = "x86_64-linux"; # The upstream release only publishes amd64 Linux bundles.
       pkgs = nixpkgs.legacyPackages.${system};
       lib = nixpkgs.lib;
-      version = "3.6.8";
+      version = "3.6.9";
       # Use the published .deb binary, not a sandboxed source build (Bun and
       # Cargo need prefetched dependencies). The AppImage bundles Ubuntu's
       # WebKitGTK/Wayland libraries and displays a black window with EGL errors
@@ -16,7 +16,7 @@
       # Hash verified against the downloaded release asset's GitHub SHA-256.
       deb = pkgs.fetchurl {
         url = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v${version}/Wallpaper.Picker.UI_${version}_amd64.deb";
-        hash = "sha256-J7e/WXhiwquSR9xAkpoDSeXzDSf5aBThqLi3MaIeShE=";
+        hash = "sha256-I6bQA/0TkcvOMVG1U/29bT7CKQnKUSP5xyGTvgmkhF8=";
       };
       package = pkgs.stdenv.mkDerivation {
         pname = "wallpaper-picker-ui";
