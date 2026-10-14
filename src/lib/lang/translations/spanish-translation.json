@@ -4,6 +4,9 @@
 	"name": "Español",
 	"translations": {
 		"home.search.placeholder": "Buscar fondos de pantalla...",
+		"home.monitors.title": "Configuración de monitores",
+		"home.monitors.close": "Cerrar configuración de monitores",
+		"home.monitors.coming.soon": "La selección de monitores estará disponible próximamente.",
 		"home.window.minimize": "Minimizar ventana",
 		"home.window.maximize": "Maximizar ventana",
 		"home.window.restore": "Restaurar ventana",

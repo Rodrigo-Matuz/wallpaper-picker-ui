@@ -4,6 +4,9 @@
 	"name": "English",
 	"translations": {
 		"home.search.placeholder": "Search Wallpapers...",
+		"home.monitors.title": "Monitor settings",
+		"home.monitors.close": "Close monitor settings",
+		"home.monitors.coming.soon": "Monitor selection is coming soon.",
 		"home.window.minimize": "Minimize window",
 		"home.window.maximize": "Maximize window",
 		"home.window.restore": "Restore window",

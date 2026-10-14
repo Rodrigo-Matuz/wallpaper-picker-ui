@@ -21,6 +21,33 @@ describe("Home header", () => {
 		expect((onInputChange.mock.calls[0][0] as Event).target).toBe(search);
 	});
 
+	it("places search beside settings in one header row", () => {
+		render(Navbar, { inputPlaceholder: "Search Wallpapers..." });
+		const header = screen.getByRole("banner");
+		const row = screen
+			.getByRole("searchbox", { name: "Search Wallpapers..." })
+			.closest("[data-header-row]");
+		expect(row).toBeTruthy();
+		expect(row?.contains(screen.getByRole("link", { name: "Settings" }))).toBe(true);
+		expect(header.querySelector("nav")?.children.length).toBe(1);
+	});
+
+	it("opens a placeholder monitor panel and closes it", async () => {
+		render(Navbar, { inputPlaceholder: "Search Wallpapers..." });
+		const trigger = screen.getByRole("button", { name: "Monitor settings" });
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+		expect(screen.queryByRole("complementary", { name: "Monitor settings" })).toBeNull();
+		await fireEvent.click(trigger);
+		expect(trigger.getAttribute("aria-expanded")).toBe("true");
+		expect(screen.getByRole("complementary", { name: "Monitor settings" })).toBeTruthy();
+		expect(screen.getAllByRole("button", { name: "Close monitor settings" })).toHaveLength(1);
+		expect(screen.getByText("Monitor selection is coming soon.")).toBeTruthy();
+		await fireEvent.keyDown(window, { key: "Escape" });
+		expect(screen.queryByRole("complementary", { name: "Monitor settings" })).toBeNull();
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+		expect(document.activeElement).toBe(trigger);
+	});
+
 	it("uses the search field border as its focus indicator instead of an offset input outline", () => {
 		render(Navbar, { inputPlaceholder: "Search Wallpapers..." });
 		const input = screen.getByRole("searchbox", { name: "Search Wallpapers..." });

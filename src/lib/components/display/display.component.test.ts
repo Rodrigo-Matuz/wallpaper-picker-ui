@@ -48,6 +48,17 @@ test("wallpaper cards show only the preview and a primary-blue play affordance",
 	).toBe(true);
 });
 
+test("wallpapers keep four fluid, larger columns in a 900px window", () => {
+	thumbnails.set({ "data:image/png;base64,": "/wallpapers/forest.mp4" });
+	const { container } = render(Display);
+	const grid = container.querySelector("[data-wallpaper-grid]");
+	const preview = screen.getByRole("img", { name: "/wallpapers/forest.mp4" });
+	expect(grid?.classList.contains("min-[800px]:grid-cols-4")).toBe(true);
+	expect(preview.classList.contains("w-full")).toBe(true);
+	expect(preview.classList.contains("aspect-[3/2]")).toBe(true);
+	expect(preview.classList.contains("w-48")).toBe(false);
+});
+
 test("Display reports other pipeline rejection through the existing translated toast", async () => {
 	effects.readMap.mockRejectedValueOnce(new Error("map unreadable"));
 	render(Display);

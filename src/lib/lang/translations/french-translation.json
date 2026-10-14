@@ -4,6 +4,9 @@
 	"name": "Français",
 	"translations": {
 		"home.search.placeholder": "Rechercher des fonds d’écran...",
+		"home.monitors.title": "Paramètres des écrans",
+		"home.monitors.close": "Fermer les paramètres des écrans",
+		"home.monitors.coming.soon": "La sélection des écrans sera bientôt disponible.",
 		"home.window.minimize": "Réduire la fenêtre",
 		"home.window.maximize": "Agrandir la fenêtre",
 		"home.window.restore": "Restaurer la fenêtre",

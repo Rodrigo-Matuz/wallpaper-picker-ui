@@ -4,6 +4,9 @@
 	"name": "Português Brasileiro",
 	"translations": {
 		"home.search.placeholder": "Buscar papéis de parede...",
+		"home.monitors.title": "Configurações dos monitores",
+		"home.monitors.close": "Fechar configurações dos monitores",
+		"home.monitors.coming.soon": "A seleção de monitores estará disponível em breve.",
 		"home.window.minimize": "Minimizar janela",
 		"home.window.maximize": "Maximizar janela",
 		"home.window.restore": "Restaurar janela",

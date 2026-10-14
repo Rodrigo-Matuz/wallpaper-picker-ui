@@ -4,6 +4,9 @@
 	"name": "Deutsch",
 	"translations": {
 		"home.search.placeholder": "Hintergründe suchen...",
+		"home.monitors.title": "Monitoreinstellungen",
+		"home.monitors.close": "Monitoreinstellungen schließen",
+		"home.monitors.coming.soon": "Die Monitorauswahl ist bald verfügbar.",
 		"home.window.minimize": "Fenster minimieren",
 		"home.window.maximize": "Fenster maximieren",
 		"home.window.restore": "Fenster wiederherstellen",

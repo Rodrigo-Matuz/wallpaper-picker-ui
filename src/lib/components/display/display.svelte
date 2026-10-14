@@ -47,17 +47,17 @@ $: onVisibleCountChange(filteredThumbnails.length);
     </div>
 {/if}
 {#if filteredThumbnails.length > 0 || $totalVideos === 0}
-    <div class="flex flex-wrap justify-center gap-3 mt-6">
+    <div data-wallpaper-grid class="mx-auto mt-5 grid max-w-7xl grid-cols-1 gap-3 sm:grid-cols-3 min-[800px]:grid-cols-4">
         {#each filteredThumbnails as [blobUrl, videoPath]}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <div
                 tabindex="0"
                 role="button"
-                class="group relative border border-transparent hover:border-primary outline-none transition-colors cursor-pointer"
+                class="group relative min-w-0 border border-transparent hover:border-primary outline-none transition-colors cursor-pointer"
                 on:click={() => sendCommand(videoPath)}
             >
                 <div class="relative overflow-hidden rounded-md border border-foreground/10 bg-surface">
-                    <img src={blobUrl} alt={videoPath} class="aspect-video w-48 h-32 object-cover" />
+                    <img src={blobUrl} alt={videoPath} class="aspect-[3/2] w-full object-cover" />
                     <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <div class="absolute inset-0 flex justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <CirclePlay class="text-primary text-3xl" size={40} />
