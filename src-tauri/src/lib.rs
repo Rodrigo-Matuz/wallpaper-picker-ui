@@ -1,3 +1,4 @@
+mod check_release_notice;
 mod cleanup_thumbnails;
 mod generate_thumbnails;
 mod get_update_support;
@@ -9,6 +10,7 @@ mod send_command;
 mod test_support;
 mod validate_video_paths;
 
+pub use check_release_notice::check_release_notice;
 pub use cleanup_thumbnails::cleanup_thumbnails;
 pub use generate_thumbnails::generate_thumb;
 pub use get_update_support::get_update_support;
@@ -34,7 +36,8 @@ pub fn run() {
             validate_video_paths,
             cleanup_thumbnails,
             recover_thumbnails,
-            get_update_support
+            get_update_support,
+            check_release_notice
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

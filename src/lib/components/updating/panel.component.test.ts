@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { get, writable } from "svelte/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { currentLanguage } from "$lang/index";
+import { currentLanguage, languages, t } from "$lang/index";
 import type { UpdaterSnapshot } from "$types/updateTypes";
 import { createUpdaterController } from "$utils/updating/controller/controller";
 import Panel from "./panel.svelte";
@@ -106,6 +106,184 @@ describe("legacy MSI migration presentation (synthetic state, no native effects)
 });
 
 describe("About updater (synthetic resources, not native acceptance)", () => {
+	it.each([
+		"deb",
+		"rpm",
+		"nix",
+		"appimage",
+	] as const)("never renders Update for contradictory Linux %s capabilities", (installer) => {
+		const controller = fixture({
+			status: "available",
+			releaseNoticeOnly: true,
+			canUpdate: true,
+			canDownload: true,
+			canInstall: true,
+			availableUpdate: { currentVersion: "3.6.9", version: "3.7.0" },
+			support: {
+				mode: "manual-only",
+				platform: "linux",
+				architecture: "x86_64",
+				installer,
+				target: null,
+				reason: "synthetic",
+			},
+		});
+		render(Panel, { controller });
+		expect(screen.queryByRole("button", { name: /Update to|Download|Install/ })).toBeNull();
+		expect(screen.queryByText(get(t)("updater.consent"))).toBeNull();
+		expect(controller.updateAndRestart).not.toHaveBeenCalled();
+	});
+	it("rejects a captured Update click after the snapshot becomes Linux notice-only", async () => {
+		const controller = fixture({
+			status: "available",
+			canUpdate: true,
+			availableUpdate: { currentVersion: "3.6.9", version: "3.7.0" },
+		});
+		render(Panel, { controller });
+		const button = screen.getByRole("button", { name: "Update to 3.7.0" });
+		controller.state.update((value) => ({
+			...value,
+			releaseNoticeOnly: true,
+			support: {
+				mode: "package-managed",
+				platform: "linux",
+				architecture: "x86_64",
+				installer: "deb",
+				target: null,
+				reason: "package-managed",
+			},
+		}));
+		button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(controller.updateAndRestart).not.toHaveBeenCalled();
+		await waitFor(() =>
+			expect(screen.queryByRole("button", { name: "Update to 3.7.0" })).toBeNull(),
+		);
+	});
+	it.each([
+		"busy",
+		"denied",
+	])("rejects a captured metadata Check again click when %s", (caseName) => {
+		const controller = fixture({
+			status: "available",
+			releaseNoticeOnly: true,
+			canCheck: true,
+			availableUpdate: { currentVersion: "3.6.9", version: "3.7.0" },
+		});
+		render(Panel, { controller });
+		const button = screen.getByRole("button", { name: "Check again" });
+		controller.state.update((value) => ({
+			...value,
+			busy: caseName === "busy" ? "check" : null,
+			canCheck: caseName !== "denied",
+		}));
+		button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(controller.checkForUpdates).not.toHaveBeenCalled();
+		expect(controller.updateAndRestart).not.toHaveBeenCalled();
+	});
+	it.each([
+		"eng",
+		"pt-br",
+		"es",
+		"fr",
+		"de",
+		"unknown-locale",
+	])("resolves %s package-specific release guidance without hardcoded English", (language) => {
+		currentLanguage.set(language);
+		for (const installer of ["nix", "appimage", "deb", "rpm"] as const) {
+			const key = `updater.guidance.${installer === "nix" ? "nix" : installer === "appimage" ? "appimage" : "managed"}`;
+			const registered = languages[language] ?? languages.eng;
+			expect(typeof registered.data[key]).toBe("string");
+			expect(get(t)(key)).toBe(registered.data[key]);
+			if (language !== "eng" && language !== "unknown-locale")
+				expect(get(t)(key)).not.toBe(languages.eng.data[key]);
+			const view = render(Panel, {
+				controller: fixture({
+					status: "available",
+					releaseNoticeOnly: true,
+					availableUpdate: { currentVersion: "3.6.1", version: "3.7.0" },
+					support: {
+						mode: installer === "appimage" ? "manual-only" : "package-managed",
+						platform: "linux",
+						architecture: "x86_64",
+						installer,
+						target: null,
+						reason: "synthetic",
+					},
+				}),
+			});
+			expect(screen.getByText(get(t)(key))).toBeTruthy();
+			expect(screen.getByRole("status").textContent).toBe(
+				get(t)("updater.notice.release.available").replace("{version}", "3.7.0"),
+			);
+			expect(document.body.textContent).not.toContain("updater.");
+			view.unmount();
+		}
+	});
+	it.each([
+		[
+			"nix",
+			"Use your Nix flake or system configuration to update this app. In-app installation is not available. A newer upstream release may not yet be available through your flake or package source.",
+		],
+		[
+			"appimage",
+			"Replace your AppImage manually using the trusted releases page below. In-app installation is not available.",
+		],
+	] as const)("keeps %s guidance truthful after a completed metadata check", (installer, guidance) => {
+		const controller = fixture({
+			status: "up-to-date",
+			releaseNoticeOnly: true,
+			canCheck: true,
+			support: {
+				mode: installer === "nix" ? "package-managed" : "manual-only",
+				platform: "linux",
+				architecture: "x86_64",
+				installer,
+				target: null,
+				checkTarget: null,
+				reason: "synthetic",
+			},
+		});
+		render(Panel, { controller });
+		expect(screen.getByText(guidance)).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Check again" })).toBeTruthy();
+	});
+	it("presents a Debian release notice with package guidance and metadata Check again only", async () => {
+		const controller = fixture({
+			status: "available",
+			releaseNoticeOnly: true,
+			canCheck: true,
+			availableUpdate: {
+				currentVersion: "3.6.1",
+				version: "3.7.0",
+				body: "## Changes\n**Safe** notes",
+			},
+			support: {
+				mode: "package-managed",
+				platform: "linux",
+				architecture: "x86_64",
+				installer: "deb",
+				target: null,
+				checkTarget: null,
+				reason: "package-managed",
+			},
+		});
+		render(Panel, { controller });
+		expect(screen.getByRole("status").textContent).toBe(
+			"Wallpaper Picker UI 3.7.0 is available. Update through your usual installation method.",
+		);
+		expect(
+			screen.getByText(
+				"Use the package manager or installation source that owns this app to update it.",
+			),
+		).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "Changes" })).toBeTruthy();
+		expect(screen.getByText("Safe").tagName).toBe("STRONG");
+		expect(screen.queryByRole("button", { name: /Update to|Download|Install/ })).toBeNull();
+		await fireEvent.click(screen.getByRole("button", { name: "Check again" }));
+		expect(controller.checkForUpdates).toHaveBeenCalledTimes(1);
+		expect(controller.updateAndRestart).not.toHaveBeenCalled();
+		expect(controller.retry).not.toHaveBeenCalled();
+	});
 	it.each([
 		"version",
 		"body",
@@ -434,7 +612,7 @@ describe("About updater (synthetic resources, not native acceptance)", () => {
 		[
 			"nix",
 			"package-managed",
-			"Use your Nix flake or system configuration to update this app. In-app checks and installation are not available.",
+			"Use your Nix flake or system configuration to update this app. In-app installation is not available. A newer upstream release may not yet be available through your flake or package source.",
 		],
 		[
 			"deb",

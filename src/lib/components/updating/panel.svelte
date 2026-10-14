@@ -16,20 +16,44 @@ const legacyMsi = $derived(
 		support.installer === "msi" &&
 		support.target === null,
 );
+const releaseNoticeOnly = $derived($snapshotStore.releaseNoticeOnly);
+const linuxCheckFailure = $derived(
+	support?.platform === "linux" && $snapshotStore.failure?.phase === "check",
+);
 const guidanceKey = $derived(
 	support?.installer === "nix"
 		? "updater.guidance.nix"
-		: support?.mode === "package-managed"
-			? "updater.guidance.managed"
-			: support?.mode === "development" ||
-					(!support && ($runtimeMode === "browser" || $runtimeMode === "development"))
-				? "updater.guidance.development"
-				: "updater.guidance.unavailable",
+		: (releaseNoticeOnly || linuxCheckFailure) && support?.installer === "appimage"
+			? "updater.guidance.appimage"
+			: support?.mode === "package-managed"
+				? "updater.guidance.managed"
+				: support?.mode === "development" ||
+						(!support && ($runtimeMode === "browser" || $runtimeMode === "development"))
+					? "updater.guidance.development"
+					: "updater.guidance.unavailable",
 );
 const statusKey = $derived(statusKeys[$snapshotStore.status]);
+const manualLinux = $derived(
+	releaseNoticeOnly || (support?.platform === "linux" && support.target === null),
+);
+const canCheckAgain = $derived(
+	!$snapshotStore.busy &&
+		$snapshotStore.canCheck &&
+		(releaseNoticeOnly
+			? $snapshotStore.status === "available" || $snapshotStore.status === "up-to-date"
+			: $snapshotStore.status === "up-to-date" &&
+				support?.mode === "self-managed" &&
+				support.target !== null &&
+				support.reason === "supported"),
+);
+
+function checkAgain() {
+	if (!canCheckAgain) return;
+	void controller.checkForUpdates();
+}
 
 function update() {
-	if (legacyMsi || !candidate || !$snapshotStore.canUpdate) return;
+	if (manualLinux || legacyMsi || !candidate || !$snapshotStore.canUpdate) return;
 	void controller.updateAndRestart({ confirmed: true, version: candidate.version });
 }
 </script>
@@ -37,7 +61,7 @@ function update() {
 	<h2 id="updater-heading" class="font-display text-3xl tracking-tight text-foreground">{translate("updater.title")}</h2>
 	<div class="min-w-0 text-xs leading-6 text-muted">
 		{#if statusKey && !$snapshotStore.failure && !$snapshotStore.installBlocked}
-			<p role="status" aria-live="polite" aria-atomic="true">{translate(statusKey)}</p>
+			<p role="status" aria-live="polite" aria-atomic="true">{releaseNoticeOnly && $snapshotStore.status === "available" && candidate ? translate("updater.notice.release.available").replace("{version}", candidate.version) : translate(statusKey)}</p>
 		{/if}
 		{#if $snapshotStore.status === "downloading"}
 			<progress class="mt-3 h-1 w-full accent-success" aria-label={translate("updater.status.downloading")} max="100" aria-valuenow={$snapshotStore.progress?.percent ?? undefined} value={$snapshotStore.progress?.percent ?? undefined}></progress>
@@ -69,12 +93,16 @@ function update() {
 					<ReleaseNotes body={candidate.body} />
 				{/key}
 			{/if}
-			{#if !legacyMsi && $snapshotStore.canUpdate}
+			{#if releaseNoticeOnly}
+				<p class="mt-4 max-w-xl">{translate(guidanceKey)}</p>
+			{:else if !manualLinux && !legacyMsi && $snapshotStore.canUpdate}
 				<p id="update-consent" class="mt-4 max-w-xl">{translate("updater.consent")}</p>
 
 			{:else if !legacyMsi && !$snapshotStore.busy && ($snapshotStore.status === "available" || $snapshotStore.status === "ready-to-install")}
 				<p class="mt-4 max-w-xl">{translate("updater.guidance.manual")}</p>
 			{/if}
+		{:else if releaseNoticeOnly || linuxCheckFailure}
+			<p class="mt-4 max-w-xl">{translate(guidanceKey)}</p>
 		{:else if !legacyMsi && ($snapshotStore.status === "up-to-date" || $snapshotStore.failure?.phase === "check") && support?.mode === "manual-only"}
 			<p class="mt-4 max-w-xl">{translate("updater.guidance.manual")}</p>
 		{:else if !legacyMsi && !statusKey && !$snapshotStore.failure}
@@ -90,11 +118,11 @@ function update() {
 			</div>
 		{/if}
 		<div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-3">
-			{#if candidate && !legacyMsi && $snapshotStore.canUpdate}
+			{#if candidate && !manualLinux && !legacyMsi && $snapshotStore.canUpdate}
 				<button type="button" onclick={update} aria-describedby="update-consent" class="min-h-11 border border-success/40 px-4 font-mono text-xs text-success transition-colors hover:bg-success/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-success">{translate($snapshotStore.installBlocked ? "updater.action.resume" : "updater.action.update").replace("{version}", candidate.version)}</button>
 			{/if}
-			{#if $snapshotStore.status === "up-to-date" && $snapshotStore.canCheck && support?.mode === "self-managed" && support.target !== null && support.reason === "supported"}
-				<button type="button" onclick={() => void controller.checkForUpdates()} class="min-h-11 border border-foreground/20 px-4 text-foreground hover:text-success">{translate("updater.action.check")}</button>
+			{#if canCheckAgain}
+				<button type="button" onclick={checkAgain} class="min-h-11 border border-foreground/20 px-4 text-foreground hover:text-success">{translate("updater.action.check")}</button>
 			{/if}
 			<a href="https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center text-foreground hover:text-success">{translate("updater.releases")}</a>
 		</div>

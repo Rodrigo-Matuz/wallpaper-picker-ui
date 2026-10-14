@@ -3,6 +3,7 @@ import { get, writable } from "svelte/store";
 import { toast } from "svelte-sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { goto } from "$app/navigation";
+import { currentLanguage, t } from "$lang/index";
 import type { UpdaterSnapshot } from "$types/updateTypes";
 import { createUpdaterController } from "$utils/updating/controller/controller";
 import { createUpdaterSession } from "$utils/updating/session/session";
@@ -13,6 +14,7 @@ vi.mock("svelte-sonner", () => ({ toast: { info: vi.fn() } }));
 vi.mock("$api/config/update/update", () => ({ updateConfig: vi.fn() }));
 afterEach(() => {
 	cleanup();
+	currentLanguage.set("eng");
 	vi.clearAllMocks();
 });
 
@@ -32,6 +34,64 @@ function fixture() {
 }
 
 describe("Home notices (synthetic state, no native acceptance)", () => {
+	it.each([
+		[
+			"eng",
+			"Wallpaper Picker UI 3.7.0 is available. Update through your usual installation method.",
+		],
+		[
+			"pt-br",
+			"Wallpaper Picker UI 3.7.0 está disponível. Atualize pelo seu método habitual de instalação.",
+		],
+		[
+			"es",
+			"Wallpaper Picker UI 3.7.0 está disponible. Actualiza mediante tu método habitual de instalación.",
+		],
+		[
+			"fr",
+			"Wallpaper Picker UI 3.7.0 est disponible. Mettez à jour avec votre méthode d’installation habituelle.",
+		],
+		[
+			"de",
+			"Wallpaper Picker UI 3.7.0 ist verfügbar. Aktualisieren Sie über Ihre übliche Installationsmethode.",
+		],
+		[
+			"unknown-locale",
+			"Wallpaper Picker UI 3.7.0 is available. Update through your usual installation method.",
+		],
+	])("resolves the actual %s release notice and English fallback", async (language, message) => {
+		currentLanguage.set(language);
+		const state = fixture();
+		state.update((value) => ({ ...value, releaseNoticeOnly: true }));
+		render(HomeNotice, {
+			controller: { state },
+			readyStore: writable(true),
+			session: createUpdaterSession(async () => {}),
+		});
+		await waitFor(() => expect(toast.info).toHaveBeenCalledTimes(1));
+		expect(get(t)("updater.notice.release.available").replace("{version}", "3.7.0")).toBe(
+			message,
+		);
+		expect(vi.mocked(toast.info).mock.calls[0][0]).toBe(message);
+	});
+	it("announces a metadata-only Linux release without claiming an in-app update", async () => {
+		const state = fixture();
+		state.update((value) => ({ ...value, releaseNoticeOnly: true }));
+		render(HomeNotice, {
+			controller: { state },
+			readyStore: writable(true),
+			session: createUpdaterSession(async () => {}),
+		});
+		await waitFor(() => expect(toast.info).toHaveBeenCalledTimes(1));
+		expect(vi.mocked(toast.info).mock.calls[0][0]).toBe(
+			"Wallpaper Picker UI 3.7.0 is available. Update through your usual installation method.",
+		);
+		expect(vi.mocked(toast.info).mock.calls[0][1]).toMatchObject({
+			closeButton: true,
+			duration: 12000,
+			action: { label: "View update on About" },
+		});
+	});
 	it.each([
 		"idle",
 		"checking",

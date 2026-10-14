@@ -23,7 +23,10 @@ $effect(() => {
 	if (!$readyStore || $snapshotStore.status !== "available" || !candidate) return;
 	if (!session.claimNotice(candidate.version)) return;
 	// Dismissal belongs to Sonner only; never discard the controller's retained native resource.
-	toast.info(translate("updater.notice.available").replace("{version}", candidate.version), {
+	const noticeKey = $snapshotStore.releaseNoticeOnly
+		? "updater.notice.release.available"
+		: "updater.notice.available";
+	toast.info(translate(noticeKey).replace("{version}", candidate.version), {
 		closeButton: true,
 		duration: 12000,
 		action: { label: translate("updater.action.about"), onClick: () => void goto("/about") },

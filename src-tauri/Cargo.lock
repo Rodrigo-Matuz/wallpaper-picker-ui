@@ -4982,7 +4982,11 @@ dependencies = [
 name = "wallpaper-picker-ui"
 version = "3.6.9"
 dependencies = [
+ "chrono",
  "colored",
+ "reqwest",
+ "rustls",
+ "semver",
  "serde",
  "serde_json",
  "tauri",

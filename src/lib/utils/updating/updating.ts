@@ -1,4 +1,4 @@
-import type { UpdaterDependencies, UpdateSupport } from "$types/updateTypes";
+import type { AvailableUpdate, UpdaterDependencies, UpdateSupport } from "$types/updateTypes";
 import { createUpdaterController } from "./controller/controller";
 
 export { createUpdaterController };
@@ -20,6 +20,12 @@ const nativeAdapter: UpdaterDependencies = {
 		const { invoke, isTauri } = await import("@tauri-apps/api/core");
 		if (!isTauri()) return browserSupport;
 		return invoke<UpdateSupport>("get_update_support");
+	},
+	checkReleaseNotice: async () => {
+		if (typeof window === "undefined") return null;
+		const { invoke, isTauri } = await import("@tauri-apps/api/core");
+		if (!isTauri()) return null;
+		return invoke<AvailableUpdate | null>("check_release_notice");
 	},
 	check: async (options) => {
 		const { check } = await import("@tauri-apps/plugin-updater");

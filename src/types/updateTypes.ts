@@ -73,6 +73,8 @@ export interface UpdaterSnapshot {
 	readonly currentVersion: string;
 	readonly support: UpdateSupport | null;
 	readonly availableUpdate: AvailableUpdate | null;
+	/** Resource-free release metadata; never authorizes updater actions. */
+	readonly releaseNoticeOnly: boolean;
 	readonly failure: UpdateFailure | null;
 	readonly lastCheckedAt: number | null;
 	readonly canCheck: boolean;
@@ -109,6 +111,8 @@ export interface UpdaterDependencies {
 	readonly currentVersion: string;
 	readonly detectSupport: () => Promise<unknown>;
 	readonly check: (options: UpdaterCheckOptions) => Promise<NativeUpdateResource | null>;
+	/** Optional metadata-only native command; must not construct an updater resource. */
+	readonly checkReleaseNotice?: () => Promise<AvailableUpdate | null>;
 	readonly now?: () => number;
 	/** Internal HTTP request bound, not an AbortSignal or full lifecycle cancellation guarantee. */
 	readonly downloadTimeoutMs?: number;

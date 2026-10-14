@@ -13,6 +13,7 @@ import type {
 	UpdaterTarget,
 	UpdateSupport,
 } from "$types/updateTypes";
+import { readReleaseNotice, releaseNoticeProvenance } from "./release-notice";
 
 const modes = ["development", "package-managed", "manual-only", "unknown", "self-managed"];
 const installers = ["nsis", "msi", "appimage", "deb", "rpm", "nix"];
@@ -200,6 +201,7 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 		currentVersion: dependencies.currentVersion,
 		support: null,
 		availableUpdate: null,
+		releaseNoticeOnly: false,
 		failure: null,
 		lastCheckedAt: null,
 		canCheck: true,
@@ -683,6 +685,25 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 				phase = "support";
 				const support = await refreshSupport();
 				const target = approvedCheckTarget(support);
+				const noticeProvenance = releaseNoticeProvenance(support);
+				if (dependencies.checkReleaseNotice && noticeProvenance !== null) {
+					phase = "check";
+					const rawNotice = await dependencies.checkReleaseNotice();
+					phase = "support";
+					if (releaseNoticeProvenance(await refreshSupport()) !== noticeProvenance) {
+						publish({ status: "manual-only" });
+						return "not-available" as const;
+					}
+					phase = "check";
+					const notice = readReleaseNotice(rawNotice, dependencies.currentVersion);
+					publish({
+						status: notice ? "available" : "up-to-date",
+						availableUpdate: notice,
+						releaseNoticeOnly: true,
+						lastCheckedAt: (dependencies.now ?? Date.now)(),
+					});
+					return "completed" as const;
+				}
 				if (target === null) {
 					publish({ status: "manual-only" });
 					return "completed" as const;
@@ -721,6 +742,7 @@ export function createUpdaterController(dependencies: UpdaterDependencies) {
 			.finally(finishOperation);
 		return beginOperation(operation, "check", {
 			status: "checking",
+			releaseNoticeOnly: false,
 			failure: null,
 			availableUpdate: null,
 			progress: null,

@@ -4,7 +4,7 @@ Wallpaper Picker UI's **Tauri 2** updater design, with a reusable implementation
 
 ## Current status and commit-based handoff
 
-The user-owned baseline is **3.6.8**: release commit `43059a0`, followed by release-bot flake commit `01429a0` (`01429a01629d42ef09bd588c9d207f8b58550339`). The public GitHub latest-release API returned non-prerelease [v3.6.8](https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/tag/v3.6.8), release ID `412900535`. This is release metadata evidence, not renewed payload cryptography or native upgrade acceptance.
+The current baseline is **3.6.9**: reviewed UI commit `33301d4b715721eee8388091e901db8122e13218`, followed by release-bot flake commit `f0e558e1bec4394db3a177a2769e491ee295cce7`. The public latest.json returned version `3.6.9`. This is release metadata evidence, not renewed payload cryptography or native upgrade acceptance. The previous user-owned 3.6.8 baseline was release commit `43059a0` / flake commit `01429a0`; its changes remain preserved.
 
 Changes since the earlier guide/cleanup commit `756af3b`, read from Git history:
 
@@ -18,16 +18,32 @@ Changes since the earlier guide/cleanup commit `756af3b`, read from Git history:
 | `1a763c1`, `43059a0` | Add Nix development-shell dependencies and the GStreamer `appsink`/plugin path correction. This does not authorize Nix self-updating. |
 | Release/flake commits | Versions 3.6.5 through 3.6.8 and their pinned binary hashes; preserve the bot-owned flake update workflow. |
 
-**This local UI slice prepares 3.6.9** with silent startup checks, explicit updater-action spacing and safely rendered collapsible release notes. The version script synchronizes package/Tauri/Cargo versions; Cargo regenerates only the root-package lock version. The local handoff consists of the complete changes, passing local gates and independent review, recorded together in the local Git commit. No hosted CI or release is implied by that commit. The user explicitly owns pushing, CI/release triggering and publication: **do not push or create a release tag on their behalf**.
+**The completed UI slice prepared 3.6.9** with silent startup checks, explicit updater-action spacing and safely rendered collapsible release notes. The version script synchronizes package/Tauri/Cargo versions; Cargo regenerates only the root-package lock version. The local handoff consists of the complete changes, passing local gates and independent review, recorded together in the local Git commit. No hosted CI or release is implied by that commit. The user explicitly owns pushing, CI/release triggering and publication: **do not push or create a release tag on their behalf**.
 
 | Area | Result / boundary |
 | --- | --- |
 | Installation policy | Only proven default-location/current-user Windows x64 NSIS permits in-app installation. Linux in-app installation remains disabled. |
 | Historical release evidence | 3.6.4 normal CI `38331712510` and release `38331958570` passed; its NSIS signature/authenticated version/corruption rejection/x64 PE/NSS marker were verified. These results are historical, not proof for 3.6.8 or the new local slice. |
-| Current local gate evidence | **331 logic tests/39 files, 227 component tests/27 files, 56 Windows Rust tests, five locales/132 keys**; lint, Svelte 0 errors/0 warnings, frontend build, strict release-script TS and locked/offline Rust fmt/check/test passed. Hosted CI is deliberately not triggered by this local-only handoff. |
+| Historical 3.6.9 UI gate evidence | **331 logic tests/39 files, 227 component tests/27 files, 56 Windows Rust tests, five locales/132 keys**; lint, Svelte 0 errors/0 warnings, frontend build, strict release-script TS and locked/offline Rust fmt/check/test passed. Hosted CI is deliberately not triggered by this local-only handoff. |
 | **Not verified** | **Actual native upgrade, installer completion/reopen and data preservation through the real About button.** Source, mocks, signatures and handoff are not that acceptance. |
 
 Temporary 3.6.2/3.6.3 release pages/assets were retired; tags remain history. Do not restore MSI direct-asset constructors or test badges. This guide authorizes no publication, re-keying, installer launch, normal-host inspection or migration.
+
+### Linux release-notice channel (current implementation slice)
+
+The user explicitly authorized **notification-only** support for recognized Debian, RPM, Nix and AppImage installations. Keep version **3.6.9**; no new release or tag is authorized. The user subsequently authorized appending this feature to their independently edited `RELEASE.md` for the next update; preserve its existing UI notes and do not add a version bump or release tag. Integrated local gates passed: **424 logic tests/41 files, 265 component tests/28 files, 71 Windows Rust tests, five locales/134 keys**, plus lint, Svelte 0 errors/0 warnings, frontend build, strict release-script TypeScript and locked/offline Rust formatting/check/tests. The complete notification-only source slice passed independent review; the latest user-approved release-note additions are included in the local handoff. No live Linux notice request or packaged Linux UI acceptance has been exercised.
+
+The notice reads **public release metadata**, not an installer payload:
+
+> Wallpaper Picker UI {version} is available. Update through your usual installation method.
+
+- Reuse the silent, once-per-process startup check, once-per-version Home notice, About notes and explicit manual Check again.
+- `src-tauri/src/check_release_notice/{mod.rs,tests.rs}` implements a bounded native read of the existing fixed HTTPS latest.json endpoint because its asset response does not supply a browser CORS header. The no-argument command returns only current/newer version, notes and date, never native updater resource IDs, methods, installer URLs or payload bytes. Existing locked reqwest/semver/chrono/rustls crates are referenced directly; no package versions were upgraded.
+- Enforce stable semantic-version precedence (ignore prerelease candidates and build-only changes), fixed-origin redirect policy (HTTPS allowlist/three redirects), a 15-second whole-request deadline, 128 KiB streamed metadata and 64 KiB notes bounds, and RFC3339 publication-date validation. No auth, cookies, proxies, referrers, automatic retries or payload URL reads. Malformed/offline checks fail without a notice; never print signed redirect URLs or raw network responses.
+- Recognized Linux package-managed/manual installations use this separate metadata branch. Do not pretend Debian/RPM/Nix is AppImage, invent an SDK target, or change native installation policy.
+- Keep metadata ownership distinct from `NativeUpdateResource`: no SDK check/download/install, installation admission, payload verification or relaunch on this branch. Notification metadata is not cryptographically verified payload readiness.
+- `U/controller/release-notice.ts` validates notice metadata and exact Linux provenance; `checkForUpdates()` holds the shared check lock, closes any prior native resource before checking, and refreshes exact provenance before publication. `releaseNoticeOnly` marks the public snapshot; it never grants installation authority. Unknown/development/mismatched installations remain denied. Existing Windows NSIS updater and its resource quarantine are unchanged.
+- Explain that a newer **upstream** release exists; the user's distro repository or pinned flake may still be older. Nix notification permission does not authorize store replacement, package-manager execution or updater installation discovery/testing.
 
 ## 1. Architecture and UX
 
@@ -74,8 +90,8 @@ Wire: mode/platform/architecture/installer/checkTarget/target/reason, no paths/h
 | Recognized unapproved/custom/elevated/coexisting NSIS | Exact NSIS check | Target null; manual releases page. |
 | Legacy Windows MSI | `windows-x86_64-msi` | Always manual. Feed lacks MSI; migration guidance persists without candidate/check success. No NSIS conversion. |
 | Correlated Linux x64 AppImage, writable/read-only | `linux-x86_64-appimage` | Always manual; target null; native-validation-pending or literal app-image-read-only. |
-| Debian/RPM | None | Package manager; policy, not claimed plugin incompatibility. |
-| Nix/NixOS/Home Manager | None | Flake/configuration update; no /nix/store replacement. Repacked deb still Nix-owned. |
+| Debian/RPM | No SDK target; separate release-notice metadata channel | Normal package update/manual package route; no in-app install. |
+| Nix/NixOS/Home Manager | No SDK target; separate release-notice metadata channel | Flake/configuration update; no /nix/store replacement. Repacked deb still Nix-owned. |
 | Browser/dev/unsupported/unknown or contradictory bundle/platform | None | No native update effects. |
 
 Malformed/explicit-null/mismatching checkTarget denies. Only **absent legacy** checkTarget can fall back through otherwise complete install approval. Refresh provenance before publishing acquired metadata and before native phases; no cross-installer fallback.
