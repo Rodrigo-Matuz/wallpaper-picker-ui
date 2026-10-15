@@ -50,7 +50,11 @@ const theme = readFileSync("src/routes/layout.css", "utf8");
 function resolveThemeColor(value: string): string {
 	const token = /^var\((--color-[\w-]+)\)$/.exec(value.trim())?.[1];
 	expect(token, `Toast color must use an app theme token: ${value}`).toBeTruthy();
-	const color = theme.match(new RegExp(`${token}:\\s*(#[\\da-f]{6});`, "i"))?.[1];
+	if (!token) return "";
+	const semanticName = token.replace("--color-", "");
+	const color =
+		theme.match(new RegExp(`${token}:\\s*(#[\\da-f]{6});`, "i"))?.[1] ??
+		theme.match(new RegExp(`--theme-${semanticName}:\\s*(#[\\da-f]{6});`, "i"))?.[1];
 	expect(color, `Missing opaque theme token: ${token}`).toBeTruthy();
 	return color ?? "";
 }

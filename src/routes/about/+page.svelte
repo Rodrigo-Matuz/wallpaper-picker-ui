@@ -15,7 +15,7 @@ const projectSourceUrl = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui";
 
 <div class="flex min-h-screen flex-col">
     <header class="sticky top-0 z-50 border-b border-foreground/10 bg-background">
-        <nav aria-label={$t('about.search.placeholder')} class="mx-auto flex min-h-14 max-w-5xl items-center justify-between gap-4 px-5 md:px-8" data-tauri-drag-region>
+        <nav aria-label={$t('about.search.placeholder')} class="mx-auto flex min-h-14 max-w-5xl items-center justify-between gap-4 theme-page-padding" data-tauri-drag-region>
             <a href="/" class="inline-flex min-h-11 items-center gap-2 text-xs text-muted transition-colors hover:text-success">
                 <ArrowLeft class="size-4 shrink-0" />
                 {$t('settings.back.label')}
@@ -30,7 +30,7 @@ const projectSourceUrl = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui";
         </nav>
     </header>
 
-    <main class="mx-auto w-full max-w-5xl flex-1 px-5 md:px-8">
+    <main class="mx-auto w-full max-w-5xl flex-1 theme-page-padding">
         <header class="grid gap-6 border-b border-foreground/20 py-8 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:py-10">
             <div class="min-w-0">
                 <p class="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">{$t('about.search.placeholder')}</p>
@@ -64,7 +64,7 @@ const projectSourceUrl = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui";
         </section>
     </main>
 
-    <footer class="mx-auto w-full max-w-5xl px-5 pb-6 md:px-8">
+    <footer class="mx-auto w-full max-w-5xl theme-page-padding pb-6">
         <div class="flex flex-col gap-3 border-t border-foreground/15 pt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
             <div>
                 <p class="text-xs font-medium text-foreground">{$t('about.contribute.title')}</p>

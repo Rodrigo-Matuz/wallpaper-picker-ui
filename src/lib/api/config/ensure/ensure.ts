@@ -22,7 +22,9 @@ import { CONFIG_FILE_PATH } from "$utils/paths";
  * - `wallpapersPath`: An empty string.
  * - `newWallpapers`: A boolean set to true.
  * - `debugMode`: A boolean set to false.
- * - `darkMode`: A boolean set to true.
+ * - `darkMode`: A boolean set to true for legacy compatibility.
+ * - `themeId`: The `deep-ocean` theme family.
+ * - `themeMode`: The `dark` appearance variant.
  * - `language`: A string, default to "eng".
  * - `thumbnailsHashMap`: An empty object.
  *

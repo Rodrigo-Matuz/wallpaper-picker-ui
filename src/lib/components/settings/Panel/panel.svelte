@@ -8,6 +8,7 @@ import SettingsButton from "$components/settings/Button";
 import SettingsInput from "$components/settings/Input";
 import SettingsSelector from "$components/settings/Selector";
 import SettingsSwitch from "$components/settings/Switch";
+import { ThemeSelector } from "$components/settings/ThemeSelector";
 import WindowsPlaybackNotice from "$components/windowsPlaybackNotice/windows-playback-notice.svelte";
 import { clearConfig } from "$lib/api/config/clear";
 import { fetchConfig } from "$lib/api/config/read/read";
@@ -15,14 +16,17 @@ import { updateConfig } from "$lib/api/config/update/update";
 import { selectFolder } from "$lib/api/system/selectFolder/selectFolder";
 import { clearThumbnails } from "$lib/api/thumbnails/clear";
 import { t } from "$lib/lang/index";
+import { resolveThemeSelection } from "$lib/theme/theme";
 import { toggleDarkMode } from "$lib/utils/darkMode";
 
 const translate = $derived($t);
 const sections = ["wallpaper", "preferences", "maintenance"] as const;
+
+const fetchAppearance = async () => resolveThemeSelection(await fetchConfig()).mode === "dark";
 </script>
 
 <header class="sticky top-0 z-50 border-b border-foreground/10 bg-background">
-    <nav class="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-4 px-5 md:px-8" aria-label={translate('settings.search.placeholder')} data-tauri-drag-region>
+    <nav class="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-4 theme-page-padding" aria-label={translate('settings.search.placeholder')} data-tauri-drag-region>
         <a href="/" class="inline-flex min-h-11 items-center gap-2 text-xs text-muted transition-colors hover:text-foreground">
             <ArrowLeft class="size-4 shrink-0" />
             {translate('settings.back.label')}
@@ -37,7 +41,7 @@ const sections = ["wallpaper", "preferences", "maintenance"] as const;
     </nav>
 </header>
 
-<main class="mx-auto max-w-6xl px-5 pb-16 pt-10 md:px-8">
+<main class="mx-auto max-w-6xl theme-page-padding pb-16 pt-10">
     <header class="mb-10 border-b border-foreground/15 pb-7">
         <p class="mb-3 font-mono text-[10px] uppercase tracking-[0.24em] text-primary">{translate('settings.sections.label')}</p>
         <h1 class="font-display text-4xl tracking-tight text-foreground md:text-5xl">{translate('settings.search.placeholder')}</h1>
@@ -59,9 +63,9 @@ const sections = ["wallpaper", "preferences", "maintenance"] as const;
             </p>
         </aside>
 
-        <div class="min-w-0 space-y-12">
+        <div class="flex min-w-0 flex-col theme-section-stack">
             <section id="wallpaper" aria-labelledby="wallpaper-heading" class="scroll-mt-20">
-                <div class="border border-foreground/15 bg-surface/35">
+                <div class="theme-card border border-foreground/15 bg-surface/35">
                     <div class="flex items-start gap-4 border-b border-foreground/15 bg-surface-raised/30 px-5 py-5 md:px-6">
                         <span aria-hidden="true" class="pt-1 font-mono text-[10px] tracking-[0.16em] text-primary">01</span>
                         <div>
@@ -98,7 +102,7 @@ const sections = ["wallpaper", "preferences", "maintenance"] as const;
             </section>
 
             <section id="preferences" aria-labelledby="preferences-heading" class="scroll-mt-20">
-                <div class="border border-foreground/15 bg-surface/35">
+                <div class="theme-card border border-foreground/15 bg-surface/35">
                     <div class="flex items-start gap-4 border-b border-foreground/15 bg-surface-raised/30 px-5 py-5 md:px-6">
                         <span aria-hidden="true" class="pt-1 font-mono text-[10px] tracking-[0.16em] text-primary">02</span>
                         <div>
@@ -107,12 +111,13 @@ const sections = ["wallpaper", "preferences", "maintenance"] as const;
                         </div>
                     </div>
                     <div class="divide-y divide-foreground/10">
+                    <ThemeSelector />
                     <SettingsSwitch
-                        name={translate('settings.darkMode.name')}
-                        shortDescription={translate('settings.darkMode.short.description')}
-                        fetchValue={async () => (await fetchConfig()).darkMode}
+                        name={translate('settings.appearance.name')}
+                        shortDescription={translate('settings.appearance.short.description')}
+                        fetchValue={fetchAppearance}
                         onToggle={async () => await toggleDarkMode()}
-                        hintDescription={translate('settings.darkMode.hint.description')}
+                        hintDescription={translate('settings.appearance.hint.description')}
                     />
                     <SettingsSwitch
                         name={translate('settings.windowControls.name')}
@@ -136,7 +141,7 @@ const sections = ["wallpaper", "preferences", "maintenance"] as const;
             </section>
 
             <section id="maintenance" aria-labelledby="maintenance-heading" class="scroll-mt-20">
-                <div class="border border-foreground/15 bg-surface/35">
+                <div class="theme-card border border-foreground/15 bg-surface/35">
                     <div class="flex items-start gap-4 border-b border-foreground/15 bg-surface-raised/30 px-5 py-5 md:px-6">
                         <span aria-hidden="true" class="pt-1 font-mono text-[10px] tracking-[0.16em] text-primary">03</span>
                         <div>

@@ -1,4 +1,5 @@
 import type { LangCode } from "./langTypes";
+import type { ThemeId, ThemeMode } from "./themeTypes";
 
 export type ThumbnailRecord = Record<string, string>;
 
@@ -8,6 +9,10 @@ export interface ConfigInterArgs {
 	debugMode: boolean;
 	newWallpapers: boolean;
 	darkMode: boolean;
+	/** Selected theme family; missing in older configs defaults to DeepOcean. */
+	themeId?: ThemeId;
+	/** Selected theme appearance; missing in older configs follows darkMode. */
+	themeMode?: ThemeMode;
 	/** Missing in older configs means the controls remain visible. */
 	showWindowControls?: boolean;
 	language: LangCode;

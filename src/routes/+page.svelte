@@ -28,7 +28,7 @@ const handleInputChange = (event: Event) => {
 
 {#if !loading}
     <HomeNotice />
-    <div class="px-4 pt-2">
+    <div class="theme-page-padding">
         <WindowsPlaybackNotice />
     </div>
     <div class="flex flex-col min-h-screen">
@@ -38,7 +38,7 @@ const handleInputChange = (event: Event) => {
                 onInputChange={handleInputChange}
             />
 
-            <div class="px-4 pb-8">
+            <div class="theme-page-padding pb-8">
                 <Display {searchQuery} onVisibleCountChange={(count) => { visibleWallpapers = count; }} />
             </div>
         </div>

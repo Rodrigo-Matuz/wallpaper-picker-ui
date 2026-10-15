@@ -43,7 +43,7 @@ let {
 }: Props = $props();
 
 const baseStyles =
-	"inline-flex items-center justify-center gap-2 font-semibold uppercase tracking-[0.14em] transition-colors disabled:pointer-events-none disabled:opacity-50 cursor-pointer";
+	"theme-button inline-flex items-center justify-center gap-2 font-semibold uppercase tracking-[0.14em] transition-colors disabled:pointer-events-none disabled:opacity-50 cursor-pointer";
 
 const sizeStyles: Record<string, string> = {
 	sm: "px-4 py-2 text-[10px] sm:text-xs",
@@ -52,8 +52,8 @@ const sizeStyles: Record<string, string> = {
 };
 
 const variantStyles: Record<string, string> = {
-	accent: "bg-accent text-white hover:bg-accent/85",
-	primary: "bg-primary text-white hover:bg-primary/85",
+	accent: "bg-accent text-accent-foreground hover:bg-accent/85",
+	primary: "bg-primary text-primary-foreground hover:bg-primary/85",
 	outline: "border border-foreground/15 text-foreground hover:border-success hover:text-success",
 	ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 text-foreground",
 };

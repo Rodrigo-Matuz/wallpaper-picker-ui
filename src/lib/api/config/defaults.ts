@@ -7,6 +7,8 @@ export const defaultConfig: ConfigInterArgs = {
 	debugMode: false,
 	newWallpapers: true,
 	darkMode: true,
+	themeId: "deep-ocean",
+	themeMode: "dark",
 	showWindowControls: true,
 	language: "eng",
 	thumbnailsHashMap: {},

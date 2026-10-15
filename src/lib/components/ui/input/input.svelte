@@ -25,7 +25,7 @@ let {
         bind:this={ref}
         data-slot={dataSlot}
         class={cn(
-            'flex bg-transparent disabled:opacity-50 px-3 pt-1.5 border border-border rounded-md outline-none w-full min-w-0 h-9 font-medium placeholder:text-muted text-sm transition-colors disabled:cursor-not-allowed',
+            'theme-control flex bg-transparent disabled:opacity-50 px-3 pt-1.5 border border-border outline-none w-full min-w-0 h-9 font-medium placeholder:text-muted text-sm transition-colors disabled:cursor-not-allowed',
             'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary',
             'aria-invalid:outline-destructive aria-invalid:opacity-70',
             className,
@@ -40,7 +40,7 @@ let {
         bind:this={ref}
         data-slot={dataSlot}
         class={cn(
-            'flex bg-surface hover:bg-surface-raised disabled:opacity-50 px-3 py-2 border border-border rounded-md outline-none w-full min-w-0 h-9 font-medium placeholder:text-muted text-base transition-colors disabled:cursor-not-allowed',
+            'theme-control flex bg-surface hover:bg-surface-raised disabled:opacity-50 px-3 py-2 border border-border outline-none w-full min-w-0 h-9 font-medium placeholder:text-muted text-base transition-colors disabled:cursor-not-allowed',
             'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary',
             'aria-invalid:outline-destructive aria-invalid:opacity-70',
             className,

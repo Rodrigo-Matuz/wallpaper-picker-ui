@@ -18,7 +18,7 @@ $: triggerLabel = languages[$currentLanguage]?.name ?? selectorPlaceholder;
 <SettingRow {name} {shortDescription} {hintDescription}>
     {#snippet children(labelId, descriptionId)}
         <Select.Root disabled={$installationReserved} type="single" value={$currentLanguage} onValueChange={(value) => { if (value) setLanguage(value); }}>
-            <Select.Trigger class="min-h-11 w-full min-w-0 rounded-none border-foreground/15 bg-background sm:w-48" aria-labelledby={labelId} aria-describedby={descriptionId}>
+            <Select.Trigger class="theme-control min-h-11 w-full min-w-0 border-foreground/15 bg-background sm:w-48" aria-labelledby={labelId} aria-describedby={descriptionId}>
                 <span class="truncate">{triggerLabel}</span>
             </Select.Trigger>
             <Select.Content>

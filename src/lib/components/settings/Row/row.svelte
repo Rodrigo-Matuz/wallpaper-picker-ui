@@ -21,7 +21,7 @@ const translate = $derived($t);
 <div
     data-slot="settings-row"
     data-setting-name={name}
-    class={`grid min-w-0 gap-x-8 gap-y-5 bg-background/20 px-5 py-6 sm:px-6 ${stacked ? '' : 'sm:grid-cols-[minmax(0,1fr)_auto]'}`}
+    class={`theme-row theme-row-padding grid min-w-0 gap-x-8 gap-y-5 bg-background/20 ${stacked ? '' : 'sm:grid-cols-[minmax(0,1fr)_auto]'}`}
 >
     <div class="min-w-0">
         <h3 id={labelId} class="text-[18px] font-medium leading-6 tracking-[-0.01em] text-foreground">{name}</h3>

@@ -1,7 +1,9 @@
 import { isTauri } from "@tauri-apps/api/core";
+import { setMode } from "mode-watcher";
 import { writable } from "svelte/store";
 import { fetchConfig } from "$api/config/read/read";
 import { currentLanguage, languages } from "$lang/index";
+import { initializeTheme } from "$lib/theme/theme";
 import { updaterController } from "$utils/updating/updating";
 import { createUpdaterSession } from "./session";
 
@@ -11,7 +13,8 @@ export const updaterSession = createUpdaterSession(() => updaterController.check
 let initialization: Promise<void> | null = null;
 
 /** DOCS:
- * Initialize stored language once without persistence, then start the nonblocking launch check.
+ * Initialize the safe default theme, then load stored theme/language preferences once
+ * without persistence, then start the nonblocking launch check.
  * SSR is inert. Browser/development never call the updater; the controller enforces native policy.
  * A failed config read uses the registered default language, not a config rewrite.
  */
@@ -22,9 +25,13 @@ export function initializeApplicationSession(): Promise<void> {
 	const development = import.meta.env.DEV;
 	runtimeMode.set(!native ? "browser" : development ? "development" : "native");
 	initialization = (async () => {
+		initializeTheme();
+		setMode("dark");
 		if (native) {
 			try {
 				const config = await fetchConfig();
+				const selection = initializeTheme(config);
+				setMode(selection.mode);
 				if (Object.hasOwn(languages, config.language)) currentLanguage.set(config.language);
 			} catch {
 				// Config owns diagnostics; use the already registered default without mutating storage.

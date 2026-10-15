@@ -92,7 +92,7 @@ describe("Settings page", () => {
 		view.unmount();
 		expect(applicationWork.hasDirtyInputs()).toBe(true);
 	});
-	it("groups all eight settings under labelled sections with a working section index", async () => {
+	it("groups all nine settings under labelled sections with a working section index", async () => {
 		render(SettingsPage);
 		expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeTruthy();
 		const index = screen.getByRole("navigation", { name: "Settings sections" });
@@ -103,7 +103,7 @@ describe("Settings page", () => {
 			const section = screen.getByRole("region", { name });
 			expect(section.id).toBe(id);
 		}
-		expect(document.querySelectorAll('[data-slot="settings-row"]').length).toBe(8);
+		expect(document.querySelectorAll('[data-slot="settings-row"]').length).toBe(9);
 		expect(document.querySelectorAll('[data-slot="card"]').length).toBe(0);
 		const command = screen.getByRole("textbox", { name: "Command" }) as HTMLInputElement;
 		await waitFor(() => expect(command.value).toBe("mpvpaper $VP"));
@@ -150,7 +150,7 @@ describe("Settings page", () => {
 		);
 		await fireEvent.click(screen.getByRole("switch", { name: "New Wallpapers" }));
 		expect(updateConfig).toHaveBeenCalledWith({ newWallpapers: false });
-		await fireEvent.click(screen.getByRole("switch", { name: "Dark Mode" }));
+		await fireEvent.click(screen.getByRole("switch", { name: "Appearance mode" }));
 		expect(toggleDarkMode).toHaveBeenCalledTimes(1);
 	});
 });

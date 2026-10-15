@@ -4,6 +4,8 @@ import { toast } from "svelte-sonner";
 import { fetchConfig } from "$api/config/read/read";
 import { updateConfig } from "$api/config/update/update";
 import { t } from "$lang/index";
+import { publishThemeSelection, resolveThemeSelection } from "$lib/theme/theme";
+import type { ThemeMode } from "$types/themeTypes";
 import { applicationWork, InstallationReservedError } from "$utils/applicationWork/applicationWork";
 import { log } from "./logger/logger";
 
@@ -29,13 +31,20 @@ export const toggleDarkMode = async (): Promise<boolean> => {
 	try {
 		release = applicationWork.beginWork();
 		const config = await fetchConfig();
-		const isDarkMode = config.darkMode;
-
-		const newMode = isDarkMode ? "light" : "dark";
-		if (!(await updateConfig({ darkMode: !isDarkMode }))) {
+		const currentSelection = resolveThemeSelection(config);
+		const newMode: ThemeMode = currentSelection.mode === "dark" ? "light" : "dark";
+		const newSelection = { ...currentSelection, mode: newMode };
+		if (
+			!(await updateConfig({
+				darkMode: newMode === "dark",
+				themeId: newSelection.themeId,
+				themeMode: newSelection.mode,
+			}))
+		) {
 			toast.error(get(t)("toast.settings.failed"));
 			return false;
 		}
+		publishThemeSelection(newSelection);
 		setMode(newMode);
 
 		await log({

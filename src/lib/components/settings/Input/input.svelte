@@ -61,7 +61,7 @@ async function handleSave() {
     {#snippet children(labelId, descriptionId)}
         <form class="flex min-w-0 flex-col gap-3 sm:flex-row" on:submit|preventDefault={handleSave}>
             <Input
-                class="h-11 min-w-0 flex-1 rounded-none border-foreground/15 bg-background font-mono text-[13px]"
+                class="theme-control h-11 min-w-0 flex-1 border-foreground/15 bg-background font-mono text-[13px]"
                 placeholder={inputPlaceholder}
                 aria-labelledby={labelId}
                 aria-describedby={descriptionId}
