@@ -81,7 +81,14 @@
           libayatana-appindicator
           gst_all_1.gstreamer
           gst_all_1.gst-plugins-base
+          gsettings-desktop-schemas
         ];
+        # GTK/WebKitGTK needs the GSettings schema directories in XDG_DATA_DIRS
+        # on Wayland. Without them, WebKitGTK can expose a negative scale factor
+        # to the frontend, which produces inverted dimensions and broken layouts.
+        shellHook = ''
+          export XDG_DATA_DIRS="$GSETTINGS_SCHEMAS_PATH''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+        '';
       };
 
       homeManagerModules.default = { config, pkgs, lib, ... }:
