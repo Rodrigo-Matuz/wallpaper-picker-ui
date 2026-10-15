@@ -52,15 +52,30 @@ jobs:
           args: --bundles ${{ matrix.bundles }}
           tagName: v__VERSION__
           releaseName: "Wallpaper Picker UI v__VERSION__"
-          # GitHub generates the change list; don't reuse version-specific
-          # RELEASE.md notes from an earlier tag. The updater receives this
-          # self-contained guidance (tauri-action does not read generated notes back).
+          # Keep the release page concise and self-contained. GitHub also adds
+          # the generated commit change list below this body.
           releaseBody: |
-            Windows NSIS (.exe) only: in-app updating is available for a proven
-            default current-user NSIS installation. Checking can notify you of a
-            newer version but never automatically downloads, installs or restarts.
-            Installation requires your explicit version-labelled Update click
-            and the app's pending-work safety checks.
+            ## What's new
+
+            - Native animated wallpaper playback on Windows using mpv embedded behind desktop icons.
+            - Windows now explains that `mpv.exe` must be installed and available on `PATH`, with an installation link in the app.
+            - Existing Linux and configured-command playback behavior remains available.
+
+            ## Improved
+
+            - Clearer settings sections and command detail grouping.
+            - Standard gear icon and improved Windows playback fallback messaging.
+            - More defensive WorkerW desktop hosting and multi-monitor positioning.
+
+            ## Important notes
+
+            - Windows native playback requires mpv; it is not bundled yet.
+            - Native Windows runtime behavior still needs validation on physical Windows hardware.
+            - Windows NSIS (.exe) only: in-app updating is available for a proven
+              default current-user NSIS installation. Checking can notify you of a
+              newer version but never automatically downloads, installs or restarts.
+              Installation requires your explicit version-labelled Update click
+              and the app's pending-work safety checks.
 
             Legacy MSI installations require manual migration to NSIS; the app
             never automatically changes installer type. No MSI installer is included.
@@ -73,8 +88,7 @@ jobs:
             Nix/NixOS/Home Manager installs use their flake/configuration update.
             Linux in-app installation remains unavailable; update AppImage manually.
 
-            Review the generated change list and assets
-            before manually publishing this draft.
+            Review the generated change list and assets before manually publishing this draft.
           generateReleaseNotes: true
           includeUpdaterJson: true
           # Keep the legacy Windows alias on the same NSIS payload as the exact key.
