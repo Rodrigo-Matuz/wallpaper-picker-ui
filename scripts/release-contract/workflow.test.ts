@@ -29,7 +29,10 @@ test("grants draft visibility after the full matrix without persisting write cre
 	const action = build.steps.find((step) => step.uses === "tauri-apps/tauri-action@v0");
 	expect(action?.with?.releaseDraft).toBe(true);
 	expect(action?.with?.prerelease).toBe(false);
-	expect(action?.with?.releaseBody).toContain("before manually publishing this draft");
+	expect(action?.with?.releaseBody).toContain("Added selectable theme families");
+	expect(action?.with?.releaseBody).toContain("DeepOcean preview icons now remain blue");
+	expect(action?.with?.releaseBody).not.toContain("installation");
+	expect(action?.with?.releaseBody).not.toContain("Update");
 });
 
 const workflow = () =>
@@ -67,22 +70,18 @@ test("makes updater JSON, NSIS alias preference and generated release notes expl
 	);
 });
 
-test("ships self-contained official release guidance with consent and manual legacy MSI migration", () => {
+test("keeps release notes concise and limited to features and fixes", () => {
 	const action = workflow().jobs.build.steps.find(
 		(step) => step.uses === "tauri-apps/tauri-action@v0",
 	);
 	const body = String(action?.with?.releaseBody);
-	expect(body).toContain("Windows NSIS (.exe) only");
-	expect(body).toContain("default current-user NSIS installation");
-	expect(body).toContain("explicit version-labelled Update click");
-	expect(body).toContain("never automatically downloads, installs or restarts");
-	expect(body).toContain("Legacy MSI installations require manual migration");
-	expect(body).toContain("Back up your settings and app data, close the app");
-	expect(body).toContain("No MSI installer is included");
-	expect(body).toContain("Linux AppImage, Debian (.deb) and RPM (.rpm)");
-	expect(body).toContain("Debian/RPM installs remain package-managed");
-	expect(body).toContain("Nix/NixOS/Home Manager installs use their flake/configuration update");
-	expect(body).toContain("before manually publishing this draft");
+	expect(body).toContain("## New");
+	expect(body).toContain("## Fixed");
+	expect(body).toContain("Arctic and Orchid");
+	expect(body).toContain("WebKitGTK layout metrics");
+	expect(body).not.toContain("installation");
+	expect(body).not.toContain("installer");
+	expect(body).not.toContain("Update");
 	expect(body).not.toContain("github.ref_name");
 	expect(body).not.toContain("TEST RELEASE");
 	expect(body).not.toContain("may be deleted soon");

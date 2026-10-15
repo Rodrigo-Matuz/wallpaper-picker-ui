@@ -55,40 +55,17 @@ jobs:
           # Keep the release page concise and self-contained. GitHub also adds
           # the generated commit change list below this body.
           releaseBody: |
-            ## What's new
+            ## New
 
-            - Native animated wallpaper playback on Windows using mpv embedded behind desktop icons.
-            - Windows now explains that `mpv.exe` must be installed and available on `PATH`, with an installation link in the app.
-            - Existing Linux and configured-command playback behavior remains available.
+            - Added selectable theme families with dark and light variants, including Arctic and Orchid.
+            - Added theme-controlled colors, spacing, shadows, radii, cards, and button states.
 
-            ## Improved
+            ## Fixed
 
-            - Clearer settings sections and command detail grouping.
-            - Standard gear icon and improved Windows playback fallback messaging.
-            - More defensive WorkerW desktop hosting and multi-monitor positioning.
-
-            ## Important notes
-
-            - Windows native playback requires mpv; it is not bundled yet.
-            - Native Windows runtime behavior still needs validation on physical Windows hardware.
-            - Windows NSIS (.exe) only: in-app updating is available for a proven
-              default current-user NSIS installation. Checking can notify you of a
-              newer version but never automatically downloads, installs or restarts.
-              Installation requires your explicit version-labelled Update click
-              and the app's pending-work safety checks.
-
-            Legacy MSI installations require manual migration to NSIS; the app
-            never automatically changes installer type. No MSI installer is included.
-            Back up your settings and app data, close the app, uninstall the legacy
-            MSI yourself, then run the NSIS installer manually. Older releases
-            without update controls also require a manual bootstrap installation.
-
-            Linux AppImage, Debian (.deb) and RPM (.rpm) packages remain available.
-            Debian/RPM installs remain package-managed; use your package manager.
-            Nix/NixOS/Home Manager installs use their flake/configuration update.
-            Linux in-app installation remains unavailable; update AppImage manually.
-
-            Review the generated change list and assets before manually publishing this draft.
+            - DeepOcean preview icons now remain blue instead of inheriting the purple accent.
+            - Destructive actions remain visually dangerous across every theme.
+            - Selected wallpaper cards now preserve each theme's configured radius.
+            - Fixed broken WebKitGTK layout metrics when running the app through the Nix development shell.
           generateReleaseNotes: true
           includeUpdaterJson: true
           # Keep the legacy Windows alias on the same NSIS payload as the exact key.

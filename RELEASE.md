@@ -1,14 +1,13 @@
-# Update interface
+# Release notes
 
-- Keep startup update detection silent: no temporary global top bar while checking installation support or GitHub. A newer release can still show the existing Home notification.
-- Separate the update/check actions from the GitHub releases link with explicit spacing and wrapping.
-- Show a short preview of long release notes, with **Read more** / **Read less** controls.
-- Render basic Markdown headings and bold text safely without executing raw HTML, scripts or remote images.
+## New
 
-## Linux release notifications
+- Added selectable theme families with dark and light variants, including Arctic and Orchid.
+- Added theme-controlled colors, spacing, shadows, radii, cards, and button states.
 
-- Notify Debian, RPM, Nix/Home Manager and AppImage users when a newer stable upstream release is available:
-  > Wallpaper Picker UI {version} is available. Update through your usual installation method.
-- Check silently at startup, with a dismissible notification, release details and manual **Check again** in About.
-- Notifications read release metadata only: no automatic download, installation, package-manager execution or restart. AppImage in-app installation remains disabled.
-- A newer upstream release does not mean it is already available in your distribution's repository or pinned Nix flake.
+## Fixed
+
+- DeepOcean preview icons now remain blue instead of inheriting the purple accent.
+- Destructive actions remain visually dangerous across every theme.
+- Selected wallpaper cards now preserve each theme’s configured radius.
+- Fixed broken WebKitGTK layout metrics when running the app through the Nix development shell.
