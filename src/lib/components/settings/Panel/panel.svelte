@@ -8,6 +8,7 @@ import SettingsButton from "$components/settings/Button";
 import SettingsInput from "$components/settings/Input";
 import SettingsSelector from "$components/settings/Selector";
 import SettingsSwitch from "$components/settings/Switch";
+import WindowsPlaybackNotice from "$components/windowsPlaybackNotice/windows-playback-notice.svelte";
 import { clearConfig } from "$lib/api/config/clear";
 import { fetchConfig } from "$lib/api/config/read/read";
 import { updateConfig } from "$lib/api/config/update/update";
@@ -68,6 +69,7 @@ const sections = ["wallpaper", "preferences", "maintenance"] as const;
                             <p class="mt-1 text-xs leading-5 text-muted">{translate('settings.section.wallpaper.description')}</p>
                         </div>
                     </div>
+                    <WindowsPlaybackNotice />
                     <div class="divide-y divide-foreground/10">
                     <SettingsButton
                         name={translate('settings.folder.name')}
