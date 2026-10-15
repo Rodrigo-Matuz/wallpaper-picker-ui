@@ -40,12 +40,10 @@ test("wallpaper cards show only the preview and a primary-blue play affordance",
 	const preview = screen.getByRole("img", { name: "/wallpapers/forest.mp4" });
 	expect(preview).toBeTruthy();
 	expect(screen.queryByText("forest.mp4")).toBeNull();
-	expect(
-		preview
-			.closest('[role="button"]')
-			?.querySelector("svg")
-			?.classList.contains("text-primary"),
-	).toBe(true);
+	const card = preview.closest('[role="button"]');
+	expect(card?.classList.contains("theme-card")).toBe(true);
+	expect(card?.classList.contains("hover:border-primary")).toBe(true);
+	expect(card?.querySelector("svg")?.classList.contains("text-primary")).toBe(true);
 });
 
 test("wallpapers keep four fluid, larger columns in a 900px window", () => {

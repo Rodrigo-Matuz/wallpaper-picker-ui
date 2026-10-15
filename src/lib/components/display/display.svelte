@@ -53,15 +53,13 @@ $: onVisibleCountChange(filteredThumbnails.length);
             <div
                 tabindex="0"
                 role="button"
-                class="group relative min-w-0 border border-transparent hover:border-primary outline-none transition-colors cursor-pointer"
+                class="theme-card group relative min-w-0 overflow-hidden border border-foreground/10 bg-surface hover:border-primary outline-none transition-colors cursor-pointer"
                 on:click={() => applyWallpaper(videoPath)}
             >
-                <div class="theme-card relative overflow-hidden border border-foreground/10 bg-surface">
-                    <img src={blobUrl} alt={videoPath} class="aspect-[3/2] w-full object-cover" />
-                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div class="absolute inset-0 flex justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <CirclePlay class="text-primary text-3xl" size={40} />
-                    </div>
+                <img src={blobUrl} alt={videoPath} class="aspect-[3/2] w-full object-cover" />
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="absolute inset-0 flex justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <CirclePlay class="text-primary text-3xl" size={40} />
                 </div>
             </div>
         {/each}

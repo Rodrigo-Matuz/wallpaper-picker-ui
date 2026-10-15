@@ -17,7 +17,7 @@ export let destructive = false;
 <SettingRow {name} {shortDescription} {hintDescription}>
     {#snippet children(labelId, descriptionId)}
         <div role="group" aria-labelledby={labelId} aria-describedby={descriptionId}>
-            <Button disabled={$installationReserved} onclick={() => runSettingsAction(() => !$installationReserved && buttonOnClick())} size="sm" variant="outline" class={destructive ? 'min-h-11 whitespace-normal border-accent/35 text-accent hover:border-accent! hover:text-accent!' : 'min-h-11 whitespace-normal hover:border-accent! hover:text-accent!'}>
+            <Button disabled={$installationReserved} onclick={() => runSettingsAction(() => !$installationReserved && buttonOnClick())} size="sm" variant="outline" class={destructive ? 'min-h-11 whitespace-normal border-warning/45 text-warning hover:bg-warning/10 hover:border-warning! hover:text-warning!' : 'min-h-11 whitespace-normal hover:border-accent! hover:text-accent!'}>
                 {buttonName}
             </Button>
         </div>

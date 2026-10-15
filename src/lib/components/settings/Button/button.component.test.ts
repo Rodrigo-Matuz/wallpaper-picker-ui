@@ -20,12 +20,18 @@ describe("SettingsButton", () => {
 	it.each([
 		false,
 		true,
-	])("uses the accent token for action hover (destructive=%s)", (destructive) => {
+	])("uses the danger token for destructive action hover (destructive=%s)", (destructive) => {
 		render(SettingsButton, { buttonName: "ACTION", destructive, buttonOnClick: vi.fn() });
 		const button = screen.getByRole("button", { name: "ACTION" });
-		expect(button.classList.contains("hover:text-accent!")).toBe(true);
-		expect(button.classList.contains("hover:border-accent!")).toBe(true);
-		if (destructive) expect(button.classList.contains("text-accent")).toBe(true);
+		if (destructive) {
+			expect(button.classList.contains("text-warning")).toBe(true);
+			expect(button.classList.contains("hover:text-warning!")).toBe(true);
+			expect(button.classList.contains("hover:border-warning!")).toBe(true);
+			expect(button.classList.contains("hover:bg-warning/10")).toBe(true);
+		} else {
+			expect(button.classList.contains("hover:text-accent!")).toBe(true);
+			expect(button.classList.contains("hover:border-accent!")).toBe(true);
+		}
 	});
 
 	it("runs the supplied settings action when its button is pressed", async () => {

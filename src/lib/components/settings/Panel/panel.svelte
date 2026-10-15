@@ -156,6 +156,7 @@ const fetchAppearance = async () => resolveThemeSelection(await fetchConfig()).m
                         buttonName={translate('settings.clearThumbnails.button.text')}
                         buttonOnClick={clearThumbnails}
                         hintDescription={translate('settings.clearThumbnails.hint.description')}
+                        destructive
                     />
                     <SettingsButton
                         name={translate('settings.deleteConfig.name')}
