@@ -36,7 +36,7 @@ describe("theme selection", () => {
 	});
 
 	test("registers dark and light variants with complete token groups", () => {
-		expect(themeIds).toEqual(["deep-ocean", "ember", "meadow"]);
+		expect(themeIds).toEqual(["deep-ocean", "ember", "meadow", "arctic", "orchid"]);
 		for (const themeId of themeIds) {
 			for (const mode of ["dark", "light"] as const) {
 				const variant = themes[themeId].variants[mode];

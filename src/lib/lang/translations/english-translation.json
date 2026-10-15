@@ -72,9 +72,7 @@
 		"settings.theme.family.short.description": "Choose the visual language for the app",
 		"settings.theme.family.hint.description": "Each theme controls its colors, corners, shadows, and spacing. Your choice is saved immediately.",
 		"settings.theme.placeholder": "Select a theme...",
-		"settings.theme.deepOcean": "DeepOcean",
-		"settings.theme.ember": "Ember",
-		"settings.theme.meadow": "Meadow",
+
 		"settings.appearance.name": "Appearance mode",
 		"settings.appearance.short.description": "Use the dark or light version of the selected theme",
 		"settings.appearance.hint.description": "Switch between the dark and light variant without changing your selected theme family.",

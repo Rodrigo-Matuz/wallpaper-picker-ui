@@ -72,9 +72,7 @@
 		"settings.theme.family.short.description": "Wählen Sie das visuelle Erscheinungsbild der App",
 		"settings.theme.family.hint.description": "Jedes Theme definiert Farben, Ecken, Schatten und Abstände. Ihre Auswahl wird sofort gespeichert.",
 		"settings.theme.placeholder": "Theme auswählen...",
-		"settings.theme.deepOcean": "DeepOcean",
-		"settings.theme.ember": "Ember",
-		"settings.theme.meadow": "Meadow",
+
 		"settings.appearance.name": "Darstellungsmodus",
 		"settings.appearance.short.description": "Dunkle oder helle Variante des ausgewählten Themes verwenden",
 		"settings.appearance.hint.description": "Wechseln Sie zwischen der dunklen und hellen Variante, ohne die Theme-Familie zu ändern.",

@@ -43,20 +43,20 @@ async function handleThemeChange(value: string | undefined) {
 						class="size-2.5 shrink-0 border border-foreground/20"
 						style={`background-color: ${getThemeVariant(selection.themeId, selection.mode).colors.primary}`}
 					></span>
-					{translate(themes[selection.themeId].labelKey)}
+					{themes[selection.themeId].label}
 				</span>
 			</Select.Trigger>
 			<Select.Content>
 				<Select.Group>
 					{#each themeIds as themeId (themeId)}
 						{@const variant = getThemeVariant(themeId, selection.mode)}
-						<Select.Item value={themeId} label={translate(themes[themeId].labelKey)}>
+						<Select.Item value={themeId} label={themes[themeId].label}>
 							<span class="flex items-center gap-2">
 								<span
 									class="size-2.5 border border-foreground/20"
-									style={`background: linear-gradient(135deg, ${variant.colors.primary}, ${variant.colors.accent})`}
+									style={`background-color: ${variant.colors.primary}`}
 								></span>
-								{translate(themes[themeId].labelKey)}
+								{themes[themeId].label}
 							</span>
 						</Select.Item>
 					{/each}

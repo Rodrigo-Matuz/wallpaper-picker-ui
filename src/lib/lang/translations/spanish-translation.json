@@ -72,9 +72,7 @@
 		"settings.theme.family.short.description": "Elige la identidad visual de la aplicación",
 		"settings.theme.family.hint.description": "Cada tema define sus colores, esquinas, sombras y espaciado. Tu elección se guarda al instante.",
 		"settings.theme.placeholder": "Seleccionar tema...",
-		"settings.theme.deepOcean": "DeepOcean",
-		"settings.theme.ember": "Ember",
-		"settings.theme.meadow": "Meadow",
+
 		"settings.appearance.name": "Modo de apariencia",
 		"settings.appearance.short.description": "Usa la versión oscura o clara del tema seleccionado",
 		"settings.appearance.hint.description": "Cambia entre la variante oscura y clara sin cambiar la familia del tema.",

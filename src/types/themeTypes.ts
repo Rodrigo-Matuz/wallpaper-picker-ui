@@ -1,4 +1,4 @@
-export type ThemeId = "deep-ocean" | "ember" | "meadow";
+export type ThemeId = "deep-ocean" | "ember" | "meadow" | "arctic" | "orchid";
 export type ThemeMode = "dark" | "light";
 
 export interface ThemeColors {
@@ -41,7 +41,7 @@ export interface ThemeVariant {
 
 export interface ThemeDefinition {
 	id: ThemeId;
-	labelKey: string;
+	label: string;
 	variants: Record<ThemeMode, ThemeVariant>;
 }
 

@@ -168,21 +168,143 @@ const meadowLight: ThemeVariant = {
 	geometry: meadowDark.geometry,
 };
 
+const arcticDark: ThemeVariant = {
+	colors: {
+		background: "#06141f",
+		surface: "#0b2230",
+		surfaceRaised: "#123447",
+		surfaceHover: "#1d5b72",
+		border: "#1c4a5b",
+		foreground: "#e9fbff",
+		muted: "#9ac4d0",
+		subtle: "#6e98a6",
+		primary: "#50d7ff",
+		secondary: "#7ca8ff",
+		accent: "#b9f3ff",
+		warning: "#ffad66",
+		highlight: "#d7f8ff",
+		success: "#72e0ad",
+		accentForeground: "#06202a",
+		primaryForeground: "#06202a",
+	},
+	geometry: {
+		buttonRadius: "6px",
+		controlRadius: "8px",
+		cardRadius: "10px",
+		shadow: "0 16px 36px rgb(0 19 30 / 0.28)",
+		buttonShadow: "0 5px 16px rgb(0 19 30 / 0.22)",
+		pagePadding: "22px",
+		sectionGap: "48px",
+		gridGap: "14px",
+		controlGap: "14px",
+		rowPaddingX: "24px",
+		rowPaddingY: "24px",
+	},
+};
+
+const arcticLight: ThemeVariant = {
+	colors: {
+		background: "#f1fbfe",
+		surface: "#ffffff",
+		surfaceRaised: "#e3f5fa",
+		surfaceHover: "#ccecf4",
+		border: "#b5dce5",
+		foreground: "#102a33",
+		muted: "#51727c",
+		subtle: "#7897a0",
+		primary: "#087f9f",
+		secondary: "#4f70bf",
+		accent: "#007a8f",
+		warning: "#bf5a16",
+		highlight: "#a05f00",
+		success: "#207d59",
+		accentForeground: "#ffffff",
+		primaryForeground: "#ffffff",
+	},
+	geometry: arcticDark.geometry,
+};
+
+const orchidDark: ThemeVariant = {
+	colors: {
+		background: "#130b1b",
+		surface: "#21112d",
+		surfaceRaised: "#341946",
+		surfaceHover: "#63336e",
+		border: "#4d285c",
+		foreground: "#fff2ff",
+		muted: "#d0afcf",
+		subtle: "#9b779c",
+		primary: "#d58aff",
+		secondary: "#8f7cff",
+		accent: "#ff77c8",
+		warning: "#ff9e68",
+		highlight: "#ffd1f0",
+		success: "#8fe3b0",
+		accentForeground: "#2a0e27",
+		primaryForeground: "#2a0e27",
+	},
+	geometry: {
+		buttonRadius: "999px",
+		controlRadius: "14px",
+		cardRadius: "20px",
+		shadow: "0 20px 48px rgb(25 5 35 / 0.32)",
+		buttonShadow: "0 8px 20px rgb(25 5 35 / 0.26)",
+		pagePadding: "26px",
+		sectionGap: "60px",
+		gridGap: "18px",
+		controlGap: "18px",
+		rowPaddingX: "30px",
+		rowPaddingY: "30px",
+	},
+};
+
+const orchidLight: ThemeVariant = {
+	colors: {
+		background: "#fff7fd",
+		surface: "#ffffff",
+		surfaceRaised: "#f8e8f6",
+		surfaceHover: "#f3d6ed",
+		border: "#e7c2df",
+		foreground: "#2a1729",
+		muted: "#76556f",
+		subtle: "#9b7b94",
+		primary: "#a83bd1",
+		secondary: "#6554c0",
+		accent: "#d5298f",
+		warning: "#b44e13",
+		highlight: "#9f5a00",
+		success: "#2f8b5d",
+		accentForeground: "#ffffff",
+		primaryForeground: "#ffffff",
+	},
+	geometry: orchidDark.geometry,
+};
+
 export const themes: Record<ThemeId, ThemeDefinition> = {
 	"deep-ocean": {
 		id: "deep-ocean",
-		labelKey: "settings.theme.deepOcean",
+		label: "DeepOcean",
 		variants: { dark: deepOceanDark, light: deepOceanLight },
 	},
 	ember: {
 		id: "ember",
-		labelKey: "settings.theme.ember",
+		label: "Ember",
 		variants: { dark: emberDark, light: emberLight },
 	},
 	meadow: {
 		id: "meadow",
-		labelKey: "settings.theme.meadow",
+		label: "Meadow",
 		variants: { dark: meadowDark, light: meadowLight },
+	},
+	arctic: {
+		id: "arctic",
+		label: "Arctic",
+		variants: { dark: arcticDark, light: arcticLight },
+	},
+	orchid: {
+		id: "orchid",
+		label: "Orchid",
+		variants: { dark: orchidDark, light: orchidLight },
 	},
 };
 
