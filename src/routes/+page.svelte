@@ -28,7 +28,7 @@ const handleInputChange = (event: Event) => {
 
 {#if !loading}
     <HomeNotice />
-    <div class="px-4 pt-4">
+    <div class="px-4 pt-2">
         <WindowsPlaybackNotice />
     </div>
     <div class="flex flex-col min-h-screen">
