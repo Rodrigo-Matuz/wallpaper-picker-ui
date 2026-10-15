@@ -17,6 +17,7 @@
 		"home.folder.dialog.title": "Select the folder containing your wallpapers",
 		"toast.command.failed": "Failed to run the wallpaper command",
 		"toast.command.none": "No wallpaper command configured — set one in Settings",
+		"toast.windows.playback.fallback": "Native Windows playback is unavailable; using your configured command.",
 		"toast.thumbnails.failed": "Some thumbnails could not be generated",
 		"toast.settings.failed": "Failed to change settings",
 		"toast.folder.failed": "Failed to select the wallpaper folder",

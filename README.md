@@ -173,7 +173,7 @@ killall mpvpaper ; mpvpaper -o "loop no-audio" "*" "$VP"
 
 `$VP` is replaced with the selected wallpaper path.
 
-On Windows, configure a Windows-appropriate command in Settings instead.
+On Windows, animated wallpaper clicks use the native mpv backend when mpv is available. The configured command remains the fallback path and can be used for custom Windows wallpaper tools.
 
 More script examples and advanced setups are available in the [wiki](https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/wiki).
 
@@ -190,10 +190,11 @@ More script examples and advanced setups are available in the [wiki](https://git
 #### Windows
 
 * **WebView2** — preinstalled on Windows 10/11
-* **FFmpeg** — must be available on `PATH`
+* **FFmpeg** — must be available on `PATH` for thumbnail generation
+* **mpv** — must be available on `PATH` for native animated wallpaper playback
 * Folder selection uses the native OS dialog, so no additional dependency is required
 
-> **Windows note:** The suggested wallpaper command above uses Linux syntax. Configure your own command in Settings.
+> **Windows note:** Native animated playback uses mpv and places its managed window behind the desktop icons. If mpv is unavailable, the app falls back to the configured wallpaper command. The suggested Linux command above is not used for native Windows playback.
 
 ## Security & Permissions
 

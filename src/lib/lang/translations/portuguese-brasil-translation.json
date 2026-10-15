@@ -17,6 +17,7 @@
 		"home.folder.dialog.title": "Selecione a pasta que contém seus papéis de parede",
 		"toast.command.failed": "Falha ao executar o comando de papel de parede",
 		"toast.command.none": "Nenhum comando de papel de parede configurado — defina um nas Configurações",
+		"toast.windows.playback.fallback": "A reprodução nativa do Windows não está disponível; usando o comando configurado.",
 		"toast.thumbnails.failed": "Não foi possível gerar algumas miniaturas",
 		"toast.settings.failed": "Não foi possível alterar as configurações",
 		"toast.folder.failed": "Não foi possível selecionar a pasta de papéis de parede",

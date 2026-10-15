@@ -1,7 +1,7 @@
 <script lang="ts">
 import Monitor from "@lucide/svelte/icons/monitor";
 import Search from "@lucide/svelte/icons/search";
-import Settings2 from "@lucide/svelte/icons/settings-2";
+import Settings from "@lucide/svelte/icons/settings";
 import X from "@lucide/svelte/icons/x";
 import { tick } from "svelte";
 import { t } from "$lang/index";
@@ -48,7 +48,7 @@ async function closeMonitorPanel() {
 				<!-- svelte-ignore a11y_autofocus -->
 				<input type="search" data-home-search aria-label={inputPlaceholder || translate('home.search.placeholder')} class="h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted" placeholder={inputPlaceholder || translate('home.search.placeholder')} autofocus oninput={onInputChange} />
 			</label>
-			<a href="/settings" aria-label={translate('settings.search.placeholder')} title={translate('settings.search.placeholder')} class="flex size-10 shrink-0 items-center justify-center border border-foreground/15 text-muted transition-colors hover:border-primary hover:text-primary"><Settings2 class="size-4" /></a>
+			<a href="/settings" aria-label={translate('settings.search.placeholder')} title={translate('settings.search.placeholder')} class="flex size-10 shrink-0 items-center justify-center border border-foreground/15 text-muted transition-colors hover:border-primary hover:text-primary"><Settings class="size-4" /></a>
 			<WindowControls />
 		</div>
 	</nav>

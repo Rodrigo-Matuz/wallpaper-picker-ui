@@ -17,6 +17,7 @@
 		"home.folder.dialog.title": "Sélectionnez le dossier contenant vos fonds d’écran",
 		"toast.command.failed": "Échec de l’exécution de la commande de fond d’écran",
 		"toast.command.none": "Aucune commande de fond d’écran configurée — définissez-la dans les paramètres",
+		"toast.windows.playback.fallback": "La lecture native Windows est indisponible ; la commande configurée sera utilisée.",
 		"toast.thumbnails.failed": "Certaines miniatures n’ont pas pu être générées",
 		"toast.settings.failed": "Impossible de modifier les paramètres",
 		"toast.folder.failed": "Impossible de sélectionner le dossier des fonds d’écran",

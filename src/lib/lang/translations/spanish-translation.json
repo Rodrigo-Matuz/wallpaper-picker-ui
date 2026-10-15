@@ -17,6 +17,7 @@
 		"home.folder.dialog.title": "Selecciona la carpeta que contiene tus fondos de pantalla",
 		"toast.command.failed": "No se pudo ejecutar el comando de fondo de pantalla",
 		"toast.command.none": "No hay comando de fondo de pantalla configurado — configúralo en Ajustes",
+		"toast.windows.playback.fallback": "La reproducción nativa de Windows no está disponible; se usará el comando configurado.",
 		"toast.thumbnails.failed": "No se pudieron generar algunas miniaturas",
 		"toast.settings.failed": "No se pudo cambiar la configuración",
 		"toast.folder.failed": "No se pudo seleccionar la carpeta de fondos de pantalla",

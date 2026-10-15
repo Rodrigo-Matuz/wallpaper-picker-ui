@@ -1,7 +1,7 @@
 <script lang="ts">
 import { CirclePlay } from "@lucide/svelte";
 import { onMount } from "svelte";
-import { sendCommand } from "$api/system/execCommand/execCommand";
+import { applyWallpaper } from "$api/system/playback/playback";
 import { thumbnails, thumbnailsGenerated, totalVideos } from "$api/thumbnails/handle";
 import { Progress } from "$components/ui/progress";
 import { t } from "$lib/lang/index";
@@ -54,7 +54,7 @@ $: onVisibleCountChange(filteredThumbnails.length);
                 tabindex="0"
                 role="button"
                 class="group relative min-w-0 border border-transparent hover:border-primary outline-none transition-colors cursor-pointer"
-                on:click={() => sendCommand(videoPath)}
+                on:click={() => applyWallpaper(videoPath)}
             >
                 <div class="relative overflow-hidden rounded-md border border-foreground/10 bg-surface">
                     <img src={blobUrl} alt={videoPath} class="aspect-[3/2] w-full object-cover" />

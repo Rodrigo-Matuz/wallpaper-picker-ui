@@ -9,6 +9,7 @@ mod send_command;
 #[cfg(test)]
 mod test_support;
 mod validate_video_paths;
+mod windows_playback;
 
 pub use check_release_notice::check_release_notice;
 pub use cleanup_thumbnails::cleanup_thumbnails;
@@ -19,10 +20,11 @@ pub use log_message::log_message;
 pub use recover_thumbnails::recover_thumbnails;
 pub use send_command::send_command;
 pub use validate_video_paths::validate_video_paths;
+pub use windows_playback::{start_windows_playback, stop_windows_playback};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
@@ -37,8 +39,16 @@ pub fn run() {
             cleanup_thumbnails,
             recover_thumbnails,
             get_update_support,
-            check_release_notice
+            check_release_notice,
+            start_windows_playback,
+            stop_windows_playback
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|_app_handle, event| {
+        if matches!(event, tauri::RunEvent::Exit) {
+            windows_playback::stop_windows_playback_sync();
+        }
+    });
 }

@@ -17,6 +17,7 @@
 		"home.folder.dialog.title": "Wählen Sie den Ordner mit Ihren Hintergründen aus",
 		"toast.command.failed": "Der Hintergrundbild-Befehl konnte nicht ausgeführt werden",
 		"toast.command.none": "Kein Hintergrundbild-Befehl konfiguriert — legen Sie ihn in den Einstellungen fest",
+		"toast.windows.playback.fallback": "Die native Windows-Wiedergabe ist nicht verfügbar; der konfigurierte Befehl wird verwendet.",
 		"toast.thumbnails.failed": "Einige Miniaturen konnten nicht erstellt werden",
 		"toast.settings.failed": "Die Einstellungen konnten nicht geändert werden",
 		"toast.folder.failed": "Der Hintergrundbildordner konnte nicht ausgewählt werden",
