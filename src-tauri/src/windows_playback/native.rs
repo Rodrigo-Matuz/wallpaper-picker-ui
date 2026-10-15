@@ -6,16 +6,20 @@ use std::{
     thread,
     time::Duration,
 };
-use windows_sys::Win32::{
-    Foundation::{GetLastError, SetLastError, BOOL, HWND, LPARAM},
-    UI::WindowsAndMessaging::{
-        EnumWindows, FindWindowExW, FindWindowW, GetSystemMetrics, GetWindowLongPtrW,
-        GetWindowThreadProcessId, IsWindowVisible, SendMessageTimeoutW, SetParent,
-        SetWindowLongPtrW, SetWindowPos, ShowWindow, GWL_EXSTYLE, GWL_STYLE, HWND_BOTTOM,
-        SMTO_NORMAL, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SWP_NOACTIVATE, SWP_NOOWNERZORDER,
-        SWP_SHOWWINDOW, SW_SHOWNOACTIVATE, WS_CAPTION, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS,
-        WS_EX_APPWINDOW, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU,
-        WS_THICKFRAME, WS_VISIBLE,
+use windows_sys::{
+    core::BOOL,
+    Win32::{
+        Foundation::{GetLastError, SetLastError, HWND, LPARAM, RECT},
+        UI::WindowsAndMessaging::{
+            EnumWindows, FindWindowExW, FindWindowW, GetSystemMetrics, GetWindowLongPtrW,
+            GetWindowRect, GetWindowThreadProcessId, IsWindowVisible, SendMessageTimeoutW,
+            SetParent, SetWindowLongPtrW, SetWindowPos, ShowWindow, GWL_EXSTYLE, GWL_STYLE,
+            HWND_BOTTOM, SMTO_ABORTIFHUNG, SMTO_NORMAL, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN,
+            SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+            SWP_NOOWNERZORDER, SWP_SHOWWINDOW, SW_SHOWNOACTIVATE, WS_CAPTION, WS_CHILD,
+            WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_EX_APPWINDOW, WS_EX_TOPMOST, WS_MAXIMIZEBOX,
+            WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME, WS_VISIBLE,
+        },
     },
 };
 
@@ -161,7 +165,7 @@ fn attach_to_desktop(window: HWND) -> Result<(), String> {
             return Err(format!("Could not attach mpv to the desktop ({error})"));
         }
 
-        let style = GetWindowLongPtrW(window, GWL_STYLE) as u32;
+        let style = get_window_style(window, GWL_STYLE)?;
         let borderless_child = (style | WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS)
             & !(WS_POPUP
                 | WS_CAPTION
@@ -169,32 +173,30 @@ fn attach_to_desktop(window: HWND) -> Result<(), String> {
                 | WS_SYSMENU
                 | WS_MINIMIZEBOX
                 | WS_MAXIMIZEBOX);
-        SetWindowLongPtrW(window, GWL_STYLE, borderless_child as isize);
+        set_window_style(window, GWL_STYLE, borderless_child)?;
 
-        let ex_style = GetWindowLongPtrW(window, GWL_EXSTYLE) as u32;
-        SetWindowLongPtrW(
+        let ex_style = get_window_style(window, GWL_EXSTYLE)?;
+        set_window_style(
             window,
             GWL_EXSTYLE,
-            (ex_style & !(WS_EX_APPWINDOW | WS_EX_TOPMOST)) as isize,
-        );
+            ex_style & !(WS_EX_APPWINDOW | WS_EX_TOPMOST),
+        )?;
 
-        let width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-        let height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-        if width <= 0 || height <= 0 {
-            return Err("Windows returned an invalid virtual desktop size".to_string());
-        }
-
+        let (x, y, width, height) = virtual_desktop_position(parent)?;
         if SetWindowPos(
             window,
             HWND_BOTTOM,
-            0,
-            0,
+            x,
+            y,
             width,
             height,
-            SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_SHOWWINDOW,
+            SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_SHOWWINDOW,
         ) == 0
         {
-            return Err("Could not size the mpv wallpaper window".to_string());
+            return Err(format!(
+                "Could not size the mpv wallpaper window ({})",
+                GetLastError()
+            ));
         }
         ShowWindow(window, SW_SHOWNOACTIVATE);
     }
@@ -202,11 +204,56 @@ fn attach_to_desktop(window: HWND) -> Result<(), String> {
     Ok(())
 }
 
+unsafe fn get_window_style(window: HWND, index: i32) -> Result<u32, String> {
+    SetLastError(0);
+    let value = GetWindowLongPtrW(window, index);
+    let error = GetLastError();
+    if error != 0 {
+        return Err(format!("Could not read the mpv window style ({error})"));
+    }
+    Ok(value as u32)
+}
+
+unsafe fn set_window_style(window: HWND, index: i32, value: u32) -> Result<(), String> {
+    SetLastError(0);
+    SetWindowLongPtrW(window, index, value as isize);
+    let error = GetLastError();
+    if error != 0 {
+        return Err(format!("Could not update the mpv window style ({error})"));
+    }
+    Ok(())
+}
+
+fn virtual_desktop_position(parent: HWND) -> Result<(i32, i32, i32, i32), String> {
+    let x = unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) };
+    let y = unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) };
+    let width = unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) };
+    let height = unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) };
+    if width <= 0 || height <= 0 {
+        return Err("Windows returned an invalid virtual desktop size".to_string());
+    }
+
+    let mut parent_rect = RECT::default();
+    if unsafe { GetWindowRect(parent, &mut parent_rect) } == 0 {
+        return Err(format!(
+            "Could not read the desktop host bounds ({})",
+            unsafe { GetLastError() }
+        ));
+    }
+
+    Ok((
+        x.saturating_sub(parent_rect.left),
+        y.saturating_sub(parent_rect.top),
+        width,
+        height,
+    ))
+}
+
 struct DesktopWindowSearch {
     worker: HWND,
 }
 
-unsafe extern "system" fn find_worker_window(hwnd: HWND, parameter: LPARAM) -> BOOL {
+unsafe extern "system" fn find_worker_window_callback(hwnd: HWND, parameter: LPARAM) -> BOOL {
     let search = unsafe { &mut *(parameter as *mut DesktopWindowSearch) };
     let desktop_view = unsafe {
         FindWindowExW(
@@ -239,33 +286,45 @@ fn desktop_parent() -> Result<HWND, String> {
     }
 
     let mut result = 0usize;
-    unsafe {
+    let message_result = unsafe {
         SendMessageTimeoutW(
             progman,
             WORKER_W_MESSAGE,
             0,
             0,
-            SMTO_NORMAL,
+            SMTO_ABORTIFHUNG | SMTO_NORMAL,
             1000,
             &mut result,
-        );
+        )
+    };
+    if message_result == 0 {
+        return Err(format!(
+            "Could not initialize the Windows desktop shell ({})",
+            unsafe { GetLastError() }
+        ));
     }
 
+    for _ in 0..WINDOW_WAIT_ATTEMPTS {
+        if let Some(worker) = find_worker_window() {
+            return Ok(worker);
+        }
+        thread::sleep(WINDOW_WAIT_STEP);
+    }
+
+    Err("Could not locate the WorkerW desktop host".to_string())
+}
+
+fn find_worker_window() -> Option<HWND> {
     let mut search = DesktopWindowSearch {
         worker: std::ptr::null_mut(),
     };
     unsafe {
         EnumWindows(
-            Some(find_worker_window),
+            Some(find_worker_window_callback),
             (&mut search as *mut DesktopWindowSearch).cast::<std::ffi::c_void>() as LPARAM,
         );
     }
-
-    Ok(if search.worker.is_null() {
-        progman
-    } else {
-        search.worker
-    })
+    (!search.worker.is_null()).then_some(search.worker)
 }
 
 fn wide(value: &str) -> Vec<u16> {
