@@ -1,14 +1,14 @@
 ---
 title: Session handoff
-updated: 2026-10-23
-status: completed-with-limits
+updated: 2026-10-24
+status: release-draft-verified-with-limits
 ---
 
 # Handoff
 
 ## Completed in this session
 
-- Recovered the repository context and confirmed the checkout is on `main` at `55e9b0877ba134fede006528f04d50054c50f33e`.
+- Recovered the repository context and confirmed the checkout is on `main`; the release source revision is `cec7acfa439dcadaa2892094a4731cff9870a884`, and the pre-existing `.gitignore` modification remains preserved.
 - Added root `AGENTS.md`, `obsidian/HOME.md`, the `00-agent` notes, and the initial `01-architecture` notes.
 - Refreshed the local code-only Graphify artifact under ignored `graphify-out/`: 2,240 nodes, 3,970 extraction edges, 3,858 clustered graph edges, 99 communities.
 - Implemented context-aware `$VP` path substitution and app-owned native thumbnail output routing. Both shells pass the path through a private environment variable; Unix single-quoted placeholder contexts are rejected. Windows has a real `cmd.exe` smoke test for repeated spaces and metacharacters.
@@ -27,7 +27,8 @@ status: completed-with-limits
 - Stabilized the component-test gate after reproducing parallel-only `svelte-sonner`/Lucide and jsdom module contamination in `runtime.component.test.ts`; Vitest now keeps forked workers but disables file-level parallelism.
 - Decoupled theme color families from visual geometry. Theme variants now contain colors only; roundness, shadow strength, and spacing are global persisted settings with Settings controls and legacy-theme compatibility fallbacks.
 - Added Home Manager options and initial-config seeding for `themeRoundness`, `themeShadowStrength`, and `themeSpacing`; synchronized README and release-contract coverage.
-- Prepared source version `3.9.0` and synchronized `RELEASE.md` with the release workflow body. The workflow remains draft-first and will repin `flake.nix` to the exact published Linux `.deb` after the tagged build.
+- Prepared source version `3.9.0` and synchronized `RELEASE.md` with the release workflow body. The tagged workflow repinned `flake.nix` to the exact Linux `.deb` hash in follow-up commit `cec7acf`.
+- Fixed the release-contract verifier to accept the API asset URLs that `tauri-action` emits for draft manifests while mapping each target back to its exact uploaded payload and signature sidecar.
 - Completed the thumbnail/cache reliability batch, CI/release contract updates, performance/quality/platform notes, and future Wallpaper Engine planning note.
 
 ## Changed files
@@ -74,7 +75,7 @@ Implementation changes currently in the working tree:
 - `src-tauri/tauri.conf.json`
 - `src-tauri/Cargo.toml`
 
-`AGENTS.md` and `obsidian/` are new uncommitted files. `.gitignore` was already modified before this checkpoint and was not reset or overwritten.
+All implementation and release-preparation changes are committed. The pre-existing `.gitignore` modification remains the only uncommitted local change.
 
 ## Verification
 
@@ -83,6 +84,7 @@ Implementation changes currently in the working tree:
 - Passed: frontend translations/lint/check/build, Rust fmt/check/test/clippy, `bun run tauri build --debug --no-bundle --no-sign`, release-contract tests, Tauri permission listing, and `git diff --check`.
 - Passed: theme appearance decoupling checks; color families no longer carry geometry, and Settings exposes persisted roundness, shadow-strength, and spacing controls independently.
 - Passed: Home Manager/flake contract tests, source version synchronization to 3.9.0, and a debug no-bundle Tauri build for the 3.9.0 candidate.
+- Passed: hosted CI run `40080950815` for `e182016`; hosted Release run `40080995074` with successful Linux/Windows builds and `verify_release`; draft release `422629104` read back with nine unique non-MSI assets, version-matching `latest.json`, matching release notes, and matching NSIS/AppImage sidecars.
 - Passed: Graphify refresh after the thumbnail-map migration fix (2,240 nodes; 3,970 extraction edges; 3,858 clustered edges; 99 communities). The graph remains a navigation aid, not runtime proof.
 - Passed: candidate secret scan over 337 files with zero private-key headers or literal credential assignments.
 - Passed: a diagnostic no-bundle debug binary exercised the Windows app against `G:\Wallpapers`: 178 media files were discovered, 178 nonempty thumbnails were generated under the app-owned cache, and the persisted map contained 178 valid entries whose source files all existed. A cache-only relaunch loaded the saved previews.
@@ -101,7 +103,7 @@ The following remain unverified and are documented as limits, not completed gate
 - A full 30-second hung FFmpeg decoder acceptance run; the runner-level timeout kill/wait behavior is covered.
 - Full Windows desktop playback lifecycle: mpv window placement, Explorer restart, monitor/display changes, sleep/wake, and process cleanup.
 - Installer upgrade/reopen/data-preservation acceptance and signed updater installation.
-- Hosted GitHub Actions execution, release draft readback, signing, publication, and post-release flake update.
+- The draft `v3.9.0` release remains unpublished pending manual review. The workflow's metadata/sidecar contract passed, but payload cryptography, installer upgrade/reopen/data-preservation acceptance, and signed updater installation remain unverified.
 - Real large-library scan/thumbnail/memory/CPU benchmarks.
 
 No credentials, secrets, API keys, tokens, passwords, or connection strings were retained.

@@ -1,8 +1,8 @@
 ---
 title: Current repository state
-updated: 2026-10-23
-revision: 55e9b0877ba134fede006528f04d50054c50f33e
-status: completed-with-limits
+updated: 2026-10-24
+revision: current main after release verification
+status: release-draft-verified-with-limits
 ---
 
 # Current state
@@ -41,11 +41,13 @@ The exact test results and remaining platform limits are recorded in [[00-agent/
 
 ## Completion checkpoint
 
-Completed on 2026-10-22 after the user resumed the task. The working tree is intentionally uncommitted. Root `AGENTS.md`, `obsidian/HOME.md`, architecture/system/security/performance/quality/platform/plan/reference notes, and the future Wallpaper Engine note exist. No commit, push, release, or updater installation was performed.
+Completed on 2026-10-24 after the user resumed the task. The implementation was committed in `4039c12`, the draft-manifest verifier fix was committed in `e182016`, both were pushed to `main`, and tag `v3.9.0` was pushed at `e182016`. The tag-triggered release workflow completed successfully and left a verified draft release for manual review. Root `AGENTS.md`, `obsidian/HOME.md`, architecture/system/security/performance/quality/platform/plan/reference notes, and the future Wallpaper Engine note exist.
 
-Current Git state: branch `main`, revision `55e9b0877ba134fede006528f04d50054c50f33e`; pre-existing `.gitignore` modification is preserved. New/modified implementation files are listed in [[00-agent/handoff]].
+Current Git state: branch `main`; the release source revision is `cec7acfa439dcadaa2892094a4731cff9870a884`, and the pre-existing `.gitignore` modification is preserved as the only local uncommitted change. New/modified implementation files are listed in [[00-agent/handoff]].
 
 Verified local gates: 454 Bun logic tests/45 files, 270 Vitest component tests/31 files, 85 Windows-host Rust tests, frontend translations/lint/check/build, Rust fmt/check/test/clippy, `bun run tauri build --debug --no-bundle --no-sign` for source version 3.9.0, release-contract tests, Home Manager/flake contract tests, Tauri permission listing, and `git diff --check` passed. Vitest uses forked workers with serial file execution to prevent cross-file `mode-watcher`/jsdom and `svelte-sonner`/Lucide module contamination. A Windows `cmd.exe` smoke test covered repeated spaces and metacharacters in `$VP` data; focused frontend regressions cover unset paths, unreadable previews, and failed config persistence. The generated Tauri ACL now has a Rust probe for allowed commands, wrong-window scope, an unused command, and the removed opener command. Four ignored native FFmpeg acceptance tests also pass for missing, malformed, empty, and short media fixtures. A real Windows frontend/native fixture scan published one valid short-video thumbnail and skipped malformed/empty media. The theme appearance decoupling batch adds focused tests for independent global geometry settings and Home Manager initialization.
+
+Hosted verification: CI run `40080950815` passed for `e182016`; Release run `40080995074` passed with successful Linux and Windows builds and `verify_release`. Draft release `422629104` contains nine unique assets, no MSI, `latest.json` version `3.9.0`, matching release notes, and matching NSIS/AppImage signature sidecars. The draft remains unpublished pending manual review; payload cryptography, installer acceptance, and updater installation remain outside this verification.
 
 ## Live Windows acceptance
 
