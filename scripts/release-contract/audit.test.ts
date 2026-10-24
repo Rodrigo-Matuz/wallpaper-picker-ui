@@ -168,3 +168,37 @@ test("audits the draft through GET metadata, latest.json and two exact sidecars 
 		`/repos/${input.repository}/releases/assets/5`,
 	]);
 });
+
+test("audits draft manifests that reference GitHub API asset URLs", async () => {
+	const input = fixture();
+	for (const target of ["windows-x86_64-nsis", "linux-x86_64-appimage", "windows-x86_64"]) {
+		const currentUrl = input.manifest.platforms[target]?.url;
+		const payload = input.assets.find((asset) => asset.browser_download_url === currentUrl);
+		if (!payload) throw new Error(`Missing fixture payload for ${target}`);
+		input.manifest.platforms[target].url =
+			`https://api.github.com/repos/${input.repository}/releases/assets/${payload.id}`;
+	}
+	const read = async (path: string, _limit: number, binary = false) => {
+		if (path.includes("/releases?"))
+			return JSON.stringify([
+				{ id: 42, tag_name: input.tag, draft: true, prerelease: false },
+			]);
+		if (path.includes("/releases/42/assets?")) return JSON.stringify(input.assets);
+		const id = Number(path.split("/").at(-1));
+		const asset = input.assets.find((candidate) => candidate.id === id);
+		if (!binary || !asset) throw new Error("Unexpected request");
+		if (asset.name === "latest.json") return JSON.stringify(input.manifest);
+		return (
+			input.sidecars[asset.name] ??
+			(() => {
+				throw new Error("Unexpected sidecar");
+			})()
+		);
+	};
+
+	expect(await auditDraft(input.repository, input.tag, read)).toEqual({
+		releaseId: 42,
+		tag: input.tag,
+		targets: ["windows-x86_64-nsis", "linux-x86_64-appimage"],
+	});
+});

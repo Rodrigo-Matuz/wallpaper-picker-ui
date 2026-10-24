@@ -8,6 +8,56 @@ import {
 
 export type ReadGitHub = (path: string, limit: number, asset?: boolean) => Promise<string>;
 
+function expectedDownloadUrl(repository: string, tag: string, name: string) {
+	return `https://github.com/${repository}/releases/download/${tag}/${name}`;
+}
+
+function assetForManifestUrl(url: string, repository: string, tag: string, assets: Asset[]) {
+	// Draft tauri-action metadata can reference API asset URLs while the
+	// GitHub release metadata still exposes an untagged browser URL.
+	const apiPrefix = `https://api.github.com/repos/${repository}/releases/assets/`;
+	if (url.startsWith(apiPrefix)) {
+		const idText = url.slice(apiPrefix.length);
+		if (!/^[1-9]\d*$/.test(idText)) throw new Error("Malformed draft asset URL");
+		const id = Number(idText);
+		if (!Number.isSafeInteger(id)) throw new Error("Invalid draft asset ID");
+		const asset = assets.find((candidate) => candidate.id === id);
+		if (!asset) throw new Error("Draft asset URL does not reference an uploaded asset");
+		return asset;
+	}
+
+	return assets.find(
+		(asset) =>
+			asset.browser_download_url.replace(
+				/\/download\/(untagged-[^/]+)\//,
+				`/download/${tag}/`,
+			) === url,
+	);
+}
+
+function normalizeDraftManifest(
+	manifest: unknown,
+	repository: string,
+	tag: string,
+	assets: Asset[],
+) {
+	if (!manifest || typeof manifest !== "object") return manifest;
+	const source = manifest as {
+		platforms?: Record<string, { url?: unknown; signature?: unknown }>;
+	};
+	const platforms = Object.fromEntries(
+		Object.entries(source.platforms ?? {}).map(([target, entry]) => {
+			if (typeof entry?.url !== "string") return [target, entry];
+			const asset = assetForManifestUrl(entry.url, repository, tag, assets);
+			return [
+				target,
+				asset ? { ...entry, url: expectedDownloadUrl(repository, tag, asset.name) } : entry,
+			];
+		}),
+	);
+	return { ...manifest, platforms };
+}
+
 function assertTextAsset(asset: Asset, limit: number) {
 	if (
 		!Number.isSafeInteger(asset.id) ||
@@ -85,7 +135,9 @@ export async function auditDraft(repository: string, tag: string, read: ReadGitH
 	for (const target of requiredTargets) {
 		const url = manifest?.platforms?.[target]?.url;
 		if (typeof url !== "string") throw new Error(`Missing exact target ${target}`);
-		const name = `${url.split("/").at(-1)}.sig`;
+		const payload = assetForManifestUrl(url, repository, tag, assets);
+		if (!payload) throw new Error(`Missing uploaded payload for ${target}`);
+		const name = `${payload.name}.sig`;
 		const sidecar = assets.find((asset) => asset.name === name);
 		if (!sidecar) throw new Error(`Missing sidecar for ${target}`);
 		assertTextAsset(sidecar, 16_384);
@@ -94,7 +146,7 @@ export async function auditDraft(repository: string, tag: string, read: ReadGitH
 	const targets = validateManifest({
 		repository,
 		tag,
-		manifest,
+		manifest: normalizeDraftManifest(manifest, repository, tag, assets),
 		assets,
 		sidecars,
 		allowUntaggedDraftUrls: true,
