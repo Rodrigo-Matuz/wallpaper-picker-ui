@@ -16,7 +16,7 @@
       # Hash verified against the downloaded release asset's GitHub SHA-256.
       deb = pkgs.fetchurl {
         url = "https://github.com/Rodrigo-Matuz/wallpaper-picker-ui/releases/download/v${version}/Wallpaper.Picker.UI_${version}_amd64.deb";
-        hash = "sha256-CuiWih5jVDUVAM5tjFbequPzF4G8bwMN3DSQU1OfcMk=";
+        hash = "sha256-jBCHXLDZyQqpG8zQdl7AZphtikiSdr/pkEt1YW++0mk=";
       };
       package = pkgs.stdenv.mkDerivation {
         pname = "wallpaper-picker-ui";
