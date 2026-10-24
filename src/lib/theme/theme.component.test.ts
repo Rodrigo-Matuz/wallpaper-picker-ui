@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "vitest";
+import { applyThemeAppearance } from "./appearance";
 import { applyThemeSelection } from "./theme";
 
 describe("theme runtime", () => {
@@ -9,6 +10,7 @@ describe("theme runtime", () => {
 	});
 
 	test("publishes the selected family, mode, and token variables", () => {
+		applyThemeAppearance({ roundness: "pill", shadowStrength: "none", spacing: "compact" });
 		applyThemeSelection({ themeId: "ember", mode: "light" });
 
 		expect(document.documentElement.dataset.theme).toBe("ember");
@@ -17,6 +19,7 @@ describe("theme runtime", () => {
 		expect(document.documentElement.style.getPropertyValue("--theme-button-radius")).toBe(
 			"999px",
 		);
-		expect(document.documentElement.style.getPropertyValue("--theme-grid-gap")).toBe("16px");
+		expect(document.documentElement.style.getPropertyValue("--theme-shadow")).toBe("none");
+		expect(document.documentElement.style.getPropertyValue("--theme-grid-gap")).toBe("10px");
 	});
 });

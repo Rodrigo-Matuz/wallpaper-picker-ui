@@ -1,5 +1,8 @@
 export type ThemeId = "deep-ocean" | "ember" | "meadow" | "arctic" | "orchid";
 export type ThemeMode = "dark" | "light";
+export type ThemeRoundness = "sharp" | "soft" | "rounded" | "pill";
+export type ThemeShadowStrength = "none" | "subtle" | "strong";
+export type ThemeSpacing = "compact" | "comfortable" | "spacious";
 
 export interface ThemeColors {
 	background: string;
@@ -36,7 +39,6 @@ export interface ThemeGeometry {
 
 export interface ThemeVariant {
 	colors: ThemeColors;
-	geometry: ThemeGeometry;
 }
 
 export interface ThemeDefinition {
@@ -48,4 +50,10 @@ export interface ThemeDefinition {
 export interface ThemeSelection {
 	themeId: ThemeId;
 	mode: ThemeMode;
+}
+
+export interface ThemeAppearanceSelection {
+	roundness: ThemeRoundness;
+	shadowStrength: ThemeShadowStrength;
+	spacing: ThemeSpacing;
 }

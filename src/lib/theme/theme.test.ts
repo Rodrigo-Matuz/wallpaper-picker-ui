@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { get } from "svelte/store";
 import { defaultConfig } from "$api/config/defaults";
 import { getThemeVariant, themeIds, themes } from "./registry";
-import { defaultThemeSelection, resolveThemeSelection, themeSelection } from "./theme";
+import {
+	defaultThemeSelection,
+	resolveThemeAppearance,
+	resolveThemeSelection,
+	themeSelection,
+} from "./theme";
 
 describe("theme selection", () => {
 	test("keeps the current DeepOcean dark theme as the default", () => {
@@ -35,15 +40,34 @@ describe("theme selection", () => {
 		});
 	});
 
-	test("registers dark and light variants with complete token groups", () => {
+	test("registers dark and light variants with complete color token groups", () => {
 		expect(themeIds).toEqual(["deep-ocean", "ember", "meadow", "arctic", "orchid"]);
 		for (const themeId of themeIds) {
 			for (const mode of ["dark", "light"] as const) {
 				const variant = themes[themeId].variants[mode];
 				expect(Object.keys(variant.colors)).toHaveLength(16);
-				expect(Object.keys(variant.geometry)).toHaveLength(11);
 			}
 		}
+	});
+
+	test("resolves global appearance settings independently from the color theme", () => {
+		expect(resolveThemeAppearance({ themeId: "ember" })).toEqual({
+			roundness: "pill",
+			shadowStrength: "strong",
+			spacing: "spacious",
+		});
+		expect(
+			resolveThemeAppearance({
+				themeId: "ember",
+				themeRoundness: "sharp",
+				themeShadowStrength: "none",
+				themeSpacing: "compact",
+			}),
+		).toEqual({
+			roundness: "sharp",
+			shadowStrength: "none",
+			spacing: "compact",
+		});
 	});
 
 	test("exposes a reactive selection store", () => {

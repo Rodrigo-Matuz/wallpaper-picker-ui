@@ -3,7 +3,6 @@ import { onMount } from "svelte";
 import Display from "$components/display";
 import Navbar from "$components/navbar";
 import HomeNotice from "$components/updating/home-notice.svelte";
-import WindowsPlaybackNotice from "$components/windowsPlaybackNotice/windows-playback-notice.svelte";
 import { t } from "$lib/lang/index";
 import { initializeApplicationSession } from "$utils/updating/session/runtime";
 
@@ -28,9 +27,6 @@ const handleInputChange = (event: Event) => {
 
 {#if !loading}
     <HomeNotice />
-    <div class="theme-page-padding">
-        <WindowsPlaybackNotice />
-    </div>
     <div class="flex flex-col min-h-screen">
         <div class="flex-1">
             <Navbar

@@ -3,8 +3,8 @@ use crate::test_support::TempDir;
 use std::fs;
 use std::path::Path;
 
-fn listed(root: &Path) -> Vec<String> {
-    tauri::async_runtime::block_on(get_videos_list(root.display().to_string())).unwrap()
+fn listed(root: &Path) -> Result<Vec<String>, String> {
+    tauri::async_runtime::block_on(get_videos_list(root.display().to_string()))
 }
 
 #[test]
@@ -18,7 +18,7 @@ fn recursively_lists_supported_extensions_but_not_unrelated_files_or_directories
     }
     fs::write(nested.join("not-video.txt"), b"").unwrap();
     fs::create_dir(nested.join("directory.mp4")).unwrap();
-    let mut actual = listed(tmp.path());
+    let mut actual = listed(tmp.path()).unwrap();
     actual.sort();
     let mut wanted: Vec<_> = expected
         .iter()
@@ -50,7 +50,7 @@ fn ignores_hidden_and_system_directories_but_keeps_visible_siblings() {
     fs::write(visible.join("keep.mp4"), b"").unwrap();
     fs::write(tmp.path().join(".secret.mp4"), b"").unwrap();
     assert_eq!(
-        listed(tmp.path()),
+        listed(tmp.path()).unwrap(),
         vec![visible.join("keep.mp4").display().to_string()]
     );
 }
@@ -62,15 +62,16 @@ fn extension_matching_is_case_sensitive() {
     fs::write(tmp.path().join("double.mp4.bak"), b"").unwrap();
     fs::write(tmp.path().join("lower.mp4"), b"").unwrap();
     assert_eq!(
-        listed(tmp.path()),
+        listed(tmp.path()).unwrap(),
         vec![tmp.path().join("lower.mp4").display().to_string()]
     );
 }
 
 #[test]
-fn nonexistent_directory_returns_empty_list() {
+fn nonexistent_directory_returns_an_error_instead_of_a_partial_scan() {
     let tmp = TempDir::new();
-    assert!(listed(&tmp.path().join("absent")).is_empty());
+    let error = listed(&tmp.path().join("absent")).unwrap_err();
+    assert!(error.contains("Failed to scan wallpaper directory"));
 }
 
 #[test]
@@ -80,7 +81,7 @@ fn hidden_root_itself_is_still_scanned() {
     fs::create_dir(&root).unwrap();
     fs::write(root.join("visible.mp4"), b"").unwrap();
     assert_eq!(
-        listed(&root),
+        listed(&root).unwrap(),
         vec![root.join("visible.mp4").display().to_string()]
     );
 }

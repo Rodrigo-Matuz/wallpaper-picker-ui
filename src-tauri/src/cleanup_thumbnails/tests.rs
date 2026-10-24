@@ -1,11 +1,11 @@
-use super::cleanup_thumbnails;
+use super::cleanup_thumbnails_in_directory;
 use crate::test_support::TempDir;
 use std::fs;
 use std::path::Path;
 
 fn cleanup(path: &Path, keep: &[&str]) -> usize {
-    tauri::async_runtime::block_on(cleanup_thumbnails(
-        path.display().to_string(),
+    tauri::async_runtime::block_on(cleanup_thumbnails_in_directory(
+        path.to_path_buf(),
         keep.iter().map(|s| (*s).to_owned()).collect(),
     ))
     .unwrap()
@@ -51,6 +51,32 @@ fn leaves_subdirectories_and_their_contents_untouched() {
 fn absent_directory_is_a_no_op() {
     let tmp = TempDir::new();
     assert_eq!(cleanup(&tmp.path().join("missing"), &[]), 0);
+}
+
+#[test]
+fn a_file_instead_of_the_thumbnail_directory_is_reported() {
+    let tmp = TempDir::new();
+    let file = tmp.path().join("not-a-directory");
+    fs::write(&file, b"data").unwrap();
+    let error = tauri::async_runtime::block_on(cleanup_thumbnails_in_directory(file, Vec::new()))
+        .unwrap_err();
+    assert!(error.contains("not a directory"));
+}
+
+#[cfg(unix)]
+#[test]
+fn cleanup_rejects_a_redirected_thumbnail_directory() {
+    let tmp = TempDir::new();
+    let target = tmp.path().join("outside");
+    let thumbnails = tmp.path().join("thumbnails");
+    fs::create_dir(&target).unwrap();
+    std::os::unix::fs::symlink(&target, &thumbnails).unwrap();
+
+    let result =
+        tauri::async_runtime::block_on(cleanup_thumbnails_in_directory(thumbnails, Vec::new()));
+
+    assert!(result.unwrap_err().contains("redirected"));
+    assert_eq!(fs::read_dir(&target).unwrap().count(), 0);
 }
 
 #[test]

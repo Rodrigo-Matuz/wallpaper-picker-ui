@@ -1,5 +1,11 @@
 import type { LangCode } from "./langTypes";
-import type { ThemeId, ThemeMode } from "./themeTypes";
+import type {
+	ThemeId,
+	ThemeMode,
+	ThemeRoundness,
+	ThemeShadowStrength,
+	ThemeSpacing,
+} from "./themeTypes";
 
 export type ThumbnailRecord = Record<string, string>;
 
@@ -13,6 +19,12 @@ export interface ConfigInterArgs {
 	themeId?: ThemeId;
 	/** Selected theme appearance; missing in older configs follows darkMode. */
 	themeMode?: ThemeMode;
+	/** Global visual shape preference; missing in older configs follows the selected legacy theme. */
+	themeRoundness?: ThemeRoundness;
+	/** Global shadow preference; missing in older configs follows the selected legacy theme. */
+	themeShadowStrength?: ThemeShadowStrength;
+	/** Global spacing preference; missing in older configs follows the selected legacy theme. */
+	themeSpacing?: ThemeSpacing;
 	/** Missing in older configs means the controls remain visible. */
 	showWindowControls?: boolean;
 	language: LangCode;

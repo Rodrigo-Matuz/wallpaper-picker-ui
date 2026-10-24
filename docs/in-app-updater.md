@@ -4,7 +4,9 @@ Wallpaper Picker UI's **Tauri 2** updater design, with a reusable implementation
 
 ## Current status and commit-based handoff
 
-The current baseline is **3.6.9**: reviewed UI commit `33301d4b715721eee8388091e901db8122e13218`, followed by release-bot flake commit `f0e558e1bec4394db3a177a2769e491ee295cce7`. The public latest.json returned version `3.6.9`. This is release metadata evidence, not renewed payload cryptography or native upgrade acceptance. The previous user-owned 3.6.8 baseline was release commit `43059a0` / flake commit `01429a0`; its changes remain preserved.
+The current source version is 3.9.0. The detailed 3.6.x statements below are historical evidence and must not override current manifests, workflows, tests, capabilities, or release metadata. No release or updater acceptance is implied by this local working tree.
+
+The historical baseline described below was **3.6.9**: reviewed UI commit `33301d4b715721eee8388091e901db8122e13218`, followed by release-bot flake commit `f0e558e1bec4394db3a177a2769e491ee295cce7`. The public latest.json returned version `3.6.9` at that time. This is historical release metadata evidence, not renewed payload cryptography or native upgrade acceptance. The previous user-owned 3.6.8 baseline was release commit `43059a0` / flake commit `01429a0`; its changes remain preserved.
 
 Changes since the earlier guide/cleanup commit `756af3b`, read from Git history:
 
@@ -18,7 +20,7 @@ Changes since the earlier guide/cleanup commit `756af3b`, read from Git history:
 | `1a763c1`, `43059a0` | Add Nix development-shell dependencies and the GStreamer `appsink`/plugin path correction. This does not authorize Nix self-updating. |
 | Release/flake commits | Versions 3.6.5 through 3.6.8 and their pinned binary hashes; preserve the bot-owned flake update workflow. |
 
-**The completed UI slice prepared 3.6.9** with silent startup checks, explicit updater-action spacing and safely rendered collapsible release notes. The version script synchronizes package/Tauri/Cargo versions; Cargo regenerates only the root-package lock version. The local handoff consists of the complete changes, passing local gates and independent review, recorded together in the local Git commit. No hosted CI or release is implied by that commit. The user explicitly owns pushing, CI/release triggering and publication: **do not push or create a release tag on their behalf**.
+**The historical UI slice prepared 3.6.9** with silent startup checks, explicit updater-action spacing and safely rendered collapsible release notes. The version script synchronizes package/Tauri/Cargo versions; Cargo regenerates only the root-package lock version. This historical handoff contains no current release authorization. The user explicitly owns pushing, CI/release triggering and publication: **do not push or create a release tag on their behalf**.
 
 | Area | Result / boundary |
 | --- | --- |
@@ -29,9 +31,9 @@ Changes since the earlier guide/cleanup commit `756af3b`, read from Git history:
 
 Temporary 3.6.2/3.6.3 release pages/assets were retired; tags remain history. Do not restore MSI direct-asset constructors or test badges. This guide authorizes no publication, re-keying, installer launch, normal-host inspection or migration.
 
-### Linux release-notice channel (current implementation slice)
+### Historical Linux release-notice channel (3.6.x implementation slice)
 
-The user explicitly authorized **notification-only** support for recognized Debian, RPM, Nix and AppImage installations. Keep version **3.6.9**; no new release or tag is authorized. The user subsequently authorized appending this feature to their independently edited `RELEASE.md` for the next update; preserve its existing UI notes and do not add a version bump or release tag. Integrated local gates passed: **424 logic tests/41 files, 265 component tests/28 files, 71 Windows Rust tests, five locales/134 keys**, plus lint, Svelte 0 errors/0 warnings, frontend build, strict release-script TypeScript and locked/offline Rust formatting/check/tests. The complete notification-only source slice passed independent review; the latest user-approved release-note additions are included in the local handoff. No live Linux notice request or packaged Linux UI acceptance has been exercised.
+The historical feature authorized **notification-only** support for recognized Debian, RPM, Nix and AppImage installations. It was associated with version **3.6.9**; current source and release metadata are authoritative now. No new release or tag is authorized by this document. The user subsequently authorized appending this feature to their independently edited `RELEASE.md` for the next update; preserve its existing UI notes and do not add a version bump or release tag. Integrated local gates passed: **424 logic tests/41 files, 265 component tests/28 files, 71 Windows Rust tests, five locales/134 keys**, plus lint, Svelte 0 errors/0 warnings, frontend build, strict release-script TypeScript and locked/offline Rust formatting/check/tests. The complete notification-only source slice passed independent review; the latest user-approved release-note additions are included in the local handoff. No live Linux notice request or packaged Linux UI acceptance has been exercised.
 
 The notice reads **public release metadata**, not an installer payload:
 

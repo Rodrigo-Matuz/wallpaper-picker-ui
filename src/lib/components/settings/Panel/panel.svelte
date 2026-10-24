@@ -8,6 +8,7 @@ import SettingsButton from "$components/settings/Button";
 import SettingsInput from "$components/settings/Input";
 import SettingsSelector from "$components/settings/Selector";
 import SettingsSwitch from "$components/settings/Switch";
+import ThemeAppearance from "$components/settings/ThemeAppearance/theme-appearance.svelte";
 import { ThemeSelector } from "$components/settings/ThemeSelector";
 import WindowsPlaybackNotice from "$components/windowsPlaybackNotice/windows-playback-notice.svelte";
 import { clearConfig } from "$lib/api/config/clear";
@@ -112,6 +113,7 @@ const fetchAppearance = async () => resolveThemeSelection(await fetchConfig()).m
                     </div>
                     <div class="divide-y divide-foreground/10">
                     <ThemeSelector />
+                    <ThemeAppearance />
                     <SettingsSwitch
                         name={translate('settings.appearance.name')}
                         shortDescription={translate('settings.appearance.short.description')}

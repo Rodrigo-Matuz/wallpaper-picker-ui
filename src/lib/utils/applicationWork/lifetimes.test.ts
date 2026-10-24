@@ -7,6 +7,7 @@ import { applicationWork } from "./applicationWork";
 const ensureDir = mock(async () => {});
 const exists = mock(async (_path?: string) => true);
 const writeFile = mock(async (_path?: string, _bytes?: Uint8Array) => {});
+const rename = mock(async (_oldPath?: string, _newPath?: string) => {});
 const remove = mock(async () => {});
 const readFile = mock(async (_path?: string) => new Uint8Array([1]));
 const readTextFile = mock(async () => "{}");
@@ -24,6 +25,7 @@ mock.module("@tauri-apps/plugin-fs", () => ({
 	BaseDirectory,
 	exists,
 	writeFile,
+	rename,
 	remove,
 	readFile,
 	readTextFile,
@@ -55,6 +57,7 @@ beforeEach(() => {
 		ensureDir,
 		exists,
 		writeFile,
+		rename,
 		remove,
 		readFile,
 		readTextFile,
@@ -72,6 +75,7 @@ beforeEach(() => {
 	ensureDir.mockImplementation(async () => {});
 	exists.mockImplementation(async () => true);
 	writeFile.mockImplementation(async () => {});
+	rename.mockImplementation(async () => {});
 	remove.mockImplementation(async () => {});
 	log.mockImplementation(async () => {});
 	fetchConfig.mockImplementation(async () => ({ ...defaultConfig }));
@@ -106,7 +110,9 @@ async function expectTracked(run: () => Promise<unknown>, block: (promise: Promi
 }
 
 test("clearThumbnails owns removal, nested map reset, logging, and caught failures", async () => {
+	thumbnails.set({ "blob:stale": "/mock/old.mp4" });
 	await expectTracked(clearThumbnails, (gate) => remove.mockImplementationOnce(() => gate));
+	expect(get(thumbnails)).toEqual({});
 	expect(writeFile).toHaveBeenCalledTimes(1);
 	writeFile.mockImplementationOnce(async () => {
 		expect(applicationWork.getSnapshot().pendingWork).toBe(2);
@@ -117,10 +123,10 @@ test("clearThumbnails owns removal, nested map reset, logging, and caught failur
 	await clearThumbnails();
 	expect(applicationWork.hasPendingWork()).toBe(false);
 	remove.mockRejectedValueOnce(new Error("remove denied"));
-	await clearThumbnails();
+	expect(await clearThumbnails()).toBe(false);
 	expect(applicationWork.hasPendingWork()).toBe(false);
 	writeFile.mockRejectedValueOnce(new Error("map denied"));
-	await clearThumbnails();
+	expect(await clearThumbnails()).toBe(false);
 	expect(applicationWork.hasPendingWork()).toBe(false);
 	log.mockRejectedValue(new Error("logger failed"));
 	await expect(clearThumbnails()).rejects.toThrow("logger failed");
@@ -138,6 +144,7 @@ test("joined thumbnail pipeline remains tracked through concurrent generation, m
 	const blobStarted = deferred();
 	const blob = deferred();
 	let generationCalls = 0;
+	fetchConfig.mockResolvedValue({ ...defaultConfig, wallpapersPath: "/mock" });
 	ensureDir.mockImplementationOnce(() => directory.promise);
 	invoke.mockImplementation(async (command) => {
 		if (command === "generate_thumb") {
@@ -197,7 +204,12 @@ test("joined thumbnail pipeline remains tracked through concurrent generation, m
 
 test("new-wallpaper scans publish cached previews before generating only missing videos", async () => {
 	readTextFile.mockResolvedValueOnce(JSON.stringify({ "a.png": "/mock/a.mp4" }));
-	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, thumbnailVersion: 1 });
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: true,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
 	basename.mockImplementation(async (path) => path.split("/").pop() ?? path);
 	const started = deferred();
 	const generation = deferred();
@@ -228,7 +240,12 @@ test("new-wallpaper scans publish cached previews before generating only missing
 test("returning home with new-wallpaper discovery enabled reuses every saved thumbnail", async () => {
 	const saved = { "a.png": "/mock/a.mp4", "b.png": "/mock/b.mp4" };
 	readTextFile.mockResolvedValue(JSON.stringify(saved));
-	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, thumbnailVersion: 1 });
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: true,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
 	for (const _visit of [1, 2]) {
 		await handleThumbnails();
 		expect(Object.values(get(thumbnails)).sort()).toEqual(["/mock/a.mp4", "/mock/b.mp4"]);
@@ -244,7 +261,7 @@ test("generated previews remain available after disabling discovery and returnin
 	);
 	readTextFile.mockImplementation(async () => savedMap ?? "{}");
 	writeFile.mockImplementation(async (path, bytes) => {
-		if (path === "thumbnails/map.json" && bytes) savedMap = new TextDecoder().decode(bytes);
+		if (path === "thumbnails/map.json.tmp" && bytes) savedMap = new TextDecoder().decode(bytes);
 	});
 	readFile.mockImplementation(async (path) => {
 		if (!path || !files.has(path)) throw new Error("preview missing");
@@ -265,10 +282,20 @@ test("generated previews remain available after disabling discovery and returnin
 			}
 		}
 	});
-	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, thumbnailVersion: 1 });
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: true,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
 	await handleThumbnails();
 	expect(Object.values(get(thumbnails)).sort()).toEqual(["/mock/a.mp4", "/mock/b.mp4"]);
-	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: false, thumbnailVersion: 1 });
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: false,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
 	thumbnails.set({});
 	await handleThumbnails();
 	expect(Object.values(get(thumbnails)).sort()).toEqual(["/mock/a.mp4", "/mock/b.mp4"]);
@@ -282,7 +309,7 @@ test("discovery off recovers previews left on disk by an older deleted index", a
 	);
 	readTextFile.mockImplementation(async () => savedMap ?? "{}");
 	writeFile.mockImplementation(async (path, bytes) => {
-		if (path === "thumbnails/map.json" && bytes) savedMap = new TextDecoder().decode(bytes);
+		if (path === "thumbnails/map.json.tmp" && bytes) savedMap = new TextDecoder().decode(bytes);
 	});
 	readFile.mockImplementation(async (path) => {
 		if (path !== "thumbnails/a.png") throw new Error("preview missing");
@@ -333,7 +360,12 @@ test("first launch with discovery off never generates, even before thumbnail ver
 test("discovery off displays saved previews without deleting them when video validation returns no paths", async () => {
 	const saved = { "a.png": "/mock/a.mp4", "b.png": "/mock/b.mp4" };
 	readTextFile.mockResolvedValue(JSON.stringify(saved));
-	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: false, thumbnailVersion: 1 });
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: false,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
 	invoke.mockImplementation(async (command) =>
 		command === "validate_video_paths" ? [] : undefined,
 	);
@@ -349,9 +381,85 @@ test("discovery off displays saved previews without deleting them when video val
 	);
 });
 
+test("successful empty discovery removes orphaned thumbnail files", async () => {
+	readTextFile.mockResolvedValue(JSON.stringify({ "old.png": "/mock/old.mp4" }));
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: true,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
+	fetchVideos.mockResolvedValue([]);
+	invoke.mockImplementation(async (command) => {
+		if (command === "cleanup_thumbnails") return 1;
+		return undefined;
+	});
+	await handleThumbnails();
+	expect(invoke).toHaveBeenCalledWith("cleanup_thumbnails", { keepFiles: ["map.json"] });
+});
+
+test("automatic discovery with no configured wallpapers path never cleans cached previews", async () => {
+	readTextFile.mockResolvedValue(JSON.stringify({ "old.png": "/mock/old.mp4" }));
+	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, wallpapersPath: "" });
+	fetchVideos.mockResolvedValue(["/mock/new.mp4"]);
+	await handleThumbnails();
+	expect(fetchVideos).not.toHaveBeenCalled();
+	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(0);
+	expect(invoke.mock.calls.filter(([command]) => command === "cleanup_thumbnails")).toHaveLength(
+		0,
+	);
+	expect(Object.values(get(thumbnails))).toEqual(["/mock/old.mp4"]);
+});
+
+test("unreadable published previews are removed from the persisted map", async () => {
+	readTextFile.mockResolvedValue(
+		JSON.stringify({ "good.png": "/mock/good.mp4", "bad.png": "/mock/bad.mp4" }),
+	);
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: false,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
+	readFile.mockImplementation(async (path) => {
+		if (path === "thumbnails/bad.png") throw new Error("preview corrupt");
+		return new Uint8Array([1]);
+	});
+	await handleThumbnails();
+	expect(Object.values(get(thumbnails))).toEqual(["/mock/good.mp4"]);
+	const mapWrite = writeFile.mock.calls.find(([path]) => path === "thumbnails/map.json.tmp");
+	expect(mapWrite).toBeDefined();
+	expect(JSON.parse(new TextDecoder().decode(mapWrite?.[1] as Uint8Array))).toEqual({
+		"good.png": "/mock/good.mp4",
+	});
+});
+
+test("thumbnail cleanup waits for configuration persistence to succeed", async () => {
+	readTextFile.mockResolvedValue(JSON.stringify({ "old.png": "/mock/old.mp4" }));
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: true,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
+	fetchVideos.mockResolvedValue([]);
+	writeFile.mockImplementation(async (path) => {
+		if (String(path).includes("config.json")) throw new Error("config denied");
+	});
+	await handleThumbnails();
+	expect(invoke.mock.calls.filter(([command]) => command === "cleanup_thumbnails")).toHaveLength(
+		0,
+	);
+});
+
 test("discovery off never cleans cached files when the map is unavailable", async () => {
 	readTextFile.mockResolvedValue("{}");
-	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: false, thumbnailVersion: 1 });
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: false,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
 	await handleThumbnails();
 	expect(invoke.mock.calls.filter(([command]) => command === "cleanup_thumbnails")).toHaveLength(
 		0,
@@ -361,7 +469,12 @@ test("discovery off never cleans cached files when the map is unavailable", asyn
 test("a missing cached image is regenerated on the next scan", async () => {
 	readTextFile.mockResolvedValueOnce(JSON.stringify({ "a.png": "/mock/a.mp4" }));
 	readFile.mockRejectedValueOnce(new Error("preview missing"));
-	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, thumbnailVersion: 1 });
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: true,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
 	fetchVideos.mockResolvedValue(["/mock/a.mp4"]);
 	await handleThumbnails();
 	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(1);
@@ -370,7 +483,12 @@ test("a missing cached image is regenerated on the next scan", async () => {
 
 test("selecting a folder scans for additions with discovery disabled without rebuilding cached previews", async () => {
 	readTextFile.mockResolvedValueOnce(JSON.stringify({ "a.png": "/mock/a.mp4" }));
-	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: false, thumbnailVersion: 1 });
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: false,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
 	invoke.mockImplementation(async (command) => (command === "generate_thumb" ? "b.png" : []));
 	await handleThumbnails(false, true);
 	expect(invoke.mock.calls.filter(([command]) => command === "generate_thumb")).toHaveLength(1);
@@ -379,16 +497,26 @@ test("selecting a folder scans for additions with discovery disabled without reb
 
 test("failed forced rebuild keeps the last readable preview for the same video", async () => {
 	readTextFile.mockResolvedValueOnce(JSON.stringify({ "a.png": "/mock/a.mp4" }));
-	fetchConfig.mockResolvedValue({ ...defaultConfig, newWallpapers: true, thumbnailVersion: 1 });
+	fetchConfig.mockResolvedValue({
+		...defaultConfig,
+		newWallpapers: true,
+		thumbnailVersion: 1,
+		wallpapersPath: "/mock",
+	});
 	fetchVideos.mockResolvedValue(["/mock/a.mp4"]);
 	invoke.mockImplementation(async (command) => {
 		if (command === "generate_thumb") throw new Error("ffmpeg unavailable");
 		return [];
 	});
 	await handleThumbnails(true);
+	expect(
+		invoke.mock.calls
+			.filter(([command]) => command === "generate_thumb")
+			.every(([, args]) => args.forceRegenerate === true),
+	).toBe(true);
 	expect(Object.values(get(thumbnails))).toContain("/mock/a.mp4");
 	expect(writeFile).toHaveBeenCalledWith(
-		"thumbnails/map.json",
+		"thumbnails/map.json.tmp",
 		expect.any(Uint8Array),
 		expect.any(Object),
 	);

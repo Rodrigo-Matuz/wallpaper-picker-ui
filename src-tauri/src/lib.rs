@@ -8,6 +8,7 @@ mod recover_thumbnails;
 mod send_command;
 #[cfg(test)]
 mod test_support;
+mod thumbnail_security;
 mod validate_video_paths;
 mod windows_playback;
 
@@ -51,4 +52,41 @@ pub fn run() {
             windows_playback::stop_windows_playback_sync();
         }
     });
+}
+
+#[cfg(test)]
+mod capability_tests {
+    use tauri::ipc::{Origin, RuntimeAuthority};
+
+    fn assert_allowed(authority: &RuntimeAuthority, command: &str) {
+        assert!(
+            authority
+                .resolve_access(command, "main", "main", &Origin::Local)
+                .is_some(),
+            "expected command to be allowed for the main local webview: {command}"
+        );
+    }
+
+    fn assert_denied(authority: &RuntimeAuthority, command: &str, window: &str, webview: &str) {
+        assert!(
+            authority
+                .resolve_access(command, window, webview, &Origin::Local)
+                .is_none(),
+            "expected command to be denied: {command} ({window}, {webview})"
+        );
+    }
+
+    #[test]
+    fn main_capability_denies_unused_commands_and_wrong_window_scope() {
+        let mut context: tauri::Context<tauri::test::MockRuntime> = tauri::generate_context!();
+        let authority = context.runtime_authority_mut();
+
+        assert_allowed(authority, "plugin:fs|remove");
+        assert_allowed(authority, "plugin:dialog|open");
+        assert_allowed(authority, "plugin:updater|check");
+
+        assert_denied(authority, "plugin:fs|remove", "other", "other");
+        assert_denied(authority, "plugin:fs|unused_command", "main", "main");
+        assert_denied(authority, "plugin:opener|open_url", "main", "main");
+    }
 }

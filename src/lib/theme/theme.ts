@@ -1,7 +1,18 @@
 import { writable } from "svelte/store";
 import type { ConfigInterArgs } from "$types/configTypes";
 import type { ThemeMode, ThemeSelection } from "$types/themeTypes";
+import {
+	applyThemeAppearance,
+	initializeThemeAppearance,
+	publishThemeAppearance,
+} from "./appearance";
 import { getThemeVariant, isThemeId } from "./registry";
+
+export {
+	defaultThemeAppearance,
+	resolveThemeAppearance,
+	themeAppearance,
+} from "./appearance";
 
 export const defaultThemeSelection: ThemeSelection = {
 	themeId: "deep-ocean",
@@ -29,19 +40,6 @@ const cssVariableGroups = {
 		accentForeground: "--theme-accent-foreground",
 		primaryForeground: "--theme-primary-foreground",
 	},
-	geometry: {
-		buttonRadius: "--theme-button-radius",
-		controlRadius: "--theme-control-radius",
-		cardRadius: "--theme-card-radius",
-		shadow: "--theme-shadow",
-		buttonShadow: "--theme-button-shadow",
-		pagePadding: "--theme-page-padding",
-		sectionGap: "--theme-section-gap",
-		gridGap: "--theme-grid-gap",
-		controlGap: "--theme-control-gap",
-		rowPaddingX: "--theme-row-padding-x",
-		rowPaddingY: "--theme-row-padding-y",
-	},
 } as const;
 
 export function resolveThemeSelection(config?: Partial<ConfigInterArgs>): ThemeSelection {
@@ -65,15 +63,13 @@ export function applyThemeSelection(selection: ThemeSelection): void {
 	for (const [key, cssVariable] of Object.entries(cssVariableGroups.colors)) {
 		root.style.setProperty(cssVariable, variant.colors[key as keyof typeof variant.colors]);
 	}
-	for (const [key, cssVariable] of Object.entries(cssVariableGroups.geometry)) {
-		root.style.setProperty(cssVariable, variant.geometry[key as keyof typeof variant.geometry]);
-	}
 }
 
 export function initializeTheme(config?: Partial<ConfigInterArgs>): ThemeSelection {
 	const selection = resolveThemeSelection(config);
 	themeSelection.set(selection);
 	applyThemeSelection(selection);
+	initializeThemeAppearance(config);
 	return selection;
 }
 
@@ -81,3 +77,5 @@ export function publishThemeSelection(selection: ThemeSelection): void {
 	themeSelection.set(selection);
 	applyThemeSelection(selection);
 }
+
+export { applyThemeAppearance, publishThemeAppearance };

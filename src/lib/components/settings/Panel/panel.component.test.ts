@@ -103,7 +103,7 @@ describe("Settings page", () => {
 			const section = screen.getByRole("region", { name });
 			expect(section.id).toBe(id);
 		}
-		expect(document.querySelectorAll('[data-slot="settings-row"]').length).toBe(9);
+		expect(document.querySelectorAll('[data-slot="settings-row"]').length).toBe(12);
 		expect(document.querySelectorAll('[data-slot="card"]').length).toBe(0);
 		const command = screen.getByRole("textbox", { name: "Command" }) as HTMLInputElement;
 		await waitFor(() => expect(command.value).toBe("mpvpaper $VP"));

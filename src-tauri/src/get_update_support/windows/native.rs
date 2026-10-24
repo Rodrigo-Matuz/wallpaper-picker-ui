@@ -130,7 +130,7 @@ fn value(key: &Key, name: &str) -> EvidenceResult<Option<String>> {
         if status != ERROR_SUCCESS
             || kind != REG_SZ
             || bytes < 2
-            || bytes % 2 != 0
+            || !bytes.is_multiple_of(2)
             || bytes as usize > size_of::<[u16; 512]>()
         {
             return Err(());

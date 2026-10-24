@@ -1,5 +1,7 @@
 import { BaseDirectory, remove } from "@tauri-apps/plugin-fs";
+import { clearPublishedThumbnails } from "$api/thumbnails/handle";
 import { writeThumbnailMap } from "$api/thumbnails/map/map";
+import { withThumbnailOperation } from "$api/thumbnails/mutex";
 import { applicationWork } from "$utils/applicationWork/applicationWork";
 import { log } from "$utils/logger/logger";
 import { THUMBNAILS_DIR } from "$utils/paths";
@@ -18,32 +20,39 @@ import { THUMBNAILS_DIR } from "$utils/paths";
  * await clearThumbnails();
  * ```
  */
-export const clearThumbnails = async (): Promise<void> => {
+export const clearThumbnails = async (): Promise<boolean> => {
 	const release = applicationWork.beginWork();
 	try {
-		await remove(THUMBNAILS_DIR, {
-			baseDir: BaseDirectory.AppData,
-			recursive: true,
-		});
+		return await withThumbnailOperation(async () => {
+			try {
+				await remove(THUMBNAILS_DIR, {
+					baseDir: BaseDirectory.AppData,
+					recursive: true,
+				});
 
-		// The directory (and map.json) was just removed — recreate an empty map.
-		await writeThumbnailMap({});
+				// The directory (and map.json) was just removed — recreate an empty map.
+				await writeThumbnailMap({});
+				clearPublishedThumbnails();
 
-		await log({
-			level: "positive",
-			callStack: new Error(),
-			message: {
-				context: "All thumbnails deleted successfully",
-			},
-		});
-	} catch (error) {
-		await log({
-			level: "error",
-			message: {
-				context: "Failed to delete thumbnails",
-				error,
-			},
-			callStack: error instanceof Error ? error : new Error("Unknown error"),
+				await log({
+					level: "positive",
+					callStack: new Error(),
+					message: {
+						context: "All thumbnails deleted successfully",
+					},
+				});
+				return true;
+			} catch (error) {
+				await log({
+					level: "error",
+					message: {
+						context: "Failed to delete thumbnails",
+						error,
+					},
+					callStack: error instanceof Error ? error : new Error("Unknown error"),
+				});
+				return false;
+			}
 		});
 	} finally {
 		release();

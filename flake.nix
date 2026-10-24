@@ -96,7 +96,15 @@
           cfg = config.programs.wallpaper-picker-ui;
           configPath = "${config.xdg.configHome}/WallpaperPickerUI/config.json";
           initialConfig = pkgs.writeText "wallpaper-picker-ui-initial-config.json" (builtins.toJSON {
-            inherit (cfg) command debugMode newWallpapers darkMode language;
+            inherit (cfg)
+              command
+              debugMode
+              newWallpapers
+              darkMode
+              themeRoundness
+              themeShadowStrength
+              themeSpacing
+              language;
             wallpapersPath = if cfg.wallpapersPath == null then "" else cfg.wallpapersPath;
             thumbnailVersion = 1;
           });
@@ -133,6 +141,21 @@
               type = lib.types.bool;
               default = true;
               description = "Start in dark mode.";
+            };
+            themeRoundness = lib.mkOption {
+              type = lib.types.enum [ "sharp" "soft" "rounded" "pill" ];
+              default = "sharp";
+              description = "Global corner-roundness style.";
+            };
+            themeShadowStrength = lib.mkOption {
+              type = lib.types.enum [ "none" "subtle" "strong" ];
+              default = "subtle";
+              description = "Global shadow strength.";
+            };
+            themeSpacing = lib.mkOption {
+              type = lib.types.enum [ "compact" "comfortable" "spacious" ];
+              default = "comfortable";
+              description = "Global spacing density.";
             };
             language = lib.mkOption {
               type = lib.types.enum [ "eng" "pt-br" "de" "fr" "es" ];

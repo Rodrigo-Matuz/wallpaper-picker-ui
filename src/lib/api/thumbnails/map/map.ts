@@ -1,4 +1,11 @@
-import { BaseDirectory, exists, readTextFile, writeFile } from "@tauri-apps/plugin-fs";
+import {
+	BaseDirectory,
+	exists,
+	readTextFile,
+	remove,
+	rename,
+	writeFile,
+} from "@tauri-apps/plugin-fs";
 import { fetchConfig } from "$api/config/read/read";
 import { updateConfig } from "$api/config/update/update";
 import type { ThumbnailRecord } from "$types/configTypes";
@@ -17,6 +24,27 @@ import { THUMBNAILS_DIR } from "$utils/paths";
  * "separate thumbnailsHashMap" TODO.
  */
 const MAP_FILE = `${THUMBNAILS_DIR}/map.json`;
+const MAP_TEMP_FILE = `${MAP_FILE}.tmp`;
+
+function isValidThumbnailFileName(fileName: string): boolean {
+	return (
+		fileName.length > 0 &&
+		fileName.endsWith(".png") &&
+		fileName !== ".png" &&
+		!fileName.includes("/") &&
+		!fileName.includes("\\")
+	);
+}
+
+function isThumbnailRecord(value: unknown): value is ThumbnailRecord {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+	return Object.entries(value).every(
+		([fileName, videoPath]) =>
+			isValidThumbnailFileName(fileName) &&
+			typeof videoPath === "string" &&
+			videoPath.length > 0,
+	);
+}
 
 /** DOCS:
  * Reads the thumbnail map from the thumbnails directory.
@@ -41,9 +69,13 @@ export async function readThumbnailMap(): Promise<ThumbnailRecord> {
 			const mapExists = await exists(MAP_FILE, { baseDir: BaseDirectory.AppData });
 			if (!mapExists) return {};
 
-			return JSON.parse(
+			const parsed: unknown = JSON.parse(
 				await readTextFile(MAP_FILE, { baseDir: BaseDirectory.AppData }),
-			) as ThumbnailRecord;
+			);
+			if (!isThumbnailRecord(parsed)) {
+				throw new Error("Thumbnail map has an invalid shape");
+			}
+			return parsed;
 		} catch (error) {
 			await log({
 				level: "error",
@@ -62,7 +94,9 @@ export async function readThumbnailMap(): Promise<ThumbnailRecord> {
 
 /** DOCS:
  * Writes the thumbnail map to the thumbnails directory (creating the
- * directory if needed). Errors are logged and rethrown so callers can react.
+ * directory if needed). The payload is written to a scoped temporary file and
+ * renamed into place so readers never observe a partially serialized map.
+ * Errors are logged and rethrown so callers can react.
  *
  * @param map - The thumbnail filename → video path mapping to persist.
  *
@@ -77,8 +111,24 @@ export async function writeThumbnailMap(map: ThumbnailRecord): Promise<void> {
 		await ensureDir(THUMBNAILS_DIR, BaseDirectory.AppData);
 
 		try {
+			if (!isThumbnailRecord(map)) {
+				throw new Error("Thumbnail map has an invalid shape");
+			}
 			const data = new TextEncoder().encode(JSON.stringify(map, null, 4));
-			await writeFile(MAP_FILE, data, { baseDir: BaseDirectory.AppData });
+			await writeFile(MAP_TEMP_FILE, data, { baseDir: BaseDirectory.AppData });
+			try {
+				await rename(MAP_TEMP_FILE, MAP_FILE, {
+					oldPathBaseDir: BaseDirectory.AppData,
+					newPathBaseDir: BaseDirectory.AppData,
+				});
+			} catch (error) {
+				try {
+					await remove(MAP_TEMP_FILE, { baseDir: BaseDirectory.AppData });
+				} catch {
+					// Preserve the original rename failure; a stale temp file is harmless.
+				}
+				throw error;
+			}
 		} catch (error) {
 			await log({
 				level: "error",
@@ -98,7 +148,9 @@ export async function writeThumbnailMap(map: ThumbnailRecord): Promise<void> {
 /** DOCS:
  * One-time migration: moves `thumbnailsHashMap` out of config.json into
  * `map.json` if the map file does not exist yet but the config still holds
- * entries. The config field is cleared afterwards.
+ * config still holds entries. The config field is cleared afterwards. If
+ * configuration persistence is not confirmed, the newly written map is removed
+ * so a later launch can retry the migration.
  *
  * @returns The migrated map, or an empty record when there was nothing to migrate.
  *
@@ -115,11 +167,37 @@ export async function migrateThumbnailMapFromConfig(): Promise<ThumbnailRecord> 
 		if (mapExists) return {};
 
 		const legacy = (await fetchConfig()).thumbnailsHashMap;
-		if (!legacy || Object.keys(legacy).length === 0) return {};
+		if (!isThumbnailRecord(legacy) || Object.keys(legacy).length === 0) return {};
+
+		const rollbackMigration = async () => {
+			try {
+				await remove(MAP_FILE, { baseDir: BaseDirectory.AppData });
+			} catch (rollbackError) {
+				await log({
+					level: "error",
+					callStack:
+						rollbackError instanceof Error ? rollbackError : new Error("Unknown error"),
+					message: {
+						context: "Failed to roll back migrated thumbnail map",
+						error: rollbackError,
+					},
+				});
+			}
+		};
 
 		try {
 			await writeThumbnailMap(legacy);
-			await updateConfig({ thumbnailsHashMap: {} });
+			try {
+				const configCleared = await updateConfig({ thumbnailsHashMap: {} });
+				if (!configCleared) {
+					throw new Error(
+						"Configuration did not confirm clearing the legacy thumbnail map",
+					);
+				}
+			} catch (error) {
+				await rollbackMigration();
+				throw error;
+			}
 			await log({
 				level: "info",
 				callStack: new Error(),

@@ -33,11 +33,17 @@ pub async fn get_videos_list(directory: String) -> Result<Vec<String>, String> {
         let video_formats = ["mp4", "mkv", "avi", "mov", "wmv"];
         let mut video_paths = Vec::new();
 
-        for entry in WalkDir::new(directory)
+        for entry in WalkDir::new(&directory)
             .into_iter()
             .filter_entry(|e| !is_skipped(e))
-            .filter_map(Result::ok)
         {
+            let entry = entry.map_err(|error| {
+                format!(
+                    "Failed to scan wallpaper directory '{}': {error}",
+                    directory
+                )
+            })?;
+
             if entry.file_type().is_file() {
                 if let Some(ext) = entry.path().extension() {
                     if let Some(ext_str) = ext.to_str() {

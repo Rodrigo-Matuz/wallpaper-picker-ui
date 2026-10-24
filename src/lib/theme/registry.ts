@@ -19,19 +19,6 @@ const deepOceanDark: ThemeVariant = {
 		accentForeground: "#ffffff",
 		primaryForeground: "#ffffff",
 	},
-	geometry: {
-		buttonRadius: "4px",
-		controlRadius: "4px",
-		cardRadius: "6px",
-		shadow: "0 14px 34px rgb(0 0 0 / 0.24)",
-		buttonShadow: "0 4px 14px rgb(0 0 0 / 0.2)",
-		pagePadding: "20px",
-		sectionGap: "48px",
-		gridGap: "12px",
-		controlGap: "12px",
-		rowPaddingX: "24px",
-		rowPaddingY: "24px",
-	},
 };
 
 const deepOceanLight: ThemeVariant = {
@@ -53,7 +40,6 @@ const deepOceanLight: ThemeVariant = {
 		accentForeground: "#ffffff",
 		primaryForeground: "#ffffff",
 	},
-	geometry: deepOceanDark.geometry,
 };
 
 const emberDark: ThemeVariant = {
@@ -74,19 +60,6 @@ const emberDark: ThemeVariant = {
 		success: "#a7d46f",
 		accentForeground: "#2b0d08",
 		primaryForeground: "#2b0d08",
-	},
-	geometry: {
-		buttonRadius: "999px",
-		controlRadius: "12px",
-		cardRadius: "16px",
-		shadow: "0 18px 42px rgb(0 0 0 / 0.3)",
-		buttonShadow: "0 6px 18px rgb(0 0 0 / 0.26)",
-		pagePadding: "24px",
-		sectionGap: "56px",
-		gridGap: "16px",
-		controlGap: "16px",
-		rowPaddingX: "28px",
-		rowPaddingY: "28px",
 	},
 };
 
@@ -109,7 +82,6 @@ const emberLight: ThemeVariant = {
 		accentForeground: "#ffffff",
 		primaryForeground: "#ffffff",
 	},
-	geometry: emberDark.geometry,
 };
 
 const meadowDark: ThemeVariant = {
@@ -130,19 +102,6 @@ const meadowDark: ThemeVariant = {
 		success: "#63e6be",
 		accentForeground: "#10210f",
 		primaryForeground: "#062014",
-	},
-	geometry: {
-		buttonRadius: "2px",
-		controlRadius: "3px",
-		cardRadius: "2px",
-		shadow: "0 10px 26px rgb(0 0 0 / 0.22)",
-		buttonShadow: "0 3px 10px rgb(0 0 0 / 0.18)",
-		pagePadding: "18px",
-		sectionGap: "40px",
-		gridGap: "10px",
-		controlGap: "10px",
-		rowPaddingX: "22px",
-		rowPaddingY: "20px",
 	},
 };
 
@@ -165,7 +124,6 @@ const meadowLight: ThemeVariant = {
 		accentForeground: "#ffffff",
 		primaryForeground: "#ffffff",
 	},
-	geometry: meadowDark.geometry,
 };
 
 const arcticDark: ThemeVariant = {
@@ -186,19 +144,6 @@ const arcticDark: ThemeVariant = {
 		success: "#72e0ad",
 		accentForeground: "#06202a",
 		primaryForeground: "#06202a",
-	},
-	geometry: {
-		buttonRadius: "6px",
-		controlRadius: "8px",
-		cardRadius: "10px",
-		shadow: "0 16px 36px rgb(0 19 30 / 0.28)",
-		buttonShadow: "0 5px 16px rgb(0 19 30 / 0.22)",
-		pagePadding: "22px",
-		sectionGap: "48px",
-		gridGap: "14px",
-		controlGap: "14px",
-		rowPaddingX: "24px",
-		rowPaddingY: "24px",
 	},
 };
 
@@ -221,7 +166,6 @@ const arcticLight: ThemeVariant = {
 		accentForeground: "#ffffff",
 		primaryForeground: "#ffffff",
 	},
-	geometry: arcticDark.geometry,
 };
 
 const orchidDark: ThemeVariant = {
@@ -242,19 +186,6 @@ const orchidDark: ThemeVariant = {
 		success: "#8fe3b0",
 		accentForeground: "#2a0e27",
 		primaryForeground: "#2a0e27",
-	},
-	geometry: {
-		buttonRadius: "999px",
-		controlRadius: "14px",
-		cardRadius: "20px",
-		shadow: "0 20px 48px rgb(25 5 35 / 0.32)",
-		buttonShadow: "0 8px 20px rgb(25 5 35 / 0.26)",
-		pagePadding: "26px",
-		sectionGap: "60px",
-		gridGap: "18px",
-		controlGap: "18px",
-		rowPaddingX: "30px",
-		rowPaddingY: "30px",
 	},
 };
 
@@ -277,7 +208,6 @@ const orchidLight: ThemeVariant = {
 		accentForeground: "#ffffff",
 		primaryForeground: "#ffffff",
 	},
-	geometry: orchidDark.geometry,
 };
 
 export const themes: Record<ThemeId, ThemeDefinition> = {

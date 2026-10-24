@@ -4,6 +4,7 @@ import { toast } from "svelte-sonner";
 import { fetchConfig } from "$api/config/read/read";
 import { updateConfig } from "$api/config/update/update";
 import { t } from "$lang/index";
+import { resolveThemeAppearance } from "$lib/theme/appearance";
 import { publishThemeSelection, resolveThemeSelection } from "$lib/theme/theme";
 import type { ThemeMode } from "$types/themeTypes";
 import { applicationWork, InstallationReservedError } from "$utils/applicationWork/applicationWork";
@@ -32,6 +33,7 @@ export const toggleDarkMode = async (): Promise<boolean> => {
 		release = applicationWork.beginWork();
 		const config = await fetchConfig();
 		const currentSelection = resolveThemeSelection(config);
+		const appearance = resolveThemeAppearance(config);
 		const newMode: ThemeMode = currentSelection.mode === "dark" ? "light" : "dark";
 		const newSelection = { ...currentSelection, mode: newMode };
 		if (
@@ -39,6 +41,9 @@ export const toggleDarkMode = async (): Promise<boolean> => {
 				darkMode: newMode === "dark",
 				themeId: newSelection.themeId,
 				themeMode: newSelection.mode,
+				themeRoundness: appearance.roundness,
+				themeShadowStrength: appearance.shadowStrength,
+				themeSpacing: appearance.spacing,
 			}))
 		) {
 			toast.error(get(t)("toast.settings.failed"));

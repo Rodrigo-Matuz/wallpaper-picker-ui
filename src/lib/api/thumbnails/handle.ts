@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { appDataDir, basename } from "@tauri-apps/api/path";
+import { basename } from "@tauri-apps/api/path";
 import { BaseDirectory, readFile } from "@tauri-apps/plugin-fs";
 import { get, writable } from "svelte/store";
 import { toast } from "svelte-sonner";
@@ -12,6 +12,7 @@ import {
 	readThumbnailMap,
 	writeThumbnailMap,
 } from "$api/thumbnails/map/map";
+import { withThumbnailOperation } from "$api/thumbnails/mutex";
 import { t } from "$lang/index";
 import type { ThumbnailRecord } from "$types/configTypes";
 import { applicationWork } from "$utils/applicationWork/applicationWork";
@@ -22,6 +23,13 @@ import { sortJsonByKey } from "$utils/sortJson/sortJson";
 export const thumbnails = writable<ThumbnailRecord>({});
 export const thumbnailsGenerated = writable(0);
 export const totalVideos = writable(0);
+
+/** Clears cached blob URLs after a destructive thumbnail reset. */
+export function clearPublishedThumbnails(): void {
+	for (const oldUrl of Object.keys(activeBlobUrls)) URL.revokeObjectURL(oldUrl);
+	activeBlobUrls = {};
+	thumbnails.set({});
+}
 
 /** How many thumbnails generate concurrently. */
 const GENERATION_CONCURRENCY = 4;
@@ -89,7 +97,7 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 		}
 
 		isProcessing = true;
-		pendingPromise = (async () => {
+		pendingPromise = withThumbnailOperation(async () => {
 			try {
 				let thumbnailsHashMap = await readThumbnailMap();
 
@@ -107,7 +115,6 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 					try {
 						const recovered = await invoke<ThumbnailRecord>("recover_thumbnails", {
 							directory: wallpapersPath,
-							thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
 						});
 						if (Object.keys(recovered).length > 0) {
 							thumbnailsHashMap = sortJsonByKey(recovered);
@@ -126,7 +133,17 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 					thumbnailsHashMap = await publishThumbnails(thumbnailsHashMap);
 				}
 
-				if (regenerate) {
+				if (regenerate && !wallpapersPath) {
+					totalVideos.set(0);
+					await log({
+						level: "warn",
+						callStack: new Error(),
+						message: {
+							context:
+								"Skipping thumbnail scan because no wallpapers path is configured",
+						},
+					});
+				} else if (regenerate) {
 					try {
 						thumbnailsGenerated.set(0);
 						const videosList = await fetchVideos();
@@ -135,8 +152,10 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 						const missingVideos = videosList.filter((path) => !cachedPaths.has(path));
 						totalVideos.set(missingVideos.length);
 
-						const { map: newThumbnailsHashMap, failures } =
-							await processVideoPaths(missingVideos);
+						const { map: newThumbnailsHashMap, failures } = await processVideoPaths(
+							missingVideos,
+							forceRegenerate || needsMigration,
+						);
 
 						totalVideos.set(0);
 
@@ -156,7 +175,12 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 							...newThumbnailsHashMap,
 						});
 						await writeThumbnailMap(sorted);
-						await updateConfig({ thumbnailVersion: CURRENT_THUMBNAIL_VERSION });
+						const configPersisted = await updateConfig({
+							thumbnailVersion: CURRENT_THUMBNAIL_VERSION,
+						});
+						if (!configPersisted) {
+							throw new Error("Failed to persist thumbnail version in configuration");
+						}
 						thumbnailsHashMap = sorted;
 						scannedAndPersisted = true;
 					} catch (error) {
@@ -173,10 +197,9 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 
 				// Only a successful scan can determine which cached files are orphaned.
 				// Cache-only visits must not delete unindexed previews needed for recovery.
-				if (scannedAndPersisted && Object.keys(thumbnailsHashMap).length > 0) {
+				if (scannedAndPersisted) {
 					try {
 						await invoke("cleanup_thumbnails", {
-							thumbPath: `${await appDataDir()}/${THUMBNAILS_DIR}`,
 							keepFiles: ["map.json", ...Object.keys(thumbnailsHashMap)],
 						});
 					} catch (error) {
@@ -192,7 +215,23 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 				}
 
 				try {
-					await publishThumbnails(thumbnailsHashMap);
+					const publishedThumbnails = await publishThumbnails(thumbnailsHashMap);
+					if (JSON.stringify(publishedThumbnails) !== JSON.stringify(thumbnailsHashMap)) {
+						thumbnailsHashMap = publishedThumbnails;
+						try {
+							await writeThumbnailMap(publishedThumbnails);
+						} catch (error) {
+							await log({
+								level: "warn",
+								callStack: new Error(),
+								message: {
+									context:
+										"Failed to persist thumbnail map after removing unreadable previews",
+									error,
+								},
+							});
+						}
+					}
 				} catch (error) {
 					await log({
 						level: "error",
@@ -207,7 +246,7 @@ export async function handleThumbnails(forceRegenerate = false, scanForNew = fal
 				isProcessing = false;
 				pendingPromise = null;
 			}
-		})();
+		});
 
 		await pendingPromise;
 	} finally {
@@ -289,6 +328,7 @@ async function fileToBlobUrl(
  */
 async function processVideoPaths(
 	videosList: string[],
+	forceRegenerate = false,
 ): Promise<{ map: ThumbnailRecord; failures: number }> {
 	const newThumbnailsHashMap: ThumbnailRecord = {};
 	let failures = 0;
@@ -298,7 +338,7 @@ async function processVideoPaths(
 		while (index < videosList.length) {
 			const videoPath = videosList[index++];
 			try {
-				const result = await generateThumb(videoPath);
+				const result = await generateThumb(videoPath, forceRegenerate);
 				const fileName = result.ok ? await basename(result.value) : "";
 				if (fileName) {
 					newThumbnailsHashMap[fileName] = videoPath;

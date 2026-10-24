@@ -10,12 +10,11 @@
 		"core:window:allow-close",
 		"core:window:allow-is-maximized",
 		"core:window:allow-start-dragging",
-		"opener:default",
-		"updater:default",
-		"dialog:default",
+		"updater:allow-check",
+		"updater:allow-download",
+		"updater:allow-install",
+		"dialog:allow-open",
 		"process:allow-restart",
-		"fs:allow-exists",
-		"fs:allow-mkdir",
 		{
 			"identifier": "fs:allow-config-write",
 			"allow": [
@@ -36,6 +35,9 @@
 			"identifier": "fs:allow-mkdir",
 			"allow": [
 				{
+					"path": "$CONFIG/WallpaperPickerUI"
+				},
+				{
 					"path": "$APPDATA/thumbnails"
 				}
 			]
@@ -43,6 +45,12 @@
 		{
 			"identifier": "fs:allow-exists",
 			"allow": [
+				{
+					"path": "$CONFIG/WallpaperPickerUI"
+				},
+				{
+					"path": "$CONFIG/WallpaperPickerUI/config.json"
+				},
 				{
 					"path": "$APPDATA/thumbnails"
 				},
@@ -75,9 +83,30 @@
 			"allow": [
 				{
 					"path": "$APPDATA/thumbnails/map.json"
+				},
+				{
+					"path": "$APPDATA/thumbnails/map.json.tmp"
 				}
 			]
 		},
-		"process:default"
+		{
+			"identifier": "fs:allow-rename",
+			"allow": [
+				{
+					"path": "$APPDATA/thumbnails/map.json"
+				},
+				{
+					"path": "$APPDATA/thumbnails/map.json.tmp"
+				}
+			]
+		},
+		{
+			"identifier": "fs:allow-remove",
+			"allow": [
+				{
+					"path": "$APPDATA/thumbnails"
+				}
+			]
+		}
 	]
 }

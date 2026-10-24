@@ -5,14 +5,23 @@ const ensureDir = mock(async () => {});
 const exists = mock(async () => false);
 const readTextFile = mock(async () => "{}");
 const writeFile = mock(async (_path: string, _data: Uint8Array, _options: object) => {});
+const rename = mock(async (_oldPath: string, _newPath: string, _options: object) => {});
+const remove = mock(async (_path: string, _options: object) => {});
 const fetchConfig = mock(async () => ({ thumbnailsHashMap: {} as Record<string, string> }));
-const updateConfig = mock(async (_config: object) => {});
+const updateConfig = mock(async (_config: object) => true);
 const log = mock(async () => {});
 mock.module("$utils/ensureDirs", () => ({ ensureDir }));
 mock.module("$api/config/read/read", () => ({ fetchConfig }));
 mock.module("$api/config/update/update", () => ({ updateConfig }));
 mock.module("$utils/logger/logger", () => ({ log }));
-mock.module("@tauri-apps/plugin-fs", () => ({ BaseDirectory, exists, readTextFile, writeFile }));
+mock.module("@tauri-apps/plugin-fs", () => ({
+	BaseDirectory,
+	exists,
+	readTextFile,
+	remove,
+	rename,
+	writeFile,
+}));
 const { readThumbnailMap, writeThumbnailMap, migrateThumbnailMapFromConfig } = await import(
 	"./map"
 );
@@ -22,10 +31,20 @@ beforeEach(() => {
 	readTextFile.mockResolvedValue("{}");
 	writeFile.mockImplementation(async () => {});
 	fetchConfig.mockResolvedValue({ thumbnailsHashMap: {} });
-	updateConfig.mockImplementation(async () => {});
+	updateConfig.mockImplementation(async () => true);
 });
 afterEach(() => {
-	for (const fn of [ensureDir, exists, readTextFile, writeFile, fetchConfig, updateConfig, log]) {
+	for (const fn of [
+		ensureDir,
+		exists,
+		readTextFile,
+		writeFile,
+		rename,
+		remove,
+		fetchConfig,
+		updateConfig,
+		log,
+	]) {
 		fn.mockClear();
 	}
 });
@@ -87,14 +106,41 @@ describe("thumbnail map persistence", () => {
 			}),
 		);
 	});
+	test("invalid map shapes return empty and log error", async () => {
+		exists.mockResolvedValue(true);
+		for (const invalid of ["[]", '{"../outside.png":"/videos/a.mp4"}', '{"a.png":42}']) {
+			readTextFile.mockResolvedValueOnce(invalid);
+			expect(await readThumbnailMap()).toEqual({});
+		}
+		expect(log).toHaveBeenCalledTimes(3);
+	});
 	test("writes pretty-printed UTF-8 map in app data", async () => {
 		await writeThumbnailMap({ "é.png": "/café.mp4" });
 		const [path, bytes, options] = writeFile.mock.calls[0];
-		expect(path).toBe("thumbnails/map.json");
+		expect(path).toBe("thumbnails/map.json.tmp");
 		expect(new TextDecoder().decode(bytes)).toBe(
 			JSON.stringify({ "é.png": "/café.mp4" }, null, 4),
 		);
 		expect(options).toEqual({ baseDir: BaseDirectory.AppData });
+		expect(rename).toHaveBeenCalledWith("thumbnails/map.json.tmp", "thumbnails/map.json", {
+			oldPathBaseDir: BaseDirectory.AppData,
+			newPathBaseDir: BaseDirectory.AppData,
+		});
+	});
+	test("invalid maps are rejected before persistence", async () => {
+		await expect(
+			writeThumbnailMap({ "../outside.png": "/videos/a.mp4" } as Record<string, string>),
+		).rejects.toThrow("invalid shape");
+		expect(writeFile).not.toHaveBeenCalled();
+		expect(rename).not.toHaveBeenCalled();
+	});
+	test("rename failure cleans the temporary map and is rethrown", async () => {
+		const failure = new Error("rename denied");
+		rename.mockRejectedValueOnce(failure);
+		await expect(writeThumbnailMap({})).rejects.toBe(failure);
+		expect(remove).toHaveBeenCalledWith("thumbnails/map.json.tmp", {
+			baseDir: BaseDirectory.AppData,
+		});
 	});
 	test("write failure is logged and rethrown", async () => {
 		const failure = new Error("disk full");
@@ -121,6 +167,38 @@ describe("legacy thumbnail migration", () => {
 		await expect(migrateThumbnailMapFromConfig()).resolves.toEqual(legacy);
 		expect(JSON.parse(new TextDecoder().decode(writeFile.mock.calls[0][1]))).toEqual(legacy);
 		expect(updateConfig).toHaveBeenCalledWith({ thumbnailsHashMap: {} });
+	});
+	test("failed config clear removes migrated map so migration can retry", async () => {
+		const legacy = { "old.png": "/old.mp4" };
+		fetchConfig.mockResolvedValue({ thumbnailsHashMap: legacy });
+		updateConfig.mockResolvedValueOnce(false);
+		expect(await migrateThumbnailMapFromConfig()).toEqual({});
+		expect(remove).toHaveBeenCalledWith("thumbnails/map.json", {
+			baseDir: BaseDirectory.AppData,
+		});
+	});
+	test("rollback failure is logged when config clear fails", async () => {
+		const legacy = { "old.png": "/old.mp4" };
+		fetchConfig.mockResolvedValue({ thumbnailsHashMap: legacy });
+		updateConfig.mockResolvedValueOnce(false);
+		remove.mockRejectedValueOnce(new Error("rollback denied"));
+		expect(await migrateThumbnailMapFromConfig()).toEqual({});
+		expect(log).toHaveBeenCalledWith(
+			expect.objectContaining({
+				message: expect.objectContaining({
+					context: "Failed to roll back migrated thumbnail map",
+				}),
+			}),
+		);
+	});
+	test("thrown config clear removes migrated map so migration can retry", async () => {
+		const legacy = { "old.png": "/old.mp4" };
+		fetchConfig.mockResolvedValue({ thumbnailsHashMap: legacy });
+		updateConfig.mockRejectedValueOnce(new Error("config unavailable"));
+		expect(await migrateThumbnailMapFromConfig()).toEqual({});
+		expect(remove).toHaveBeenCalledWith("thumbnails/map.json", {
+			baseDir: BaseDirectory.AppData,
+		});
 	});
 	test("failed map write retains legacy config", async () => {
 		fetchConfig.mockResolvedValue({ thumbnailsHashMap: { "old.png": "/old.mp4" } });

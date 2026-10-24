@@ -69,17 +69,21 @@ module imports to install it per user and declare the preferences:
 { config, pkgs, ... }: {
   programs.wallpaper-picker-ui = {
     enable = true;
-    command = "${pkgs.mpvpaper}/bin/mpvpaper -o \"loop no-audio\" \"*\" \"$VP\"";
+    command = "${pkgs.mpvpaper}/bin/mpvpaper -o \"loop no-audio\" \"*\" $VP";
     wallpapersPath = "${config.home.homeDirectory}/Wallpapers";
     debugMode = false;
     newWallpapers = true;
     darkMode = true;
+    themeRoundness = "sharp"; # sharp, soft, rounded, pill
+    themeShadowStrength = "subtle"; # none, subtle, strong
+    themeSpacing = "comfortable"; # compact, comfortable, spacious
     language = "eng"; # eng, pt-br, de, fr, es
   };
 }
 ```
 
-Home Manager uses these values **only to initialize**
+Home Manager uses these values **only to initialize**, including the independent
+theme appearance settings,
 `~/.config/WallpaperPickerUI/config.json`. It creates a regular, user-writable
 file if one is missing; subsequent rebuilds leave it alone, so settings changed
 in the app persist. When upgrading from the old Home Manager module, activation
@@ -168,10 +172,10 @@ Wallpaper Picker UI lets you define the command used to apply a selected wallpap
 The suggested default is designed for Linux with `mpvpaper`:
 
 ```bash
-killall mpvpaper ; mpvpaper -o "loop no-audio" "*" "$VP"
+killall mpvpaper ; mpvpaper -o "loop no-audio" "*" $VP
 ```
 
-`$VP` is replaced with the selected wallpaper path.
+`$VP` is replaced with the selected wallpaper path. On Linux and Windows, the path value is passed through a private process environment variable and referenced as shell data; the selected path is never inserted into the command text. A bare `$VP` receives its own quoting, while `$VP` inside double quotes reuses that quote boundary. On Linux, `$VP` inside single quotes is rejected because single-quoted shell text cannot safely carry external data.
 
 On Windows, animated wallpaper clicks use the native mpv backend when mpv is available. The configured command remains the fallback path and can be used for custom Windows wallpaper tools.
 
@@ -198,7 +202,7 @@ More script examples and advanced setups are available in the [wiki](https://git
 
 ## Security & Permissions
 
-Wallpaper Picker UI uses **Tauri 2's capability-based permission model** and requests only the privileges required by the application.
+Wallpaper Picker UI uses **Tauri 2's capability-based permission model**. Filesystem paths and the updater/dialog operations used by the application are explicitly scoped in the capability file; native Rust operations and configured commands remain separate trust boundaries.
 
 Permissions are explicitly scoped and can be inspected in:
 
@@ -210,50 +214,25 @@ src-tauri/capabilities/permissions.json
 
 > ⚠️ **Custom script warning**
 >
-> If you configure a custom wallpaper script, the application executes **exactly the command you define** and passes the selected wallpaper path as its **first argument** (`$VP`).
+> If you configure a custom wallpaper command, the application runs the command you define with your user account. `$VP` is replaced with the selected wallpaper path through a private environment variable and shell-safe quoting; the path is never inserted into command syntax or treated as a second command. The command syntax itself remains entirely user-authored. On Linux, `$VP` inside single quotes is rejected; use a bare placeholder or double quotes instead.
 >
-> The script runs with **your user permissions** and is not sandboxed by the application.
+> On Linux the fallback command runs through `sh`; on Windows it runs through `cmd.exe`. The selected wallpaper path may be outside the application's data directory. Custom commands are **not sandboxed** and can read, write, or execute anything your user account can access.
 >
-> Only use scripts you trust and understand. You are responsible for what your configured script does.
+> Only use commands and scripts you trust. The capability-scoped Tauri filesystem permissions do not restrict the command you configure or the native wallpaper/thumbnail backend.
 
 <details>
 <summary>View detailed permissions</summary>
 
-### What the app can access
+### Access boundary
 
-* **Its own configuration file**
+The scoped permissions above describe the **frontend Tauri filesystem plugin**, not a sandbox for the entire application:
 
-  * Linux: `~/.config/WallpaperPickerUI/config.json`
-* **Its thumbnail cache**
+* **Frontend plugin access** is limited to the configuration file and app-owned thumbnail cache.
+* **Native backend access** includes scanning the user-selected wallpaper directory, reading selected media for thumbnails, and managing generated files inside the app-owned thumbnail directory.
+* **Custom commands** run with the current user's operating-system permissions and are outside the frontend capability boundary.
+* **Windows native playback** launches mpv with the selected media path when that backend is available.
 
-  * Create/check the thumbnails directory, read/write `thumbnails/map.json`,
-    and read generated thumbnail images via the Tauri filesystem plugin
-  * Linux: `~/.local/share/dev.matuz.wallpaper-picker-ui/thumbnails`
-  * The Rust backend generates and removes thumbnail images in that directory
-* Tauri built-in functionality:
-
-  * Open external links (`opener`)
-  * Check for application updates (`updater`)
-  * Restart itself during updates
-  * Core window management and event handling
-
-### What the app cannot access
-
-* Files outside its own configuration and data directories
-* Home folders such as Documents, Pictures, Downloads, or Desktop
-* Mounted drives
-* USB devices
-* Network shares
-* System-wide files
-* Clipboard
-* Camera
-* Microphone
-* Location
-* Sensors
-* Arbitrary system commands
-* Data from other applications
-
-In short, the application is limited to its own configuration and thumbnail cache.
+The application does not request frontend permissions for arbitrary Documents, Pictures, Downloads, Desktop, clipboard, camera, microphone, location, sensors, or other application data. That does not prevent a trusted native backend or user-authored command from accessing resources already available to the current user.
 
 </details>
 

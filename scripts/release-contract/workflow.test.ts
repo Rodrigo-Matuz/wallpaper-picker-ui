@@ -23,14 +23,18 @@ test("grants draft visibility after the full matrix without persisting write cre
 		{ os: "ubuntu-22.04", bundles: "deb,rpm,appimage" },
 		{ os: "windows-latest", bundles: "nsis" },
 	]);
-	const bundler = build.steps.find((step) => step.uses === "tauri-apps/tauri-action@v0");
+	expect(build.strategy?.["max-parallel"]).toBe(1);
+	const bundler = build.steps.find((step) => step.uses === "tauri-apps/tauri-action@v1");
 	// biome-ignore lint/suspicious/noTemplateCurlyInString: literal GitHub Actions expression
 	expect(bundler?.with?.args).toBe("--bundles ${{ matrix.bundles }}");
-	const action = build.steps.find((step) => step.uses === "tauri-apps/tauri-action@v0");
+	const action = build.steps.find((step) => step.uses === "tauri-apps/tauri-action@v1");
 	expect(action?.with?.releaseDraft).toBe(true);
 	expect(action?.with?.prerelease).toBe(false);
 	expect(action?.with?.releaseBody).toContain("Added selectable theme families");
+	expect(action?.with?.releaseBody).toContain("independent global controls");
+	expect(action?.with?.releaseBody).toContain("Home Manager options");
 	expect(action?.with?.releaseBody).toContain("DeepOcean preview icons now remain blue");
+	expect(action?.with?.releaseBody).toContain("Custom `$VP` paths");
 	expect(action?.with?.releaseBody).not.toContain("installation");
 	expect(action?.with?.releaseBody).not.toContain("Update");
 });
@@ -47,7 +51,10 @@ const workflow = () =>
 				permissions: Record<string, string>;
 				"runs-on": string;
 				"timeout-minutes"?: number;
-				strategy?: { matrix: { include: { os: string; bundles: string }[] } };
+				strategy?: {
+					"max-parallel"?: number;
+					matrix: { include: { os: string; bundles: string }[] };
+				};
 				steps: {
 					uses?: string;
 					run?: string;
@@ -58,11 +65,17 @@ const workflow = () =>
 		>;
 	};
 
+const releaseNotes = () =>
+	readFileSync(new URL("../../RELEASE.md", import.meta.url), "utf8").replace(
+		/^# Release notes\s*\r?\n/,
+		"",
+	);
+
 test("makes updater JSON, NSIS alias preference and generated release notes explicit", () => {
 	const action = workflow().jobs.build.steps.find(
-		(step) => step.uses === "tauri-apps/tauri-action@v0",
+		(step) => step.uses === "tauri-apps/tauri-action@v1",
 	);
-	expect(action?.with?.includeUpdaterJson).toBe(true);
+	expect(action?.with?.uploadUpdaterJson).toBe(true);
 	expect(action?.with?.updaterJsonPreferNsis).toBe(true);
 	expect(action?.with?.generateReleaseNotes).toBe(true);
 	expect(action?.with?.releaseBody).not.toBe(
@@ -72,13 +85,16 @@ test("makes updater JSON, NSIS alias preference and generated release notes expl
 
 test("keeps release notes concise and limited to features and fixes", () => {
 	const action = workflow().jobs.build.steps.find(
-		(step) => step.uses === "tauri-apps/tauri-action@v0",
+		(step) => step.uses === "tauri-apps/tauri-action@v1",
 	);
 	const body = String(action?.with?.releaseBody);
 	expect(body).toContain("## New");
 	expect(body).toContain("## Fixed");
 	expect(body).toContain("Arctic and Orchid");
+	expect(body).toContain("Home Manager options");
+	expect(body).toContain("Custom `$VP` paths");
 	expect(body).toContain("WebKitGTK layout metrics");
+	expect(body.trim()).toBe(releaseNotes().trim());
 	expect(body).not.toContain("installation");
 	expect(body).not.toContain("installer");
 	expect(body).not.toContain("Update");

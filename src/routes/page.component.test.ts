@@ -35,6 +35,13 @@ describe("Home footer", () => {
 		await screen.findByPlaceholderText("Search Wallpapers...");
 		expect(updateConfig).not.toHaveBeenCalled();
 	});
+	it("does not render the Windows playback notice on Home", async () => {
+		render(HomePage);
+		await screen.findByPlaceholderText("Search Wallpapers...");
+		expect(
+			screen.queryByRole("complementary", { name: "Windows playback requires mpv" }),
+		).toBeNull();
+	});
 	it("appears only when the filtered wallpaper grid has no items", async () => {
 		thumbnails.set({ "data:image/png;base64,": "/wallpapers/forest.mp4" });
 		render(HomePage);

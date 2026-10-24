@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { appDataDir } from "@tauri-apps/api/path";
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
 import type { ApiResult } from "$types/resultTypes";
 import { applicationWork } from "$utils/applicationWork/applicationWork";
@@ -14,6 +13,7 @@ import { THUMBNAILS_DIR } from "$utils/paths";
  * command responsible for thumbnail generation.
  *
  * @param videoPath - The absolute path to the video file for which the thumbnail is to be generated.
+ * @param forceRegenerate - Rebuild an existing thumbnail instead of reusing it.
  *
  * @returns Resolves with an {@link ApiResult}: the thumbnail path on success,
  *          or a descriptive error string on failure.
@@ -27,16 +27,18 @@ import { THUMBNAILS_DIR } from "$utils/paths";
  * if (result.ok) console.log("Thumbnail saved at:", result.value);
  * ```
  */
-export async function generateThumb(videoPath: string): Promise<ApiResult<string>> {
+export async function generateThumb(
+	videoPath: string,
+	forceRegenerate = false,
+): Promise<ApiResult<string>> {
 	const release = applicationWork.beginWork();
 	try {
 		await ensureDir(THUMBNAILS_DIR, BaseDirectory.AppData);
 
 		try {
-			const thumbPath = `${await appDataDir()}/${THUMBNAILS_DIR}`;
 			const value = await invoke<string>("generate_thumb", {
+				forceRegenerate,
 				videoPath,
-				thumbPath,
 			});
 			return { ok: true, value };
 		} catch (error) {
